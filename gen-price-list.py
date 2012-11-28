@@ -50,7 +50,7 @@ def create_col_frames(doc, ncols):
     page_width = doc.pagesize[0]
     page_height = doc.pagesize[1]
     lr_margin = 0.5 * INCH
-    col_spacing = 0.2 * INCH
+    col_spacing = 0.5 * INCH
     tb_margin = 0.7 * INCH
     frame_width = (
         page_width - lr_margin * 2 - col_spacing * (ncols - 1)
