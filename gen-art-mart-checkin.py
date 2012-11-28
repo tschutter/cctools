@@ -119,7 +119,7 @@ def on_page(canvas, doc):
 
 
 def generate_pdf(products, quantities, pdf_filename):
-    """Generate a PDF given a list of products by category."""
+    """Generate the PDF file."""
     # Construct a document.
     doc = reportlab.platypus.BaseDocTemplate(
         pdf_filename,
@@ -219,7 +219,7 @@ def generate_pdf(products, quantities, pdf_filename):
         reportlab.platypus.Paragraph("Total<br/>Qty", col_header_style)
     )
     table_data = [header_row]
-    for sku, price, description, _ in products:
+    for sku, price, description in products:
         if sku in quantities:
             quantity = quantities[sku]
             table_data.append(
@@ -236,12 +236,6 @@ def generate_pdf(products, quantities, pdf_filename):
     doc.build(story, canvasmaker=NumberedCanvas)
 
 
-def clean_text(text):
-    """Cleanup HTML in text."""
-    text = text.replace("&", "&amp;")
-    return text
-
-
 def load_products(csv_filename):
     """Load product data."""
 
@@ -254,18 +248,16 @@ def load_products(csv_filename):
             price_field = fields.index("Price")
             name_field = fields.index("Product Name")
             teaser_field = fields.index("Teaser")
-            category_field = fields.index("Category")
             discontinued_field = fields.index("Discontinued Item")
             is_header = False
         elif fields[discontinued_field] == "N":
             sku = fields[sku_field]
             price = "$%.2f" % float(fields[price_field])
             description = "%s: %s" % (
-                clean_text(fields[name_field]),
-                clean_text(fields[teaser_field])
+                fields[name_field],
+                fields[teaser_field]
             )
-            category = clean_text(fields[category_field])
-            products.append((sku, price, description, category))
+            products.append((sku, price, description))
 
     # Sort by SKU.
     products = sorted(products, key=lambda x: x[0])
@@ -292,35 +284,13 @@ def load_quantities(quant_filename):
     return quantities
 
 
-CATEGORIES = [
-    "Necklaces",
-    "Bracelets",
-    "Bags &amp; Purses",
-    "Baskets, Trivets &amp; Bowls",
-    "Miscellaneous"
-]
-
-def sort_key(tupl):
-    """Return a sort key of a (sku, price, description, category) tuple."""
-    category = tupl[3]
-    description = tupl[2]
-    if category in CATEGORIES:
-        key = CATEGORIES.index(category)
-    else:
-        key = len(CATEGORIES)
-    return ("%02i" % key) + description
-
-
 def write_quantities(quant_filename, products):
     """Write empty quantities file."""
 
-    # Sort by category then name.
-    products = sorted(products, key=sort_key)
-
     with open(quant_filename, "w") as quant_file:
-        quant_file.write("SKU,Quantity,Description(ignored)\n")
-        for sku, _, description, _ in products:
-            quant_file.write(",".join([sku, "0", '"%s"' % description]) + "\n")
+        quant_file.write("Quantity,SKU,Description(ignored)\n")
+        for sku, _, description in products:
+            quant_file.write(",".join(["0", sku, '"%s"' % description]) + "\n")
 
 
 def main():
@@ -342,7 +312,7 @@ def main():
         action="store",
         dest="quant_filename",
         metavar="CSV_FILE",
-        default="quantities.csv",
+        default="ArtMartQuantities.csv",
         help="input product quantities filename (default=%default)"
     )
     option_parser.add_option(
