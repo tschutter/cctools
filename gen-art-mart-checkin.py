@@ -107,14 +107,6 @@ def on_page(canvas, doc):
         "Artist or Representative"
     )
 
-    # Footer.
-    canvas.setFont('Helvetica', 9)
-    canvas.drawString(
-        0.25 * INCH,
-        0.50 * INCH,
-        "Revised: %s" % today_str
-    )
-
     canvas.restoreState()
 
 
