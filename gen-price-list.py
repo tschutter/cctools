@@ -113,7 +113,7 @@ def generate_pdf(products_by_category, ncols, greybar_interval, pdf_filename):
     col_widths = [table_width - price_width, price_width]
     story = []
     for category in products_by_category:
-        category_name, products = category
+        category_sort_id, products = category
         # TableStyle cell formatting commands.
         styles = [
             ('FONTSIZE', (0, 0), (-1, -1), 12),
@@ -136,7 +136,7 @@ def generate_pdf(products_by_category, ncols, greybar_interval, pdf_filename):
         )
         story.append(
             reportlab.platypus.KeepTogether([
-                reportlab.platypus.Paragraph(category_name, category_style),
+                reportlab.platypus.Paragraph(product[0], category_style),
                 reportlab.platypus.Indenter(left=table_indent),
                 table,
                 reportlab.platypus.Indenter(left=-table_indent)
@@ -156,6 +156,24 @@ def calc_price_inc_tax(price, tax_fraction):
     price_inc_tax = float(price) * (1.0 + tax_fraction)
     whole_price_inc_tax = max(1.0, math.floor(price_inc_tax + 0.5))
     return "$%.0f" % whole_price_inc_tax
+
+
+CATEGORIES = [
+    "Necklaces",
+    "Bracelets",
+    "Bags &amp; Purses",
+    "Baskets, Trivets &amp; Bowls",
+    "Miscellaneous"
+]
+
+def category_sort_key(tupl):
+    """Return a sort key of a (category, name, price, ...) tuple."""
+    category = tupl[0]
+    if category in CATEGORIES:
+        key = CATEGORIES.index(category)
+    else:
+        key = len(CATEGORIES)
+    return key
 
 
 def load_products_by_category(csv_filename, tax_fraction):
@@ -181,11 +199,11 @@ def load_products_by_category(csv_filename, tax_fraction):
             )
 
     # Sort by category.
-    data = sorted(data, key=lambda x: x[0])
+    data = sorted(data, key=category_sort_key)
 
     # Group by category.
     products_by_category = list()
-    for key, group in itertools.groupby(data, lambda x: x[0]):
+    for key, group in itertools.groupby(data, category_sort_key):
         category = (key, list(group))
         products_by_category.append(category)
 
