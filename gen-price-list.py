@@ -12,7 +12,6 @@ sudo apt-get install python-reportlab
 Best reportlab reference is the ReportLab User's Guide.
 
 TODO
-fix dollar sign printing
 fetch csv
 page orientation
 """
@@ -120,10 +119,11 @@ def generate_pdf(products_by_category, ncols, greybar_interval, pdf_filename):
             ('FONTSIZE', (0, 0), (-1, -1), 12),
             ('ALIGN', (0, 0), (0, -1), 'LEFT'),
             ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('FONT', (1, 0), (1, -1), 'Courier-Bold'),
             ('LEFTPADDING', (0, 0), (-1, -1), 3),
-            ('RIGHTPADDING', (1, 0), (-1, -1), 3),
-            ('TOPPADDING', (0, 0), (-1, -1), 1),
-            ('BOTTOMPADDING', (1, 0), (-1, -1), 1),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
             #('GRID', (0, 0), (-1, -1), 1.0, reportlab.lib.colors.black)
         ]
         if greybar_interval > 1:
@@ -220,7 +220,7 @@ def main():
         type="int",
         dest="ncols",
         metavar="N",
-        default=3,
+        default=2,
         help="number of report columns (default=%default)"
     )
     option_parser.add_option(
