@@ -3,10 +3,12 @@ cctools
 
 CoreCommerce tools
 
-gen-price-list:
-
+gen-price-list.py
     Generates a price list from CoreCommerce data in PDF form.  Prices
     are adjusted to include sales tax and are rounded to even dollar
     amounts.  The intent is to use the price list at fairs and shows
     to avoid the handling of change.  It also makes accounting easier
     because you can deal with round numbers.
+
+gen-art-mart-checkin.py
+    Generates an Art Mart Inventory Sheet.
