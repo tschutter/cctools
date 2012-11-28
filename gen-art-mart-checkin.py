@@ -219,7 +219,7 @@ def generate_pdf(products, quantities, pdf_filename):
         reportlab.platypus.Paragraph("Total<br/>Qty", col_header_style)
     )
     table_data = [header_row]
-    for sku, price, description in products:
+    for sku, price, description, _ in products:
         if sku in quantities:
             quantity = quantities[sku]
             table_data.append(
@@ -254,6 +254,7 @@ def load_products(csv_filename):
             price_field = fields.index("Price")
             name_field = fields.index("Product Name")
             teaser_field = fields.index("Teaser")
+            category_field = fields.index("Category")
             discontinued_field = fields.index("Discontinued Item")
             is_header = False
         elif fields[discontinued_field] == "N":
@@ -263,7 +264,8 @@ def load_products(csv_filename):
                 clean_text(fields[name_field]),
                 clean_text(fields[teaser_field])
             )
-            products.append((sku, price, description))
+            category = clean_text(fields[category_field])
+            products.append((sku, price, description, category))
 
     # Sort by SKU.
     products = sorted(products, key=lambda x: x[0])
@@ -283,9 +285,42 @@ def load_quantities(quant_filename):
             quantity_field = fields.index("Quantity")
             is_header = False
         else:
-            quantities[fields[sku_field]] = fields[quantity_field]
+            quantity = int(fields[quantity_field])
+            if quantity != 0:
+                quantities[fields[sku_field]] = str(quantity)
 
     return quantities
+
+
+CATEGORIES = [
+    "Necklaces",
+    "Bracelets",
+    "Bags &amp; Purses",
+    "Baskets, Trivets &amp; Bowls",
+    "Miscellaneous"
+]
+
+def sort_key(tupl):
+    """Return a sort key of a (sku, price, description, category) tuple."""
+    category = tupl[3]
+    description = tupl[2]
+    if category in CATEGORIES:
+        key = CATEGORIES.index(category)
+    else:
+        key = len(CATEGORIES)
+    return ("%02i" % key) + description
+
+
+def write_quantities(quant_filename, products):
+    """Write empty quantities file."""
+
+    # Sort by category then name.
+    products = sorted(products, key=sort_key)
+
+    with open(quant_filename, "w") as quant_file:
+        quant_file.write("SKU,Quantity,Description(ignored)\n")
+        for sku, _, description, _ in products:
+            quant_file.write(",".join([sku, "0", '"%s"' % description]) + "\n")
 
 
 def main():
@@ -318,6 +353,13 @@ def main():
         default="ArtMartCheckInOut.pdf",
         help="output PDF filename (default=%default)"
     )
+    option_parser.add_option(
+        "--write-quant",
+        action="store_true",
+        dest="write_quant",
+        default=False,
+        help="write template quantity file instead of PDF"
+    )
 
     (options, args) = option_parser.parse_args()
     if len(args) != 0:
@@ -325,10 +367,15 @@ def main():
 
     products = load_products(options.csv_filename)
 
+    if options.write_quant:
+        write_quantities(options.quant_filename, products)
+        return 0
+
     quantities = load_quantities(options.quant_filename)
 
     generate_pdf(products, quantities, options.pdf_filename)
 
+    return 0
 
 if __name__ == "__main__":
     main()
