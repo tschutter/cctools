@@ -10,6 +10,7 @@ Best reportlab reference is the ReportLab User's Guide.
 
 import csv
 import datetime
+import math
 import optparse
 import reportlab.lib
 import reportlab.platypus
@@ -214,6 +215,7 @@ def generate_pdf(products, quantities, pdf_filename):
     for sku, price, description in products:
         if sku in quantities:
             quantity = quantities[sku]
+            price = "$%.0f" % math.trunc(float(price) + 0.5)
             table_data.append(
                 ("_____", sku, quantity, price, description, "_____")
             )
@@ -244,7 +246,7 @@ def load_products(csv_filename):
             is_header = False
         elif fields[discontinued_field] == "N":
             sku = fields[sku_field]
-            price = "$%.2f" % float(fields[price_field])
+            price = fields[price_field]
             description = "%s: %s" % (
                 fields[name_field],
                 fields[teaser_field]
