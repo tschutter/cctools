@@ -5,8 +5,7 @@ Generates a Purchase Order / Commercial Invoice.
 """
 
 # TODO:
-#  categories
-#  commit
+#  fetch htsus
 #  instructions sheet
 #   PO -> Commercial Invoice
 #   Adjust quantities
@@ -15,6 +14,7 @@ Generates a Purchase Order / Commercial Invoice.
 
 import ConfigParser
 import csv
+import itertools
 import optparse
 import random
 import sys
@@ -204,7 +204,7 @@ def add_header(worksheet, config, row):
     return row
 
 
-def add_products(worksheet, row, products):
+def add_products(worksheet, row, products_by_category):
     """Add row for each product."""
     col_line_no = 0
     col_sku = 1
@@ -275,24 +275,30 @@ def add_products(worksheet, row, products):
 
     # Add product rows.
     first_product_row = row
-    for lineno, (sku, cost, description, htsus_no) in enumerate(products):
-        set_cell(worksheet, row, col_line_no, lineno)
-        set_cell(worksheet, row, col_sku, sku)
-        set_cell(worksheet, row, col_description, description)
-        style = set_cell(worksheet, row, col_price, cost).style
-        style.number_format.format_code = "0.00"
-        if random.randint(1, 10) < 3:
-            set_cell(worksheet, row, col_qty, random.randint(2, 8) * 10)
-        total_formula = "=%s%i * %s%i" % (
-            col_letter(col_price),
-            row + 1,
-            col_letter(col_qty),
-            row + 1
-        )
-        style = set_cell(worksheet, row, col_total, total_formula).style
-        style.number_format.format_code = "#,###.00"
-        set_cell(worksheet, row, col_htsus_no, htsus_no)
+    lineno = 1
+    for category_group in products_by_category:
+        (category_sort_id, category), products = category_group
+        set_cell(worksheet, row, col_description, category, bold=True)
         row += 1
+        for category, sku, cost, description, htsus_no in products:
+            set_cell(worksheet, row, col_line_no, lineno)
+            set_cell(worksheet, row, col_sku, sku)
+            set_cell(worksheet, row, col_description, description)
+            style = set_cell(worksheet, row, col_price, cost).style
+            style.number_format.format_code = "0.00"
+            if random.randint(1, 10) < 3:
+                set_cell(worksheet, row, col_qty, random.randint(2, 8) * 10)
+            total_formula = "=%s%i * %s%i" % (
+                col_letter(col_price),
+                row + 1,
+                col_letter(col_qty),
+                row + 1
+            )
+            style = set_cell(worksheet, row, col_total, total_formula).style
+            style.number_format.format_code = "#,###.00"
+            set_cell(worksheet, row, col_htsus_no, htsus_no)
+            row += 1
+            lineno += 1
     last_product_row = row - 1
 
     # Set column widths.
@@ -395,7 +401,7 @@ def add_special_instructions(worksheet, row):
     )
 
 
-def generate_xlsx(config, products, xlsx_filename):
+def generate_xlsx(config, products_by_category, xlsx_filename):
     """Generate the XLS file."""
 
     # Construct a document.
@@ -419,7 +425,7 @@ def generate_xlsx(config, products, xlsx_filename):
     row, col_total, first_product_row, last_product_row = add_products(
         worksheet,
         row,
-        products
+        products_by_category
     )
 
     # Blank row.
@@ -442,14 +448,33 @@ def generate_xlsx(config, products, xlsx_filename):
     workbook.save(xlsx_filename)
 
 
-def load_products(csv_filename):
+CATEGORIES = [
+    "Necklaces",
+    "Bracelets",
+    "Bags & Purses",
+    "Baskets, Trivets & Bowls",
+    "Miscellaneous"
+]
+
+def category_sort_key(tupl):
+    """Return a sort key of a (category, name, price, ...) tuple."""
+    category = tupl[0]
+    if category in CATEGORIES:
+        key = CATEGORIES.index(category)
+    else:
+        key = len(CATEGORIES)
+    return key
+
+
+def load_products_by_category(csv_filename):
     """Load product data."""
 
     # Read the input file, extracting just the fields we need.
     is_header = True
-    products = list()
+    data = list()
     for fields in csv.reader(open(csv_filename)):
         if is_header:
+            category_field = fields.index("Category")
             sku_field = fields.index("SKU")
             cost_field = fields.index("Cost")
             name_field = fields.index("Product Name")
@@ -457,6 +482,7 @@ def load_products(csv_filename):
             discontinued_field = fields.index("Discontinued Item")
             is_header = False
         elif fields[discontinued_field] == "N":
+            category = fields[category_field]
             sku = fields[sku_field]
             cost = fields[cost_field]
             description = "%s: %s" % (
@@ -464,12 +490,20 @@ def load_products(csv_filename):
                 fields[teaser_field].replace("&quot;", "\"")
             )
             htsus_no = "7117.90.9000"
-            products.append((sku, cost, description, htsus_no))
+            data.append((category, sku, cost, description, htsus_no))
 
-    # Sort by SKU.
-    products = sorted(products, key=lambda x: x[0])
+    # Sort by category.
+    data = sorted(data, key=category_sort_key)
 
-    return products
+    # Group by category.
+    products_by_category = list()
+    for key, group in itertools.groupby(data, category_sort_key):
+        products = list(group)
+        category = products[0][0]
+        category_group = ((key, category), products)
+        products_by_category.append(category_group)
+
+    return products_by_category
 
 
 def main():
@@ -510,9 +544,9 @@ def main():
     config = ConfigParser.RawConfigParser()
     config.readfp(open(options.config))
 
-    products = load_products(options.csv_filename)
+    products_by_category = load_products_by_category(options.csv_filename)
 
-    generate_xlsx(config, products, options.xlsx_filename)
+    generate_xlsx(config, products_by_category, options.xlsx_filename)
 
     return 0
 
