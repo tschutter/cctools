@@ -9,7 +9,7 @@ Generates a Purchase Order / Commercial Invoice.
 #  instructions sheet
 #   PO -> Commercial Invoice
 #   Adjust quantities
-#   If adding a product row, fix Sub Total formula
+#   If adding a product row, fix Subtotal formula
 #   update date?
 
 import ConfigParser
@@ -325,13 +325,13 @@ def add_totals(
     """Add subtotals and totals."""
     col_value_name = col_total - 1
 
-    # Sub Total.
+    # Subtotal.
     sub_total_row = row
     set_cell(
         worksheet,
         row,
         col_value_name,
-        "Sub Total",
+        "Subtotal",
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
     )
@@ -431,7 +431,7 @@ def generate_xlsx(config, products_by_category, xlsx_filename):
     # Blank row.
     row += 1
 
-    # Add sub totals and total.
+    # Add subtotals and total.
     row = add_totals(
         worksheet,
         config,
