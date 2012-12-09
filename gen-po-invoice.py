@@ -6,11 +6,6 @@ Generates a Purchase Order / Commercial Invoice.
 
 # TODO:
 #  fetch htsus
-#  instructions sheet
-#   PO -> Commercial Invoice
-#   Adjust quantities
-#   If adding a product row, fix Subtotal formula
-#   update date?
 
 import ConfigParser
 import csv
@@ -401,14 +396,10 @@ def add_special_instructions(worksheet, row):
     )
 
 
-def generate_xlsx(config, products_by_category, xlsx_filename):
-    """Generate the XLS file."""
+def add_invoice(worksheet, config, products_by_category):
+    """Create the PO-Invoice worksheet."""
 
-    # Construct a document.
-    workbook = openpyxl.workbook.Workbook()
-
-    # Prepare a worksheet.
-    worksheet = workbook.worksheets[0]
+    # Prepare worksheet.
     worksheet.title = "PO-Invoice"
 
     # Add title.
@@ -443,6 +434,51 @@ def generate_xlsx(config, products_by_category, xlsx_filename):
 
     # Add special instructions.
     add_special_instructions(worksheet, row + 1)
+
+
+def add_instructions(worksheet):
+    """Create the Instructions worksheet."""
+
+    # Prepare worksheet.
+    worksheet.title = "Instructions"
+    col_line_no = 0
+    col_instruction = 1
+    row = 0
+
+    # Add instructions.
+    instructions = [
+        "Change cell A1 from \"Purchase Order\" to \"Commercial Invoice\".",
+        "Change quantities to match actual shipped amounts.",
+        "If adding a product row, fix Subtotal formula to include new row.",
+        "Save to a different file.  Keep original PO separate from Invoice."
+    ]
+    for line_no, instruction in enumerate(instructions):
+        set_cell(
+            worksheet,
+            row,
+            col_line_no,
+            "%i. " % (line_no + 1),
+            alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
+        )
+        set_cell(worksheet, row, col_instruction, instruction)
+        row += 1
+
+    # Set column widths.
+    worksheet.column_dimensions[col_letter(col_line_no)].width = 3
+    worksheet.column_dimensions[col_letter(col_instruction)].width = 70
+
+
+def generate_xlsx(config, products_by_category, xlsx_filename):
+    """Generate the XLS file."""
+
+    # Construct a document.
+    workbook = openpyxl.workbook.Workbook()
+
+    # Create PO-Invoice worksheet.
+    add_invoice(workbook.worksheets[0], config, products_by_category)
+
+    # Create Instructions worksheet.
+    add_instructions(workbook.create_sheet())
 
     # Write to file.
     workbook.save(xlsx_filename)
