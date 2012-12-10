@@ -281,9 +281,11 @@ def add_products(worksheet, row, products_by_category):
             set_cell(worksheet, row, col_description, description)
             style = set_cell(worksheet, row, col_price, cost).style
             style.number_format.format_code = "0.00"
-            if random.randint(1, 10) < 3:
+            if random.randint(1, 10) < 4:
                 set_cell(worksheet, row, col_qty, random.randint(2, 8) * 10)
-            total_formula = "=%s%i * %s%i" % (
+            total_formula = "=IF(%s%i=\"\", \"\", %s%i * %s%i)" % (
+                col_letter(col_qty),
+                row + 1,
                 col_letter(col_price),
                 row + 1,
                 col_letter(col_qty),
