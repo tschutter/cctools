@@ -484,25 +484,28 @@ def generate_xlsx(config, products_by_category, xlsx_filename):
     workbook.save(xlsx_filename)
 
 
-CATEGORIES = [
-    "Necklaces",
-    "Bracelets",
-    "Bags & Purses",
-    "Baskets, Trivets & Bowls",
-    "Miscellaneous"
-]
+CATEGORY_SORT_KEY = dict()
 
-def category_sort_key(tupl):
-    """Return a sort key of a (category, name, price, ...) tuple."""
+def add_category_to_sort_key(config, category):
+    global CATEGORY_SORT_KEY
+    if category not in CATEGORY_SORT_KEY:
+        prefixes = config.get("DEFAULT", "category_sort").split(",")
+        for index, prefix in enumerate(prefixes):
+            if category.startswith(prefix):
+                CATEGORY_SORT_KEY[category] = index
+                return
+        print "ERROR: Category '%s' not found in category_sort" % category
+        sys.exit(1)
+
+
+def sort_key(tupl):
+    """Return a sort key of a (category, sku, cost, description, ...) tuple."""
     category = tupl[0]
-    if category in CATEGORIES:
-        key = CATEGORIES.index(category)
-    else:
-        key = len(CATEGORIES)
-    return key
+    description = tupl[3]
+    return "%i%s" % (CATEGORY_SORT_KEY[category], description)
 
 
-def load_products_by_category(csv_filename):
+def load_products_by_category(config, csv_filename):
     """Load product data."""
 
     # Read the input file, extracting just the fields we need.
@@ -527,13 +530,14 @@ def load_products_by_category(csv_filename):
             )
             htsus_no = "7117.90.9000"
             data.append((category, sku, cost, description, htsus_no))
+            add_category_to_sort_key(config, category)
 
     # Sort by category.
-    data = sorted(data, key=category_sort_key)
+    data = sorted(data, key=sort_key)
 
     # Group by category.
     products_by_category = list()
-    for key, group in itertools.groupby(data, category_sort_key):
+    for key, group in itertools.groupby(data, lambda x: x[0]):
         products = list(group)
         category = products[0][0]
         category_group = ((key, category), products)
@@ -580,7 +584,10 @@ def main():
     config = ConfigParser.RawConfigParser()
     config.readfp(open(options.config))
 
-    products_by_category = load_products_by_category(options.csv_filename)
+    products_by_category = load_products_by_category(
+        config,
+        options.csv_filename
+    )
 
     generate_xlsx(config, products_by_category, options.xlsx_filename)
 
