@@ -559,7 +559,7 @@ def main():
         action="store",
         dest="config",
         metavar="FILE",
-        default="cohu.cfg",
+        default="cctools.cfg",
         help="configuration filename (default=%default)"
     )
     option_parser.add_option(
@@ -583,6 +583,7 @@ def main():
     if len(args) != 0:
         option_parser.error("invalid argument")
 
+    # Read config file.
     config = ConfigParser.RawConfigParser()
     config.readfp(open(options.config))
 

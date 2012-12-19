@@ -135,16 +135,11 @@ def generate_pdf(
     story = []
 
     # Sort products by category, product_name.
-    products = sorted(
-        products,
-        #key=lambda product: cc_browser.sort_key_by_category_and_name(product)
-        key=cc_browser.sort_key_by_category_and_name
-    )
+    products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
 
     # Group products by category.
     for _, product_group in itertools.groupby(
         products,
-#        key=lambda product: cc_browser.sort_key_by_category(product)
         key=cc_browser.sort_key_by_category
     ):
         # TableStyle cell formatting commands.
@@ -202,7 +197,7 @@ def main():
         "--config",
         action="store",
         metavar="FILE",
-        default="cohu.cfg",
+        default="cctools.cfg",
         help="configuration filename (default=%default)"
     )
     option_parser.add_option(

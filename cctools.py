@@ -3,7 +3,11 @@
 """
 Web scraper interface to CoreCommerce.
 
-TODO: checkin
+TODO: cohu.ini -> cctools.ini
+TODO: /tmp/cctools-cache-USER/products.csv
+TODO: login on demand
+TODO: only download products if out of date > 1 hour
+TODO: --force to ignore cache
 TODO: download categories for sorting
 TODO: use by gen-po-invoice.py
 TODO: use by gen-art-mart-checkin.py
