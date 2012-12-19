@@ -11,31 +11,45 @@ sudo apt-get install python-reportlab
 
 Best reportlab reference is the ReportLab User's Guide.
 
-TODO
-fetch csv
-page orientation
+TODO: do what if "Discontinued Item" == ""
+TODO: page orientation
 """
 
-import csv
+import ConfigParser
+import cctools
 import datetime
 import itertools
 import math
 import optparse
 import reportlab.lib
 import reportlab.platypus
+import sys
 
 INCH = reportlab.lib.units.inch
 
 TITLE = "CoHU PRICE LIST (RETAIL, TAX INCLUDED)"
+
+def clean_text(text):
+    """Cleanup HTML in text."""
+    text = text.replace("&", "&amp;")
+    return text
+
+
+def calc_price_inc_tax(price, tax_fraction):
+    """Calculate a price including tax."""
+    price_inc_tax = float(price) * (1.0 + tax_fraction)
+    whole_price_inc_tax = max(1.0, math.floor(price_inc_tax + 0.5))
+    return "$%.0f" % whole_price_inc_tax
+
 
 def on_page(canvas, doc):
     """Add page header and footer.  Called for each page."""
     page_width = doc.pagesize[0]
     page_height = doc.pagesize[1]
     canvas.saveState()
-    canvas.setFont('Helvetica-Bold', 16)
+    canvas.setFont("Helvetica-Bold", 16)
     canvas.drawCentredString(page_width / 2.0, page_height - 0.5 * INCH, TITLE)
-    canvas.setFont('Helvetica', 9)
+    canvas.setFont("Helvetica", 9)
     today_str = datetime.date.today().isoformat()
     canvas.drawCentredString(
         page_width / 2.0,
@@ -73,11 +87,18 @@ def create_col_frames(doc, ncols):
     return frames
 
 
-def generate_pdf(products_by_category, ncols, greybar_interval, pdf_filename):
+def generate_pdf(
+    cc_browser,
+    products,
+    tax_fraction,
+    ncols,
+    greybar_interval,
+    pdf_file
+):
     """Generate a PDF given a list of products by category."""
     # Construct a document.
     doc = reportlab.platypus.BaseDocTemplate(
-        pdf_filename,
+        pdf_file,
         pagesize=reportlab.lib.pagesizes.letter,
         title=TITLE,
         #showBoundary=True
@@ -112,102 +133,63 @@ def generate_pdf(products_by_category, ncols, greybar_interval, pdf_filename):
     price_width = 0.4 * INCH
     col_widths = [table_width - price_width, price_width]
     story = []
-    for category in products_by_category:
-        category_sort_id, products = category
+
+    # Sort products by category, product_name.
+    products = sorted(
+        products,
+        #key=lambda product: cc_browser.sort_key_by_category_and_name(product)
+        key=cc_browser.sort_key_by_category_and_name
+    )
+
+    # Group products by category.
+    for _, product_group in itertools.groupby(
+        products,
+#        key=lambda product: cc_browser.sort_key_by_category(product)
+        key=cc_browser.sort_key_by_category
+    ):
         # TableStyle cell formatting commands.
         styles = [
-            ('FONTSIZE', (0, 0), (-1, -1), 12),
-            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-            ('FONT', (1, 0), (1, -1), 'Courier-Bold'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 3),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-            #('GRID', (0, 0), (-1, -1), 1.0, reportlab.lib.colors.black)
+            ("FONTSIZE", (0, 0), (-1, -1), 12),
+            ("ALIGN", (0, 0), (0, -1), "LEFT"),
+            ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+            ("FONT", (1, 0), (1, -1), "Courier-Bold"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            #("GRID", (0, 0), (-1, -1), 1.0, reportlab.lib.colors.black)
         ]
+        table_data = list()
+        for product in product_group:
+            category = product["Category"]
+            if product["Discontinued Item"] == "N":
+                row = (
+                    clean_text(product["Product Name"]),
+                    calc_price_inc_tax(product["Price"], tax_fraction)
+                )
+                table_data.append(row)
+        if len(table_data) == 0:
+            continue
         if greybar_interval > 1:
-            for row in range(0, len(products), greybar_interval):
-                styles.append(('BACKGROUND', (0, row), (1, row), greybar_color))
+            for row in range(0, len(table_data), greybar_interval):
+                styles.append(("BACKGROUND", (0, row), (1, row), greybar_color))
         table = reportlab.platypus.Table(
-            data=[(product[1], product[2]) for product in products],
+            data=table_data,
             colWidths=col_widths,
             style=styles
         )
         story.append(
             reportlab.platypus.KeepTogether([
-                reportlab.platypus.Paragraph(product[0], category_style),
+                reportlab.platypus.Paragraph(
+                    clean_text(category),
+                    category_style
+                ),
                 reportlab.platypus.Indenter(left=table_indent),
                 table,
                 reportlab.platypus.Indenter(left=-table_indent)
             ])
         )
     doc.build(story)
-
-
-def clean_text(text):
-    """Cleanup HTML in text."""
-    text = text.replace("&", "&amp;")
-    return text
-
-
-def calc_price_inc_tax(price, tax_fraction):
-    """Calculate a price including tax."""
-    price_inc_tax = float(price) * (1.0 + tax_fraction)
-    whole_price_inc_tax = max(1.0, math.floor(price_inc_tax + 0.5))
-    return "$%.0f" % whole_price_inc_tax
-
-
-CATEGORIES = [
-    "Necklaces",
-    "Bracelets",
-    "Bags &amp; Purses",
-    "Baskets, Trivets &amp; Bowls",
-    "Miscellaneous"
-]
-
-def category_sort_key(tupl):
-    """Return a sort key of a (category, name, price, ...) tuple."""
-    category = tupl[0]
-    if category in CATEGORIES:
-        key = CATEGORIES.index(category)
-    else:
-        key = len(CATEGORIES)
-    return key
-
-
-def load_products_by_category(csv_filename, tax_fraction):
-    """Load product data."""
-
-    # Read the input file, extracting just the fields we need.
-    is_header = True
-    data = list()
-    for fields in csv.reader(open(csv_filename)):
-        if is_header:
-            category_field = fields.index("Category")
-            name_field = fields.index("Product Name")
-            price_field = fields.index("Price")
-            discontinued_field = fields.index("Discontinued Item")
-            is_header = False
-        elif fields[discontinued_field] == "N":
-            data.append(
-                (
-                    clean_text(fields[category_field]),
-                    clean_text(fields[name_field]),
-                    calc_price_inc_tax(fields[price_field], tax_fraction)
-                )
-            )
-
-    # Sort by category.
-    data = sorted(data, key=category_sort_key)
-
-    # Group by category.
-    products_by_category = list()
-    for key, group in itertools.groupby(data, category_sort_key):
-        category = (key, list(group))
-        products_by_category.append(category)
-
-    return products_by_category
 
 
 def main():
@@ -217,17 +199,16 @@ def main():
         "  Generates a price list from CoreCommerce data in PDF form."
     )
     option_parser.add_option(
-        "--infile",
+        "--config",
         action="store",
-        dest="csv_filename",
-        metavar="CSV_FILE",
-        default="products.csv",
-        help="input product list filename (default=%default)"
+        metavar="FILE",
+        default="cohu.cfg",
+        help="configuration filename (default=%default)"
     )
     option_parser.add_option(
-        "--outfile",
+        "--pdf-file",
         action="store",
-        dest="pdf_filename",
+        dest="pdf_file",
         metavar="PDF_FILE",
         default="PriceListRetailTaxInc.pdf",
         help="output PDF filename (default=%default)"
@@ -259,23 +240,54 @@ def main():
         default=8.4,
         help="tax rate in percent (default=%default)"
     )
+    option_parser.add_option(
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="display progress messages"
+    )
 
+    # Parse command line arguments.
     (options, args) = option_parser.parse_args()
     if len(args) != 0:
         option_parser.error("invalid argument")
 
-    products_by_category = load_products_by_category(
-        options.csv_filename,
-        options.tax_percent / 100.0
+    # Read config file.
+    config = ConfigParser.RawConfigParser()
+    config.readfp(open(options.config))
+
+    # Login to CoreCommerce.
+    if options.verbose:
+        sys.stderr.write("Logging into corecommerce.com\n")
+    cc_browser = cctools.CCBrowser(
+        config.get("website", "host"),
+        config.get("website", "site")
+    )
+    cc_browser.login(
+        config.get("website", "username"),
+        config.get("website", "password")
     )
 
+    # Download products list.
+    if options.verbose:
+        sys.stderr.write("Downloading products\n")
+    products = list(cc_browser.get_products())
+
+    # Generate PDF file.
+    if options.verbose:
+        sys.stderr.write("Generating %s\n" % options.pdf_file)
     generate_pdf(
-        products_by_category,
+        cc_browser,
+        products,
+        options.tax_percent / 100.0,
         options.ncols,
         options.greybar_interval,
-        options.pdf_filename
+        options.pdf_file
     )
 
+    if options.verbose:
+        sys.stderr.write("Generation complete\n")
+    return 0
 
 if __name__ == "__main__":
     main()
