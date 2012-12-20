@@ -8,6 +8,8 @@ sudo apt-get install python-reportlab
 Best reportlab reference is the ReportLab User's Guide.
 """
 
+import ConfigParser
+import cctools
 import csv
 import datetime
 import math
@@ -212,7 +214,13 @@ def generate_pdf(products, quantities, pdf_filename):
         reportlab.platypus.Paragraph("Total<br/>Qty", col_header_style)
     )
     table_data = [header_row]
-    for sku, price, description in products:
+    for product in products:
+        sku = product["SKU"]
+        price = product["Price"]
+        description = "%s: %s" % (
+            product["Product Name"],
+            product["Teaser"].replace("&quot;", "\"")
+        )
         if sku in quantities:
             quantity = quantities[sku]
             price = "$%.0f" % math.trunc(float(price) + 0.5)
@@ -228,35 +236,6 @@ def generate_pdf(products, quantities, pdf_filename):
     table.hAlign = "LEFT"
     story = [table]
     doc.build(story, canvasmaker=NumberedCanvas)
-
-
-def load_products(csv_filename):
-    """Load product data."""
-
-    # Read the input file, extracting just the fields we need.
-    is_header = True
-    products = list()
-    for fields in csv.reader(open(csv_filename)):
-        if is_header:
-            sku_field = fields.index("SKU")
-            price_field = fields.index("Price")
-            name_field = fields.index("Product Name")
-            teaser_field = fields.index("Teaser")
-            discontinued_field = fields.index("Discontinued Item")
-            is_header = False
-        elif fields[discontinued_field] == "N":
-            sku = fields[sku_field]
-            price = fields[price_field]
-            description = "%s: %s" % (
-                fields[name_field],
-                fields[teaser_field]
-            )
-            products.append((sku, price, description))
-
-    # Sort by SKU.
-    products = sorted(products, key=lambda x: x[0])
-
-    return products
 
 
 def load_quantities(quant_filename):
@@ -283,7 +262,12 @@ def write_quantities(quant_filename, products):
 
     with open(quant_filename, "w") as quant_file:
         quant_file.write("Quantity,SKU,Description(ignored)\n")
-        for sku, _, description in products:
+        for product in products:
+            sku = product["SKU"]
+            description = "%s: %s" % (
+                product["Product Name"],
+                product["Teaser"].replace("&quot;", "\"")
+            )
             quant_file.write(",".join(["0", sku, '"%s"' % description]) + "\n")
 
 
@@ -294,12 +278,12 @@ def main():
         "  Generates an Art Mart Inventory Sheet in PDF form."
     )
     option_parser.add_option(
-        "--prodfile",
+        "--config",
         action="store",
-        dest="csv_filename",
-        metavar="CSV_FILE",
-        default="products.csv",
-        help="input product list filename (default=%default)"
+        dest="config",
+        metavar="FILE",
+        default="cctools.cfg",
+        help="configuration filename (default=%default)"
     )
     option_parser.add_option(
         "--quantfile",
@@ -324,21 +308,50 @@ def main():
         default=False,
         help="write template quantity file instead of PDF"
     )
+    option_parser.add_option(
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="display progress messages"
+    )
 
+    # Parse command line arguments.
     (options, args) = option_parser.parse_args()
     if len(args) != 0:
         option_parser.error("invalid argument")
 
-    products = load_products(options.csv_filename)
+    # Read config file.
+    config = ConfigParser.RawConfigParser()
+    config.readfp(open(options.config))
+
+    # Create a connection to CoreCommerce.
+    cc_browser = cctools.CCBrowser(
+        config.get("website", "host"),
+        config.get("website", "site"),
+        config.get("website", "username"),
+        config.get("website", "password"),
+        verbose=options.verbose
+    )
+
+    # Fetch products list.
+    products = list(cc_browser.get_products())
+
+    # Sort products by SKU.
+    products = sorted(products, key=lambda product: product["SKU"])
 
     if options.write_quant:
+        if options.verbose:
+            sys.stderr.write("Generating %s\n" % options.quant_filename)
         write_quantities(options.quant_filename, products)
-        return 0
 
-    quantities = load_quantities(options.quant_filename)
+    else:
+        quantities = load_quantities(options.quant_filename)
+        if options.verbose:
+            sys.stderr.write("Generating %s\n" % options.pdf_filename)
+        generate_pdf(products, quantities, options.pdf_filename)
 
-    generate_pdf(products, quantities, options.pdf_filename)
-
+    if options.verbose:
+        sys.stderr.write("Generation complete\n")
     return 0
 
 if __name__ == "__main__":
