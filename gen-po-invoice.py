@@ -552,6 +552,7 @@ def main():
         help="display progress messages"
     )
 
+    # Parse command line arguments.
     (options, args) = option_parser.parse_args()
     if len(args) != 0:
         option_parser.error("invalid argument")
