@@ -256,10 +256,11 @@ def main():
         config.get("website", "host"),
         config.get("website", "site"),
         config.get("website", "username"),
-        config.get("website", "password")
+        config.get("website", "password"),
+        verbose=options.verbose
     )
 
-    # Download products list.
+    # Fetch products list.
     products = list(cc_browser.get_products())
 
     # Generate PDF file.

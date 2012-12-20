@@ -8,7 +8,7 @@ Generates a Purchase Order / Commercial Invoice.
 #  fetch htsus
 
 import ConfigParser
-import csv
+import cctools
 import itertools
 import optparse
 import random
@@ -67,6 +67,7 @@ def add_header(worksheet, config, row):
     col_value_name = 2
     col_value = col_value_name + 1
 
+    # Prefixing a value with a single quote forces it to be considered text.
     set_cell(
         worksheet,
         row,
@@ -75,7 +76,7 @@ def add_header(worksheet, config, row):
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
     )
-    set_cell(worksheet, row, col_value, TODAY)
+    set_cell(worksheet, row, col_value, "'" + TODAY)
     row += 1
 
     set_cell(
@@ -120,13 +121,9 @@ def add_header(worksheet, config, row):
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT,
         alignment_vertical=ALIGNMENT_VERTICAL_TOP
     )
-    set_cell(
-        worksheet,
-        row,
-        col_value,
-        config.get("invoice", "consignee").replace("\\n", "\n")
-    )
-    row += 1
+    for line in config.get("invoice", "consignee").split("\\n"):
+        set_cell(worksheet, row, col_value, line)
+        row += 1
 
     # Unit of measurement.
     set_cell(
@@ -199,7 +196,7 @@ def add_header(worksheet, config, row):
     return row
 
 
-def add_products(worksheet, row, products_by_category):
+def add_products(worksheet, row, cc_browser, products):
     """Add row for each product."""
     col_line_no = 0
     col_sku = 1
@@ -268,18 +265,34 @@ def add_products(worksheet, row, products_by_category):
     )
     row += 1
 
-    # Add product rows.
+    # Sort products by category, product_name.
+    products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
+
+    # Group products by category.
     first_product_row = row
     lineno = 1
-    for category_group in products_by_category:
-        (category_sort_id, category), products = category_group
-        set_cell(worksheet, row, col_description, category, bold=True)
+    for _, product_group in itertools.groupby(
+        products,
+        key=cc_browser.sort_key_by_category
+    ):
+        # Leave a row for the category name.
+        category = "unknown"
+        category_row = row
         row += 1
-        for category, sku, cost, description, htsus_no in products:
+        # Add product rows.
+        for product in product_group:
+            category = product["Category"]
+            if not product["Discontinued Item"] == "N":
+                continue
+            description = "%s: %s" % (
+                product["Product Name"],
+                product["Teaser"].replace("&quot;", "\"")
+            )
+            htsus_no = "7117.90.9000"
             set_cell(worksheet, row, col_line_no, lineno)
-            set_cell(worksheet, row, col_sku, sku)
+            set_cell(worksheet, row, col_sku, product["SKU"])
             set_cell(worksheet, row, col_description, description)
-            style = set_cell(worksheet, row, col_price, cost).style
+            style = set_cell(worksheet, row, col_price, product["Cost"]).style
             style.number_format.format_code = "0.00"
             if random.randint(1, 10) < 4:
                 set_cell(worksheet, row, col_qty, random.randint(2, 8) * 10)
@@ -296,6 +309,8 @@ def add_products(worksheet, row, products_by_category):
             set_cell(worksheet, row, col_htsus_no, htsus_no)
             row += 1
             lineno += 1
+        # Go back and insert category name.
+        set_cell(worksheet, category_row, col_description, category, bold=True)
     last_product_row = row - 1
 
     # Set column widths.
@@ -398,7 +413,7 @@ def add_special_instructions(worksheet, row):
     )
 
 
-def add_invoice(worksheet, config, products_by_category):
+def add_invoice(worksheet, config, cc_browser, products):
     """Create the PO-Invoice worksheet."""
 
     # Prepare worksheet.
@@ -418,7 +433,8 @@ def add_invoice(worksheet, config, products_by_category):
     row, col_total, first_product_row, last_product_row = add_products(
         worksheet,
         row,
-        products_by_category
+        cc_browser,
+        products
     )
 
     # Blank row.
@@ -470,14 +486,14 @@ def add_instructions(worksheet):
     worksheet.column_dimensions[col_letter(col_instruction)].width = 70
 
 
-def generate_xlsx(config, products_by_category, xlsx_filename):
+def generate_xlsx(config, cc_browser, products, xlsx_filename):
     """Generate the XLS file."""
 
     # Construct a document.
     workbook = openpyxl.workbook.Workbook()
 
     # Create PO-Invoice worksheet.
-    add_invoice(workbook.worksheets[0], config, products_by_category)
+    add_invoice(workbook.worksheets[0], config, cc_browser, products)
 
     # Create Instructions worksheet.
     add_instructions(workbook.create_sheet())
@@ -507,47 +523,6 @@ def sort_key(tupl):
     return "%i%s" % (CATEGORY_SORT_KEY[category], description)
 
 
-def load_products_by_category(config, csv_filename):
-    """Load product data."""
-
-    # Read the input file, extracting just the fields we need.
-    is_header = True
-    data = list()
-    for fields in csv.reader(open(csv_filename)):
-        if is_header:
-            category_field = fields.index("Category")
-            sku_field = fields.index("SKU")
-            cost_field = fields.index("Cost")
-            name_field = fields.index("Product Name")
-            teaser_field = fields.index("Teaser")
-            discontinued_field = fields.index("Discontinued Item")
-            is_header = False
-        elif fields[discontinued_field] == "N":
-            category = fields[category_field]
-            sku = fields[sku_field]
-            cost = fields[cost_field]
-            description = "%s: %s" % (
-                fields[name_field],
-                fields[teaser_field].replace("&quot;", "\"")
-            )
-            htsus_no = "7117.90.9000"
-            data.append((category, sku, cost, description, htsus_no))
-            add_category_to_sort_key(config, category)
-
-    # Sort by category.
-    data = sorted(data, key=sort_key)
-
-    # Group by category.
-    products_by_category = list()
-    for key, group in itertools.groupby(data, lambda x: x[0]):
-        products = list(group)
-        category = products[0][0]
-        category_group = ((key, category), products)
-        products_by_category.append(category_group)
-
-    return products_by_category
-
-
 def main():
     """main"""
     option_parser = optparse.OptionParser(
@@ -563,20 +538,18 @@ def main():
         help="configuration filename (default=%default)"
     )
     option_parser.add_option(
-        "--prodfile",
-        action="store",
-        dest="csv_filename",
-        metavar="FILE",
-        default="products.csv",
-        help="input product list filename (default=%default)"
-    )
-    option_parser.add_option(
         "--outfile",
         action="store",
         dest="xlsx_filename",
         metavar="FILE",
         default=TODAY + "-Invoice.xlsx",
         help="output XLSX filename (default=%default)"
+    )
+    option_parser.add_option(
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="display progress messages"
     )
 
     (options, args) = option_parser.parse_args()
@@ -587,13 +560,25 @@ def main():
     config = ConfigParser.RawConfigParser()
     config.readfp(open(options.config))
 
-    products_by_category = load_products_by_category(
-        config,
-        options.csv_filename
+    # Create a connection to CoreCommerce.
+    cc_browser = cctools.CCBrowser(
+        config.get("website", "host"),
+        config.get("website", "site"),
+        config.get("website", "username"),
+        config.get("website", "password"),
+        verbose=options.verbose
     )
 
-    generate_xlsx(config, products_by_category, options.xlsx_filename)
+    # Fetch products list.
+    products = list(cc_browser.get_products())
 
+    # Generate spreadsheet.
+    if options.verbose:
+        sys.stderr.write("Generating %s\n" % options.xlsx_filename)
+    generate_xlsx(config, cc_browser, products, options.xlsx_filename)
+
+    if options.verbose:
+        sys.stderr.write("Generation complete\n")
     return 0
 
 

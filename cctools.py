@@ -3,12 +3,10 @@
 """
 Web scraper interface to CoreCommerce.
 
-TODO: download categories for sorting
-TODO: use by gen-po-invoice.py
 TODO: use by gen-art-mart-checkin.py
+TODO: download categories for sorting
 """
 
-#
 # http://wwwsearch.sourceforge.net/mechanize/
 # https://views.scraperwiki.com/run/python_mechanize_cheat_sheet/?
 
