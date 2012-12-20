@@ -46,8 +46,13 @@ def set_cell(
 
 
 def col_letter(col):
-    """Return letter for given column."""
+    """Return column letter for given column."""
     return chr(ord("A") + col)
+
+
+def row_number(row):
+    """Return row number for given row."""
+    return row + 1
 
 
 def add_title(worksheet):
@@ -295,11 +300,11 @@ def add_products(worksheet, row, cc_browser, products):
                 set_cell(worksheet, row, col_qty, random.randint(2, 8) * 10)
             total_formula = "=IF(%s%i=\"\", \"\", %s%i * %s%i)" % (
                 col_letter(col_qty),
-                row + 1,
+                row_number(row),
                 col_letter(col_price),
-                row + 1,
+                row_number(row),
                 col_letter(col_qty),
-                row + 1
+                row_number(row)
             )
             style = set_cell(worksheet, row, col_total, total_formula).style
             style.number_format.format_code = "#,###.00"
@@ -340,54 +345,67 @@ def add_totals(
         worksheet,
         row,
         col_value_name,
-        "Subtotal",
+        "Subtotal: ",
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
     )
     sub_total_formula = "=SUM(%s%i:%s%i)" % (
         col_letter(col_total),
-        first_product_row + 1,
+        row_number(first_product_row),
         col_letter(col_total),
-        last_product_row + 1
+        row_number(last_product_row)
     )
     style = set_cell(worksheet, row, col_total, sub_total_formula).style
     style.number_format.format_code = "#,###.00"
     row += 1
 
     # Discount.
-    discount_row = row
     percent_discount = config.getfloat("invoice", "percent_discount")
     set_cell(
         worksheet,
         row,
         col_value_name,
-        "%s%% Discount" % percent_discount,
+        "%s%% Discount: " % percent_discount,
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
     )
     discount_formula = "=%s%i * %f" % (
         col_letter(col_total),
-        sub_total_row + 1,
+        row_number(sub_total_row),
         -percent_discount / 100.0
     )
     style = set_cell(worksheet, row, col_total, discount_formula).style
     style.number_format.format_code = "#,###.00"
+    last_adjustment_row = row
     row += 1
+
+    # Adjustments.
+    for adjustment in config.get("invoice", "adjustments").split("\\n"):
+        set_cell(
+            worksheet,
+            row,
+            col_value_name,
+            adjustment + ": ",
+            bold=True,
+            alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
+        )
+        last_adjustment_row = row
+        row += 1
 
     # Total.
     set_cell(
         worksheet,
         row,
         col_value_name,
-        "Total",
+        "Total: ",
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
     )
-    total_formula = "=%s%i + %s%i" % (
+    total_formula = "=SUM(%s%i:%s%i)" % (
         col_letter(col_total),
-        sub_total_row + 1,
+        row_number(sub_total_row),
         col_letter(col_total),
-        discount_row + 1
+        row_number(last_adjustment_row)
     )
     style = set_cell(worksheet, row, col_total, total_formula).style
     style.number_format.format_code = "#,###.00"
@@ -448,7 +466,7 @@ def add_invoice(worksheet, config, cc_browser, products):
     )
 
     # Add special instructions.
-    add_special_instructions(worksheet, row + 1)
+    add_special_instructions(worksheet, row_number(row))
 
 
 def add_instructions(worksheet):
