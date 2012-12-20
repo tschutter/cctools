@@ -59,7 +59,8 @@ def add_title(worksheet):
     """Add worksheet title."""
     style = set_cell(worksheet, 0, 0, "Purchase Order", bold=True).style
     style.font.size = 20
-    worksheet.merge_cells(start_row=0, start_column=0, end_row=0, end_column=2)
+    # merge_cells not supported by openpyxl-1.5.6 (Ubuntu 12.04)
+    #worksheet.merge_cells(start_row=0, start_column=0, end_row=0, end_column=2)
     worksheet.row_dimensions[1].height = 25
 
 
