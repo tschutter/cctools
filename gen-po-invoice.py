@@ -10,16 +10,11 @@ Generates a Purchase Order / Commercial Invoice.
 import ConfigParser
 import cctools
 import itertools
+import openpyxl  # sudo apt-get install python-openpyxl
 import optparse
 import random
 import sys
 import time
-try:
-    import openpyxl
-except ImportError:
-    print "ERROR: Python module 'openpyxl' not installed."
-    print "       Run 'sudo apt-get install python-openpyxl' to install."
-    sys.exit(1)
 
 # Today's date in ISO format.
 TODAY = time.strftime("%Y-%m-%d", time.localtime(time.time()))
@@ -59,7 +54,8 @@ def add_title(worksheet):
     """Add worksheet title."""
     style = set_cell(worksheet, 0, 0, "Purchase Order", bold=True).style
     style.font.size = 20
-    #worksheet.merge_cells(start_row=0, start_col=0, end_row=0, end_col=2)
+    worksheet.merge_cells(start_row=0, start_column=0, end_row=0, end_column=2)
+    worksheet.row_dimensions[1].height = 25
 
 
 def add_header(worksheet, config, row):
@@ -68,6 +64,7 @@ def add_header(worksheet, config, row):
     col_value = col_value_name + 1
 
     # Prefixing a value with a single quote forces it to be considered text.
+    # NOTE: Not supported by localc-3.5.
     set_cell(
         worksheet,
         row,
@@ -314,7 +311,7 @@ def add_products(worksheet, row, cc_browser, products):
     last_product_row = row - 1
 
     # Set column widths.
-    worksheet.column_dimensions[col_letter(col_line_no)].width = 7
+    worksheet.column_dimensions[col_letter(col_line_no)].width = 8
     worksheet.column_dimensions[col_letter(col_sku)].width = 6
     worksheet.column_dimensions[col_letter(col_description)].width = 60
     worksheet.column_dimensions[col_letter(col_price)].width = 5
