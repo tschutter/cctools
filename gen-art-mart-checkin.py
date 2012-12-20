@@ -16,6 +16,7 @@ import math
 import optparse
 import reportlab.lib
 import reportlab.platypus
+import sys
 
 INCH = reportlab.lib.units.inch
 BLACK = reportlab.lib.colors.black
