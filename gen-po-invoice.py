@@ -557,7 +557,7 @@ def main():
         action="store",
         dest="xlsx_filename",
         metavar="FILE",
-        default=TODAY + "-Invoice.xlsx",
+        default=TODAY + "-PurchaseOrder.xlsx",
         help="output XLSX filename (default=%default)"
     )
     option_parser.add_option(
