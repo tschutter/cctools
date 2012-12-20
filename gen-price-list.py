@@ -251,21 +251,15 @@ def main():
     config = ConfigParser.RawConfigParser()
     config.readfp(open(options.config))
 
-    # Login to CoreCommerce.
-    if options.verbose:
-        sys.stderr.write("Logging into corecommerce.com\n")
+    # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
         config.get("website", "host"),
-        config.get("website", "site")
-    )
-    cc_browser.login(
+        config.get("website", "site"),
         config.get("website", "username"),
         config.get("website", "password")
     )
 
     # Download products list.
-    if options.verbose:
-        sys.stderr.write("Downloading products\n")
     products = list(cc_browser.get_products())
 
     # Generate PDF file.
