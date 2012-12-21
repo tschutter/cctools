@@ -4,14 +4,18 @@
 Web scraper interface to CoreCommerce.
 """
 
-# http://wwwsearch.sourceforge.net/mechanize/
-# https://views.scraperwiki.com/run/python_mechanize_cheat_sheet/?
-
 import csv
 import mechanize  # sudo apt-get install python-mechanize
 import os
+import re
 import sys
 import time
+
+# http://wwwsearch.sourceforge.net/mechanize/
+# https://views.scraperwiki.com/run/python_mechanize_cheat_sheet/?
+
+# pylint seems to be confused by calling methods via self._browser.
+# pylint: disable=E1102
 
 class CCBrowser(object):
     """Encapsulate mechanize.Browser object."""
@@ -40,7 +44,7 @@ class CCBrowser(object):
         self._cache_dir = "/tmp/cctools-cache-" + username
         if not os.path.exists(self._cache_dir):
             os.mkdir(self._cache_dir, 0700)
-        self._br = mechanize.Browser()
+        self._browser = mechanize.Browser()
         self._logged_in = False
         self._products = None
         self._categories = None
@@ -58,17 +62,17 @@ class CCBrowser(object):
             sys.stderr.write("Logging into corecommerce.com\n")
 
         # Open the login page.
-        self._br.open(self._base_url)
+        self._browser.open(self._base_url)
 
         # Find the login form.
-        self._br.select_form(name="digiSHOP")
+        self._browser.select_form(name="digiSHOP")
 
         # Set the form values.
-        self._br['userId'] = self._username
-        self._br['password'] = self._password
+        self._browser['userId'] = self._username
+        self._browser['password'] = self._password
 
         # Submit the form (press the "Login" button).
-        self._br.submit()
+        self._browser.submit()
         self._logged_in = True
 
     def _is_file_expired(self, filename):
@@ -88,13 +92,13 @@ class CCBrowser(object):
 
         # Open page.
         url = "%s?%s" % (self._base_url, self._EXPORT_PRODUCTS_PAGE)
-        self._br.open(url)
+        self._browser.open(url)
 
         # Select form.
-        self._br.select_form("jsform")
+        self._browser.select_form("jsform")
 
         # Ensure that "All Categories" is selected.
-        category_list = self._br.form.find_control("category")
+        category_list = self._browser.form.find_control("category")
         if False:  # debug
             for item in category_list.items:
                 print " name=%s values=%s" % (
@@ -104,7 +108,7 @@ class CCBrowser(object):
         category_list.value = [""]  # name where values = ["All Categories"]
 
         # Submit the form (press the "" button).
-        resp = self._br.submit()
+        resp = self._browser.submit()
         if False:  # debug
             print url + " response:\n"
             print resp.read().replace("\r", "")
@@ -116,7 +120,7 @@ class CCBrowser(object):
 
         # Call the doExport function.
         url = "%s?%s&rs=doExport" % (self._base_url, self._EXPORT_PRODUCTS_PAGE)
-        response = self._br.open(url)
+        response = self._browser.open(url)
 
         # Read the entire response.  This ensures that we do not
         # return until the server side prep is totally done.  The
@@ -141,7 +145,7 @@ class CCBrowser(object):
 
         # Fetch the result file.
         url = self._base_url + "?m=ajax_export_send"
-        self._br.retrieve(url, filename)
+        self._browser.retrieve(url, filename)
 
     def _clean_products(self):
         """Normalize suspect data."""
@@ -178,7 +182,7 @@ class CCBrowser(object):
 
         # Open page.
         url = "%s?%s" % (self._base_url, self._EXPORT_CATEGORIES_PAGE)
-        self._br.open(url)
+        self._browser.open(url)
 
     def _do_export_categories(self):
         """Call doExport function on the ajax_export categories page.
@@ -190,7 +194,7 @@ class CCBrowser(object):
             self._base_url,
             self._EXPORT_CATEGORIES_PAGE
         )
-        response = self._br.open(url)
+        response = self._browser.open(url)
 
         # Read the entire response.  This ensures that we do not
         # return until the server side prep is totally done.  The
@@ -215,7 +219,7 @@ class CCBrowser(object):
 
         # Fetch the result file.
         url = self._base_url + "?m=ajax_export_send"
-        self._br.retrieve(url, filename)
+        self._browser.retrieve(url, filename)
 
     def get_categories(self):
         """Return a list of per-category dictionaries."""
@@ -233,6 +237,7 @@ class CCBrowser(object):
         return self._categories
 
     def _init_category_sort(self):
+        """Build the dictionary used for sorting by category."""
         if self._category_sort == None:
             if self._categories == None:
                 self.get_categories()
@@ -268,3 +273,35 @@ class CCBrowser(object):
         else:
             category_sort_key = category
         return category_sort_key
+
+
+_HTML_TO_PLAIN_TEXT_DICT = {
+    "&quot;": "\"",
+    "&amp;": "&",
+    "<p>": " ",
+    "</p>": " "
+}
+_HTML_TO_PLAIN_TEXT_RE = re.compile('|'.join(_HTML_TO_PLAIN_TEXT_DICT.keys()))
+
+def html_to_plain_text(string):
+    """Convert HTML markup to plain text."""
+
+    # Replace HTML markup with plain text."""
+    string = _HTML_TO_PLAIN_TEXT_RE.sub(
+        lambda m: _HTML_TO_PLAIN_TEXT_DICT[m.group(0)],
+        string
+    )
+
+    # Collapse all whitespace to a single space.
+    string = re.sub("\s+", " ", string)
+
+    # Strip leading and trailing whitespace.
+    string = string.strip()
+
+    return string
+
+
+def plain_text_to_html(string):
+    """Convert plain text to HTML markup."""
+    string = string.replace("&", "&amp;")
+    return string
