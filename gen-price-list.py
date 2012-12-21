@@ -7,10 +7,6 @@ amounts.  The intent is to use the price list at fairs and shows to
 avoid the handling of change.  It also makes accounting easier because
 you can deal with round numbers.
 
-sudo apt-get install python-reportlab
-
-Best reportlab reference is the ReportLab User's Guide.
-
 TODO: page orientation
 """
 
@@ -20,13 +16,14 @@ import datetime
 import itertools
 import math
 import optparse
-import reportlab.lib
+import reportlab.lib  # sudo apt-get install python-reportlab
 import reportlab.platypus
 import sys
 
-INCH = reportlab.lib.units.inch
+# Best reportlab reference is the ReportLab User's Guide.
 
-TITLE = "CoHU PRICE LIST (RETAIL, TAX INCLUDED)"
+# Convenience constants.
+INCH = reportlab.lib.units.inch
 
 def clean_text(text):
     """Cleanup HTML in text."""
@@ -47,7 +44,11 @@ def on_page(canvas, doc):
     page_height = doc.pagesize[1]
     canvas.saveState()
     canvas.setFont("Helvetica-Bold", 16)
-    canvas.drawCentredString(page_width / 2.0, page_height - 0.5 * INCH, TITLE)
+    canvas.drawCentredString(
+        page_width / 2.0,
+        page_height - 0.5 * INCH,
+        doc.my_title
+    )
     canvas.setFont("Helvetica", 9)
     today_str = datetime.date.today().isoformat()
     canvas.drawCentredString(
@@ -87,6 +88,7 @@ def create_col_frames(doc, ncols):
 
 
 def generate_pdf(
+    config,
     cc_browser,
     products,
     tax_fraction,
@@ -96,17 +98,19 @@ def generate_pdf(
 ):
     """Generate a PDF given a list of products by category."""
     # Construct a document.
+    doc_title = config.get("price_list", "title")
     doc = reportlab.platypus.BaseDocTemplate(
         pdf_file,
         pagesize=reportlab.lib.pagesizes.letter,
-        title=TITLE,
-        #showBoundary=True
+        title=doc_title,
+        #showBoundary=True  # debug
     )
 
     # Construct a frame for each column.
     frames = create_col_frames(doc, ncols)
 
     # Construct a template and add it to the document.
+    doc.my_title = doc_title
     doc.addPageTemplates(
         reportlab.platypus.PageTemplate(
             id="mytemplate",
@@ -267,6 +271,7 @@ def main():
     if options.verbose:
         sys.stderr.write("Generating %s\n" % options.pdf_file)
     generate_pdf(
+        config,
         cc_browser,
         products,
         options.tax_percent / 100.0,
