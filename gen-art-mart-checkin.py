@@ -335,7 +335,7 @@ def main():
     )
 
     # Fetch products list.
-    products = list(cc_browser.get_products())
+    products = cc_browser.get_products()
 
     # Sort products by SKU.
     products = sorted(products, key=lambda product: product["SKU"])

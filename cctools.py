@@ -2,8 +2,6 @@
 
 """
 Web scraper interface to CoreCommerce.
-
-TODO: drop generator for products; keep _products list
 """
 
 # http://wwwsearch.sourceforge.net/mechanize/
@@ -23,12 +21,14 @@ class CCBrowser(object):
         site,
         username,
         password,
+        clean=True,
         verbose=True,
         cache_ttl=3600
     ):
         self._base_url = "https://%s/~%s/admin/index.php" % (host, site)
         self._username = username
         self._password = password
+        self._clean = clean
         self._verbose = verbose
         self._cache_ttl = float(cache_ttl)
         if "USER" in os.environ:
@@ -42,6 +42,7 @@ class CCBrowser(object):
             os.mkdir(self._cache_dir, 0700)
         self._br = mechanize.Browser()
         self._logged_in = False
+        self._products = None
         self._categories = None
         self._category_sort = None
 
@@ -142,17 +143,32 @@ class CCBrowser(object):
         url = self._base_url + "?m=ajax_export_send"
         self._br.retrieve(url, filename)
 
+    def _clean_products(self):
+        """Normalize suspect data."""
+        for product in self._products:
+            # "Discontinued Item" should be Y|N, but we sometimes see "".
+            if not product["Discontinued Item"] in ("Y", "N"):
+                # Safe choice is not discontinued.
+                product["Discontinued Item"] = "N"
+
     def get_products(self):
-        """Generate dictionary for each product downloaded from CoreCommerce."""
+        """Return a list of per-product dictionaries."""
 
-        filename = os.path.join(self._cache_dir, "products.csv")
-        if self._is_file_expired(filename):
-            # Download products.csv.
-            self._download_products_csv(filename)
+        if self._products == None:
+            filename = os.path.join(self._cache_dir, "products.csv")
 
-        # Yield the product dictionaries.
-        for product in csv.DictReader(open(filename)):
-            yield product
+            # Download products file if it is out of date.
+            if self._is_file_expired(filename):
+                self._download_products_csv(filename)
+
+            # Read products file.
+            self._products = list(csv.DictReader(open(filename)))
+
+            # Cleanup suspect data.
+            if self._clean:
+                self._clean_products()
+
+        return self._products
 
     _EXPORT_CATEGORIES_PAGE =\
         "m=ajax_export&instance=categories&checkAccess=categories"
@@ -202,19 +218,17 @@ class CCBrowser(object):
         self._br.retrieve(url, filename)
 
     def get_categories(self):
-        """Return a dictionary for each category downloaded from
-        CoreCommerce.
-        """
+        """Return a list of per-category dictionaries."""
 
         if self._categories == None:
             filename = os.path.join(self._cache_dir, "categories.csv")
+
+            # Download categories file if it is out of date.
             if self._is_file_expired(filename):
-                # Download categories.csv.
                 self._download_categories_csv(filename)
 
-            self._categories = [
-                category for category in csv.DictReader(open(filename))
-            ]
+            # Read categories file.
+            self._categories = list(csv.DictReader(open(filename)))
 
         return self._categories
 

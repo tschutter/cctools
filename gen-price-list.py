@@ -11,7 +11,6 @@ sudo apt-get install python-reportlab
 
 Best reportlab reference is the ReportLab User's Guide.
 
-TODO: do what if "Discontinued Item" == ""
 TODO: page orientation
 """
 
@@ -157,12 +156,13 @@ def generate_pdf(
         table_data = list()
         for product in product_group:
             category = product["Category"]
-            if product["Discontinued Item"] == "N":
-                row = (
-                    clean_text(product["Product Name"]),
-                    calc_price_inc_tax(product["Price"], tax_fraction)
-                )
-                table_data.append(row)
+            if product["Discontinued Item"] == "Y":
+                continue
+            row = (
+                clean_text(product["Product Name"]),
+                calc_price_inc_tax(product["Price"], tax_fraction)
+            )
+            table_data.append(row)
         if len(table_data) == 0:
             continue
         if greybar_interval > 1:
@@ -261,7 +261,7 @@ def main():
     )
 
     # Fetch products list.
-    products = list(cc_browser.get_products())
+    products = cc_browser.get_products()
 
     # Generate PDF file.
     if options.verbose:

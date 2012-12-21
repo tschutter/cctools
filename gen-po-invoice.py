@@ -285,7 +285,7 @@ def add_products(worksheet, row, cc_browser, products):
         # Add product rows.
         for product in product_group:
             category = product["Category"]
-            if not product["Discontinued Item"] == "N":
+            if product["Discontinued Item"] == "Y":
                 continue
             description = "%s: %s" % (
                 product["Product Name"],
@@ -587,7 +587,7 @@ def main():
     )
 
     # Fetch products list.
-    products = list(cc_browser.get_products())
+    products = cc_browser.get_products()
 
     # Generate spreadsheet.
     if options.verbose:
