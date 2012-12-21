@@ -50,9 +50,14 @@ def on_page(canvas, doc):
         doc.my_title
     )
     canvas.setFont("Helvetica", 9)
+    canvas.drawString(
+        0.5 * INCH,
+        0.5 * INCH,
+        "PricePreTax = PriceIncTax / (1 + TaxPercent / 100)"
+    )
     today_str = datetime.date.today().isoformat()
-    canvas.drawCentredString(
-        page_width / 2.0,
+    canvas.drawRightString(
+        page_width - 0.5 * INCH,
         0.5 * INCH,
         "Revised: %s" % today_str
     )
