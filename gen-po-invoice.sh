@@ -7,6 +7,23 @@ SCRIPT=`readlink --canonicalize "$0"`
 SCRIPTDIR=`dirname "${SCRIPT}"`
 
 cd "${SCRIPTDIR}"
-FILENAME="`date +%Y-%m-%d`-PurchaseOrder.xlsx"
+
+# Determine the output filename.
+BASENAME="`date +%Y-%m-%d`-PurchaseOrder"
+FILENAME="${BASENAME}.xlsx"
+if [ -f "${FILENAME}" ]; then
+    for NUM in `seq --format "%02.0f" 1 12`; do
+        FILENAME="${BASENAME}-r${NUM}.xlsx"
+        if [ ! -f "${FILENAME}" ]; then
+            break
+        fi
+    done
+fi
+
+# Generate the po/invoice.
 ./gen-po-invoice.py --outfile="${FILENAME}" --verbose
-localc "${FILENAME}"
+
+# Display the po/invoice if it was successfully created.
+if [ -f "${FILENAME}" ]; then
+    localc "${FILENAME}"
+fi
