@@ -12,7 +12,6 @@ import cctools
 import itertools
 import openpyxl  # sudo apt-get install python-openpyxl
 import optparse
-import random
 import sys
 import time
 
@@ -297,8 +296,6 @@ def add_products(worksheet, row, cc_browser, products):
             set_cell(worksheet, row, col_description, description)
             style = set_cell(worksheet, row, col_price, product["Cost"]).style
             style.number_format.format_code = "0.00"
-            if random.randint(1, 10) < 4:
-                set_cell(worksheet, row, col_qty, random.randint(2, 8) * 10)
             total_formula = "=IF(%s%i=\"\", \"\", %s%i * %s%i)" % (
                 col_letter(col_qty),
                 row_number(row),
