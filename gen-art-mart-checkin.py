@@ -2,10 +2,6 @@
 
 """
 Generates an Art Mart Inventory Sheet.
-
-sudo apt-get install python-reportlab
-
-Best reportlab reference is the ReportLab User's Guide.
 """
 
 import ConfigParser
@@ -14,10 +10,13 @@ import csv
 import datetime
 import math
 import optparse
-import reportlab.lib
+import reportlab.lib  # sudo apt-get install python-reportlab
 import reportlab.platypus
 import sys
 
+# Best reportlab reference is the ReportLab User's Guide.
+
+# Convenience constants.
 INCH = reportlab.lib.units.inch
 BLACK = reportlab.lib.colors.black
 
