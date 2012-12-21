@@ -289,7 +289,7 @@ def add_products(worksheet, row, cc_browser, products):
                 continue
             description = "%s: %s" % (
                 product["Product Name"],
-                product["Teaser"].replace("&quot;", "\"")
+                cctools.html_to_plain_text(product["Teaser"])
             )
             htsus_no = "7117.90.9000"
             set_cell(worksheet, row, col_line_no, lineno)
