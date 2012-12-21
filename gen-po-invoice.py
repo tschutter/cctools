@@ -518,27 +518,6 @@ def generate_xlsx(config, cc_browser, products, xlsx_filename):
     workbook.save(xlsx_filename)
 
 
-CATEGORY_SORT_KEY = dict()
-
-def add_category_to_sort_key(config, category):
-    global CATEGORY_SORT_KEY
-    if category not in CATEGORY_SORT_KEY:
-        prefixes = config.get("DEFAULT", "category_sort").split(",")
-        for index, prefix in enumerate(prefixes):
-            if category.startswith(prefix):
-                CATEGORY_SORT_KEY[category] = index
-                return
-        print "ERROR: Category '%s' not found in category_sort" % category
-        sys.exit(1)
-
-
-def sort_key(tupl):
-    """Return a sort key of a (category, sku, cost, description, ...) tuple."""
-    category = tupl[0]
-    description = tupl[3]
-    return "%i%s" % (CATEGORY_SORT_KEY[category], description)
-
-
 def main():
     """main"""
     option_parser = optparse.OptionParser(
