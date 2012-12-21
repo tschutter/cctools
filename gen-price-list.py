@@ -25,12 +25,6 @@ import sys
 # Convenience constants.
 INCH = reportlab.lib.units.inch
 
-def clean_text(text):
-    """Cleanup HTML in text."""
-    text = text.replace("&", "&amp;")
-    return text
-
-
 def calc_price_inc_tax(price, tax_fraction):
     """Calculate a price including tax."""
     price_inc_tax = float(price) * (1.0 + tax_fraction)
@@ -168,7 +162,7 @@ def generate_pdf(
             if product["Discontinued Item"] == "Y":
                 continue
             row = (
-                clean_text(product["Product Name"]),
+                cctools.plain_text_to_html(product["Product Name"]),
                 calc_price_inc_tax(product["Price"], tax_fraction)
             )
             table_data.append(row)
@@ -185,7 +179,7 @@ def generate_pdf(
         story.append(
             reportlab.platypus.KeepTogether([
                 reportlab.platypus.Paragraph(
-                    clean_text(category),
+                    cctools.plain_text_to_html(category),
                     category_style
                 ),
                 reportlab.platypus.Indenter(left=table_indent),
