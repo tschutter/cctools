@@ -3,8 +3,7 @@
 """
 Web scraper interface to CoreCommerce.
 
-TODO: use by gen-art-mart-checkin.py
-TODO: download categories for sorting
+TODO: drop generator for products; keep _products list
 """
 
 # http://wwwsearch.sourceforge.net/mechanize/
@@ -15,16 +14,6 @@ import mechanize  # sudo apt-get install python-mechanize
 import os
 import sys
 import time
-
-EXPORT_PRODUCTS = "m=ajax_export&instance=products&checkAccess=products"
-
-CATEGORIES = [
-    "Necklaces",
-    "Bracelets",
-    "Bags & Purses",
-    "Baskets, Trivets & Bowls",
-    "Miscellaneous"
-]
 
 class CCBrowser(object):
     """Encapsulate mechanize.Browser object."""
@@ -53,8 +42,10 @@ class CCBrowser(object):
             os.mkdir(self._cache_dir, 0700)
         self._br = mechanize.Browser()
         self._logged_in = False
+        self._categories = None
+        self._category_sort = None
 
-    def login(self):
+    def _login(self):
         """Login to site."""
 
         # No need to login if we have already done so.
@@ -79,13 +70,23 @@ class CCBrowser(object):
         self._br.submit()
         self._logged_in = True
 
-    def _load_export_page(self):
-        """Load ajax_export page.  Not required to download
-        products.csv, but it is useful for debugging.
-        """
+    def _is_file_expired(self, filename):
+        """Determine if a file doesn't exist or has expired."""
+        if not os.path.exists(filename):
+            return True
+        mtime = os.stat(filename).st_mtime
+        expire_time = mtime + self._cache_ttl
+        now = time.time()
+        return expire_time < now
+
+    _EXPORT_PRODUCTS_PAGE =\
+        "m=ajax_export&instance=products&checkAccess=products"
+
+    def _load_export_products_page(self):
+        """Load ajax_export products page."""
 
         # Open page.
-        url = self._base_url + "?" + EXPORT_PRODUCTS
+        url = "%s?%s" % (self._base_url, self._EXPORT_PRODUCTS_PAGE)
         self._br.open(url)
 
         # Select form.
@@ -107,13 +108,13 @@ class CCBrowser(object):
             print url + " response:\n"
             print resp.read().replace("\r", "")
 
-    def _do_export(self):
-        """Call doExport function.  This prepares a product list for
-        download.
+    def _do_export_products(self):
+        """Call doExport function on the ajax_export products page.
+        This prepares a product list for download.
         """
 
         # Call the doExport function.
-        url = self._base_url + "?" + EXPORT_PRODUCTS + "&rs=doExport"
+        url = "%s?%s&rs=doExport" % (self._base_url, self._EXPORT_PRODUCTS_PAGE)
         response = self._br.open(url)
 
         # Read the entire response.  This ensures that we do not
@@ -121,65 +122,135 @@ class CCBrowser(object):
         # response contains percentages for a progress bar.
         response.read()
 
-    def download_products_csv(self, filename):
+    def _download_products_csv(self, filename):
         """Download products list to a CSV file."""
 
         # Login if necessary.
-        self.login()
+        self._login()
 
         # Notify user of time consuming step.
         if self._verbose:
             sys.stderr.write("Downloading products\n")
 
         # Load the export page.
-        self._load_export_page()
+        self._load_export_products_page()
 
         # Prepare a product list for download.
-        self._do_export()
+        self._do_export_products()
 
         # Fetch the result file.
         url = self._base_url + "?m=ajax_export_send"
         self._br.retrieve(url, filename)
 
-    def is_file_valid(self, filename):
-        """Determine if a file exists and has not expired."""
-        if not os.path.exists(filename):
-            return False
-        mtime = os.stat(filename).st_mtime
-        expire_time = mtime + self._cache_ttl
-        now = time.time()
-        return now < expire_time
-
     def get_products(self):
         """Generate dictionary for each product downloaded from CoreCommerce."""
 
         filename = os.path.join(self._cache_dir, "products.csv")
-        if not self.is_file_valid(filename):
+        if self._is_file_expired(filename):
             # Download products.csv.
-            self.download_products_csv(filename)
+            self._download_products_csv(filename)
 
         # Yield the product dictionaries.
         for product in csv.DictReader(open(filename)):
             yield product
 
+    _EXPORT_CATEGORIES_PAGE =\
+        "m=ajax_export&instance=categories&checkAccess=categories"
+
+    def _load_export_categories_page(self):
+        """Load ajax_export categories page."""
+
+        # Open page.
+        url = "%s?%s" % (self._base_url, self._EXPORT_CATEGORIES_PAGE)
+        self._br.open(url)
+
+    def _do_export_categories(self):
+        """Call doExport function on the ajax_export categories page.
+        This prepares a category list for download.
+        """
+
+        # Call the doExport function.
+        url = "%s?%s&rs=doExport" % (
+            self._base_url,
+            self._EXPORT_CATEGORIES_PAGE
+        )
+        response = self._br.open(url)
+
+        # Read the entire response.  This ensures that we do not
+        # return until the server side prep is totally done.  The
+        # response contains percentages for a progress bar.
+        response.read()
+
+    def _download_categories_csv(self, filename):
+        """Download categories list to a CSV file."""
+
+        # Login if necessary.
+        self._login()
+
+        # Notify user of time consuming step.
+        if self._verbose:
+            sys.stderr.write("Downloading categories\n")
+
+        # Load the export page.
+        self._load_export_categories_page()
+
+        # Prepare a category list for download.
+        self._do_export_categories()
+
+        # Fetch the result file.
+        url = self._base_url + "?m=ajax_export_send"
+        self._br.retrieve(url, filename)
+
+    def get_categories(self):
+        """Return a dictionary for each category downloaded from
+        CoreCommerce.
+        """
+
+        if self._categories == None:
+            filename = os.path.join(self._cache_dir, "categories.csv")
+            if self._is_file_expired(filename):
+                # Download categories.csv.
+                self._download_categories_csv(filename)
+
+            self._categories = [
+                category for category in csv.DictReader(open(filename))
+            ]
+
+        return self._categories
+
+    def _init_category_sort(self):
+        if self._category_sort == None:
+            if self._categories == None:
+                self.get_categories()
+            category_sort = dict()
+            for category in self._categories:
+                name = category["Category Name"]
+                sort = int(category["Sort"])
+                category_sort[name] = sort
+            self._category_sort = category_sort
+
     def sort_key_by_category_and_name(self, product):
         """Return a key for a product dictionary used to sort by
         category, product_name.
         """
+        if self._category_sort == None:
+            self._init_category_sort()
         category = product["Category"]
-        if category in CATEGORIES:
-            category_index = CATEGORIES.index(category)
+        if category in self._category_sort:
+            category_sort_key = "%05i" % self._category_sort[category]
         else:
-            category_index = len(CATEGORIES)
-        return "%03i:%s" % (category_index, product["Product Name"])
+            category_sort_key = category
+        return "%s:%s" % (category_sort_key, product["Product Name"])
 
     def sort_key_by_category(self, product):
         """Return a key for a product dictionary used to sort by
         category, product_name.
         """
+        if self._category_sort == None:
+            self._init_category_sort()
         category = product["Category"]
-        if category in CATEGORIES:
-            category_index = CATEGORIES.index(category)
+        if category in self._category_sort:
+            category_sort_key = "%05i" % self._category_sort[category]
         else:
-            category_index = len(CATEGORIES)
-        return "%03i" % category_index
+            category_sort_key = category
+        return category_sort_key
