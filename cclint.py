@@ -56,9 +56,22 @@ def check_products(products):
             "Product",
             display_name,
             product,
+            "Available",
+            ("Y", "N")
+        )
+
+        check_value_in_set(
+            "Product",
+            display_name,
+            product,
             "Discontinued Item",
             ("Y", "N")
         )
+
+        if product["Available"] == "Y" and product["Discontinued Item"] == "Y":
+            print "Product '%s': Is Available and is a Discontinued Item" % (
+                display_name
+            )
 
 
 def main():
@@ -73,6 +86,13 @@ def main():
         metavar="FILE",
         default="cctools.cfg",
         help="configuration filename (default=%default)"
+    )
+    option_parser.add_option(
+        "--no-clean",
+        action="store_false",
+        dest="clean",
+        default=True,
+        help="do not clean data before checking"
     )
     option_parser.add_option(
         "--verbose",
@@ -97,7 +117,7 @@ def main():
         config.get("website", "username"),
         config.get("website", "password"),
         verbose=options.verbose,
-        clean=False  # don't cleanup data
+        clean=options.clean
     )
 
     # Check products list.
