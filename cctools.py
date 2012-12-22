@@ -149,10 +149,13 @@ class CCBrowser(object):
 
     def _clean_products(self):
         """Normalize suspect data."""
+        # Boolean value of "" appears to mean "N".
         for product in self._products:
+            # "Available" should be Y|N, but we sometimes see "".
+            if not product["Available"] in ("Y", "N"):
+                product["Available"] = "N"
             # "Discontinued Item" should be Y|N, but we sometimes see "".
             if not product["Discontinued Item"] in ("Y", "N"):
-                # Safe choice is not discontinued.
                 product["Discontinued Item"] = "N"
 
     def get_products(self):
