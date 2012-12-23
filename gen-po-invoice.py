@@ -421,7 +421,7 @@ def add_special_instructions(worksheet, row):
         worksheet,
         row,
         col_value_name,
-        "Special Instructions:",
+        "General Special Instructions:",
         bold=True
     )
 
