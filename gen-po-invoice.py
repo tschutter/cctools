@@ -4,24 +4,17 @@
 Generates a Purchase Order / Commercial Invoice.
 """
 
-# TODO:
-#  fetch htsus
-
 import ConfigParser
 import cctools
 import itertools
 import openpyxl  # sudo apt-get install python-openpyxl
 import optparse
 import sys
-import time
-
-# Today's date in ISO format.
-TODAY = time.strftime("%Y-%m-%d", time.localtime(time.time()))
+import datetime
 
 # Cell style constants.
 ALIGNMENT_HORIZONTAL_RIGHT = openpyxl.style.Alignment.HORIZONTAL_RIGHT
 ALIGNMENT_VERTICAL_TOP = openpyxl.style.Alignment.VERTICAL_TOP
-
 
 def set_cell(
     worksheet,
@@ -63,13 +56,25 @@ def add_title(worksheet):
     worksheet.row_dimensions[1].height = 25
 
 
-def add_header(worksheet, config, row):
+def add_header(options, config, worksheet, row):
     """Add PO/Invoice header."""
     col_value_name = 2
     col_value = col_value_name + 1
 
     # Prefixing a value with a single quote forces it to be considered text.
     # NOTE: Not supported by localc-3.5.
+
+    set_cell(
+        worksheet,
+        row,
+        col_value_name,
+        "PO/Invoice #: ",
+        bold=True,
+        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
+    )
+    set_cell(worksheet, row, col_value, "'" + options.number)
+    row += 1
+
     set_cell(
         worksheet,
         row,
@@ -78,7 +83,8 @@ def add_header(worksheet, config, row):
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
     )
-    set_cell(worksheet, row, col_value, "'" + TODAY)
+    date_str = datetime.date.today().strftime("'%B %d, %Y")
+    set_cell(worksheet, row, col_value, date_str)
     row += 1
 
     set_cell(
@@ -95,7 +101,6 @@ def add_header(worksheet, config, row):
         col_value,
         config.get("invoice", "country_of_origin")
     )
-
     row += 1
 
     set_cell(
@@ -426,7 +431,7 @@ def add_special_instructions(worksheet, row):
     )
 
 
-def add_invoice(worksheet, config, cc_browser, products):
+def add_invoice(options, config, cc_browser, products, worksheet):
     """Create the PO-Invoice worksheet."""
 
     # Prepare worksheet.
@@ -437,7 +442,7 @@ def add_invoice(worksheet, config, cc_browser, products):
 
     # Add header.
     row = 2
-    row = add_header(worksheet, config, row)
+    row = add_header(options, config, worksheet, row)
 
     # Blank row.
     row += 1
@@ -499,24 +504,28 @@ def add_instructions(worksheet):
     worksheet.column_dimensions[col_letter(col_instruction)].width = 70
 
 
-def generate_xlsx(config, cc_browser, products, xlsx_filename):
+def generate_xlsx(options, config, cc_browser, products):
     """Generate the XLS file."""
 
     # Construct a document.
     workbook = openpyxl.workbook.Workbook()
 
     # Create PO-Invoice worksheet.
-    add_invoice(workbook.worksheets[0], config, cc_browser, products)
+    add_invoice(options, config, cc_browser, products, workbook.worksheets[0])
 
     # Create Instructions worksheet.
     add_instructions(workbook.create_sheet())
 
     # Write to file.
-    workbook.save(xlsx_filename)
+    workbook.save(options.xlsx_filename)
 
 
 def main():
     """main"""
+    now = datetime.datetime.now()
+    default_number = now.strftime("%y%m%d00")
+    default_xlsx_filename = now.strftime("%Y-%m-%d-PurchaseOrder.xlsx")
+
     option_parser = optparse.OptionParser(
         usage="usage: %prog [options]\n" +
         "  Generates a Purchase Order / Commercial Invoice."
@@ -530,11 +539,19 @@ def main():
         help="configuration filename (default=%default)"
     )
     option_parser.add_option(
+        "--number",
+        action="store",
+        dest="number",
+        metavar="NUM",
+        default=default_number,
+        help="PO/Invoice number (default=%default)"
+    )
+    option_parser.add_option(
         "--outfile",
         action="store",
         dest="xlsx_filename",
         metavar="FILE",
-        default=TODAY + "-PurchaseOrder.xlsx",
+        default=default_xlsx_filename,
         help="output XLSX filename (default=%default)"
     )
     option_parser.add_option(
@@ -568,7 +585,7 @@ def main():
     # Generate spreadsheet.
     if options.verbose:
         sys.stderr.write("Generating %s\n" % options.xlsx_filename)
-    generate_xlsx(config, cc_browser, products, options.xlsx_filename)
+    generate_xlsx(options, config, cc_browser, products)
 
     if options.verbose:
         sys.stderr.write("Generation complete\n")
