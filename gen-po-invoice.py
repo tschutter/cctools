@@ -128,9 +128,10 @@ def add_header(options, config, worksheet, row):
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT,
         alignment_vertical=ALIGNMENT_VERTICAL_TOP
     )
-    for line in config.get("invoice", "consignee").split("\\n"):
-        set_cell(worksheet, row, col_value, line)
-        row += 1
+    for key, value in config.items("invoice"):
+        if key.startswith("consignee"):
+            set_cell(worksheet, row, col_value, value)
+            row += 1
 
     # Unit of measurement.
     set_cell(
@@ -403,17 +404,18 @@ def add_totals(
     row += 1
 
     # Adjustments.
-    for adjustment in config.get("invoice", "adjustments").split("\\n"):
-        set_cell(
-            worksheet,
-            row,
-            col_value_name,
-            adjustment + ":",
-            bold=True,
-            alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
-        )
-        last_adjustment_row = row
-        row += 1
+    for key, value in config.items("invoice"):
+        if key.startswith("adjustment"):
+            set_cell(
+                worksheet,
+                row,
+                col_value_name,
+                value + ":",
+                bold=True,
+                alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
+            )
+            last_adjustment_row = row
+            row += 1
 
     # Total.
     set_cell(
