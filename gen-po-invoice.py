@@ -286,7 +286,7 @@ def add_products(worksheet, row, cc_browser, products):
             category = product["Category"]
             if product["Discontinued Item"] == "Y":
                 continue
-            description = "%s: %s" % (
+            description = "  %s: %s" % (
                 product["Product Name"],
                 cctools.html_to_plain_text(product["Teaser"])
             )
