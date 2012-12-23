@@ -495,35 +495,30 @@ def add_invoice(options, config, cc_browser, products, worksheet):
     add_special_instructions(worksheet, row_number(row))
 
 
-def add_instructions(worksheet):
+def add_instructions(config, worksheet):
     """Create the Instructions worksheet."""
 
     # Prepare worksheet.
     worksheet.title = "Instructions"
-    col_line_no = 0
-    col_instruction = 1
+    col_instruction = 0
     row = 0
 
     # Add instructions.
-    instructions = [
-        "Change cell A1 from \"Purchase Order\" to \"Commercial Invoice\".",
-        "Change quantities to match actual shipped amounts.",
-        "If adding a product row, fix Subtotal formula to include new row.",
-        "Save to a different file.  Keep original PO separate from Invoice."
-    ]
-    for line_no, instruction in enumerate(instructions):
-        set_cell(
-            worksheet,
-            row,
-            col_line_no,
-            "%i. " % (line_no + 1),
-            alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
-        )
-        set_cell(worksheet, row, col_instruction, instruction)
-        row += 1
+    for key, value in config.items("invoice"):
+        if key.startswith("instruction"):
+            if value == "[EMPTY]":
+                row += 1
+                continue
+            bold = False
+            if value.startswith("[BOLD]"):
+                bold = True
+                value = value[6:]
+            cell = set_cell(worksheet, row, col_instruction, value)
+            if bold:
+                cell.style.font.bold = bold
+            row += 1
 
     # Set column widths.
-    worksheet.column_dimensions[col_letter(col_line_no)].width = 3
     worksheet.column_dimensions[col_letter(col_instruction)].width = 70
 
 
@@ -537,7 +532,7 @@ def generate_xlsx(options, config, cc_browser, products):
     add_invoice(options, config, cc_browser, products, workbook.worksheets[0])
 
     # Create Instructions worksheet.
-    add_instructions(workbook.create_sheet())
+    add_instructions(config, workbook.create_sheet())
 
     # Write to file.
     workbook.save(options.xlsx_filename)
