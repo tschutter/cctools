@@ -328,27 +328,47 @@ def add_products(worksheet, row, cc_browser, products):
     worksheet.column_dimensions[col_letter(col_htsus_no)].width = 12
     worksheet.column_dimensions[col_letter(col_instructions)].width = 30
 
-    return row, col_total, first_product_row, last_product_row
+    return row, col_qty, col_total, first_product_row, last_product_row
 
 
 def add_totals(
     worksheet,
     config,
     row,
+    col_qty,
     col_total,
     first_product_row,
     last_product_row
 ):
     """Add subtotals and totals."""
-    col_value_name = col_total - 1
+
+    # Total quantity.
+    col_value_name = col_qty - 1
+    set_cell(
+        worksheet,
+        row,
+        col_value_name,
+        "Total Qty:",
+        bold=True,
+        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
+    )
+    total_qty_formula = "=SUM(%s%i:%s%i)" % (
+        col_letter(col_qty),
+        row_number(first_product_row),
+        col_letter(col_qty),
+        row_number(last_product_row)
+    )
+    set_cell(worksheet, row, col_qty, total_qty_formula)
+    row += 2
 
     # Subtotal.
+    col_value_name = col_total - 1
     sub_total_row = row
     set_cell(
         worksheet,
         row,
         col_value_name,
-        "Subtotal: ",
+        "Subtotal:",
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
     )
@@ -368,7 +388,7 @@ def add_totals(
         worksheet,
         row,
         col_value_name,
-        "%s%% Discount: " % percent_discount,
+        "%s%% Discount:" % percent_discount,
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
     )
@@ -388,7 +408,7 @@ def add_totals(
             worksheet,
             row,
             col_value_name,
-            adjustment + ": ",
+            adjustment + ":",
             bold=True,
             alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
         )
@@ -400,7 +420,7 @@ def add_totals(
         worksheet,
         row,
         col_value_name,
-        "Total: ",
+        "Total:",
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
     )
@@ -448,7 +468,7 @@ def add_invoice(options, config, cc_browser, products, worksheet):
     row += 1
 
     # Add products.
-    row, col_total, first_product_row, last_product_row = add_products(
+    row, col_qty, col_total, first_product_row, last_product_row = add_products(
         worksheet,
         row,
         cc_browser,
@@ -463,6 +483,7 @@ def add_invoice(options, config, cc_browser, products, worksheet):
         worksheet,
         config,
         row,
+        col_qty,
         col_total,
         first_product_row,
         last_product_row
