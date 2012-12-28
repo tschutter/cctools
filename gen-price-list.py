@@ -16,6 +16,7 @@ import datetime
 import itertools
 import math
 import optparse
+import os
 import reportlab.lib  # sudo apt-get install python-reportlab
 import reportlab.platypus
 import sys
@@ -192,6 +193,11 @@ def generate_pdf(
 
 def main():
     """main"""
+    defaultConfig = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "cctools.cfg"
+    )
+
     option_parser = optparse.OptionParser(
         usage="usage: %prog [options]\n" +
         "  Generates a price list from CoreCommerce data in PDF form."
@@ -200,7 +206,7 @@ def main():
         "--config",
         action="store",
         metavar="FILE",
-        default="cctools.cfg",
+        default=defaultConfig,
         help="configuration filename (default=%default)"
     )
     option_parser.add_option(

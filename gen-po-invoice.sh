@@ -6,8 +6,6 @@
 SCRIPT=`readlink --canonicalize "$0"`
 SCRIPTDIR=`dirname "${SCRIPT}"`
 
-cd "${SCRIPTDIR}"
-
 # Determine the output filename and PO number.
 BASENAME="`date +%Y-%m-%d`-PurchaseOrder"
 BASENUM="`date +%y%m%d`"
@@ -24,7 +22,7 @@ if [ -f "${FILENAME}" ]; then
 fi
 
 # Generate the po/invoice.
-./gen-po-invoice.py --number="${NUMBER}" --outfile="${FILENAME}" --verbose
+"${SCRIPTDIR}/gen-po-invoice.py" --number="${NUMBER}" --outfile="${FILENAME}" --verbose
 
 # Display the po/invoice if it was successfully created.
 if [ -f "${FILENAME}" ]; then

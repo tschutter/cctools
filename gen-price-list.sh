@@ -6,6 +6,12 @@
 SCRIPT=`readlink --canonicalize "$0"`
 SCRIPTDIR=`dirname "${SCRIPT}"`
 
-cd "${SCRIPTDIR}"
-./gen-price-list.py --verbose
-evince PriceListRetailTaxInc.pdf
+FILENAME="PriceListRetailTaxInc.pdf"
+
+# Generate the price list.
+"${SCRIPTDIR}/gen-price-list.py" --pdf-file="${FILENAME}" --verbose
+
+# Display the price list if it was successfully created.
+if [ -f "${FILENAME}" ]; then
+    evince "${FILENAME}"
+fi

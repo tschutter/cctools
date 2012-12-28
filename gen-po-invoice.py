@@ -9,6 +9,7 @@ import cctools
 import itertools
 import openpyxl  # sudo apt-get install python-openpyxl
 import optparse
+import os
 import sys
 import datetime
 
@@ -540,6 +541,10 @@ def generate_xlsx(options, config, cc_browser, products):
 
 def main():
     """main"""
+    defaultConfig = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "cctools.cfg"
+    )
     now = datetime.datetime.now()
     default_number = now.strftime("%y%m%d00")
     default_xlsx_filename = now.strftime("%Y-%m-%d-PurchaseOrder.xlsx")
@@ -553,7 +558,7 @@ def main():
         action="store",
         dest="config",
         metavar="FILE",
-        default="cctools.cfg",
+        default=defaultConfig,
         help="configuration filename (default=%default)"
     )
     option_parser.add_option(
