@@ -13,5 +13,8 @@ FILENAME="PriceListRetailTaxInc.pdf"
 
 # Display the price list if it was successfully created.
 if [ -f "${FILENAME}" ]; then
-    evince "${FILENAME}"
+    # Enable monitor mode (job control).  If not set, evince will exit
+    # when this shell exits.
+    set -m
+    evince "${FILENAME}" &
 fi
