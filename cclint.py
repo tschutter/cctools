@@ -39,38 +39,47 @@ def check_value_in_set(type_name, item_name, item, key, valid_values):
         )
 
 
-def check_products(products):
-    """Check products list for problems."""
-    for product in products:
-        display_name = "%s %s" % (product["SKU"], product["Product Name"])
+def check_product(product):
+    """Check product for problems."""
+    display_name = "%s %s" % (product["SKU"], product["Product Name"])
 
-        check_string(
-            "Product",
-            display_name,
-            product,
-            "Teaser",
-            10
+    check_string("Product", display_name, product, "Teaser", 10)
+
+    y_n = ("Y", "N")
+    check_value_in_set("Product", display_name, product, "Available", y_n)
+
+    check_value_in_set(
+        "Product",
+        display_name,
+        product,
+        "Discontinued Item",
+        y_n
+    )
+
+    if product["Available"] == "Y" and product["Discontinued Item"] == "Y":
+        print "Product '%s': Is Available and is a Discontinued Item" % (
+            display_name
         )
 
-        check_value_in_set(
-            "Product",
+    if product["UPC"] != "":
+        print "Product '%s': UPC '%s' is not blank" % (
             display_name,
-            product,
-            "Available",
-            ("Y", "N")
+            product["UPC"]
         )
 
-        check_value_in_set(
-            "Product",
-            display_name,
-            product,
-            "Discontinued Item",
-            ("Y", "N")
-        )
-
-        if product["Available"] == "Y" and product["Discontinued Item"] == "Y":
-            print "Product '%s': Is Available and is a Discontinued Item" % (
-                display_name
+    if product["Category"] in ("Necklaces", "Bracelets"):
+        if product["MPN"] != "7117.90.9000":
+            print "Product '%s': MPN (HTSUS No) '%s' != '7117.90.9000'" % (
+                display_name,
+                product["MPN"]
+            )
+    else:
+        if product["MPN"] == "":
+            print "Product '%s': MPN (HTSUS No) not set" % (display_name)
+        elif len(product["MPN"]) != 12:
+            print "Product '%s': Invalid MPN (HTSUS No) '%s'" % (
+                display_name,
+                product["MPN"]
             )
 
 
@@ -120,9 +129,20 @@ def main():
         clean=options.clean
     )
 
+    # Check category list.
+    categories = cc_browser.get_categories()
+    #for category in categories:
+    #    check_category(category)
+
+    ## Build map of category ID to category name.
+    #category_names = dict()
+    #for category in categories:
+    #    category_names[category["Category Id"]] = category["Category Name"]
+
     # Check products list.
     products = cc_browser.get_products()
-    check_products(products)
+    for product in products:
+        check_product(product)
 
     if options.verbose:
         sys.stderr.write("Checks complete\n")
