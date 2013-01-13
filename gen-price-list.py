@@ -26,11 +26,21 @@ import sys
 # Convenience constants.
 INCH = reportlab.lib.units.inch
 
-def calc_price_inc_tax(price, tax_fraction):
+# Currency related constants (pre_symbol, post_symbol, rounder).
+CURRENCY_INFO = {
+    "UGX": ("", " USh", 1000.0),
+    "USD": ("$", "", 1.0)
+}
+
+def calc_price_inc_tax(options, price, price_multiplier):
     """Calculate a price including tax."""
-    price_inc_tax = float(price) * (1.0 + tax_fraction)
-    whole_price_inc_tax = max(1.0, math.floor(price_inc_tax + 0.5))
-    return "$%.0f" % whole_price_inc_tax
+    price_inc_tax = float(price) * price_multiplier
+    pre_symbol, post_symbol, rounder = CURRENCY_INFO[options.currency]
+    whole_price_inc_tax = max(
+        rounder,
+        math.floor((price_inc_tax + 0.5) / rounder) * rounder
+    )
+    return "{}{:,.0f}{}".format(pre_symbol, whole_price_inc_tax, post_symbol)
 
 
 def on_page(canvas, doc):
@@ -88,26 +98,24 @@ def create_col_frames(doc, ncols):
 
 
 def generate_pdf(
+    options,
     config,
     cc_browser,
     products,
-    tax_fraction,
-    ncols,
-    greybar_interval,
-    pdf_file
+    price_multiplier
 ):
     """Generate a PDF given a list of products by category."""
     # Construct a document.
     doc_title = config.get("price_list", "title")
     doc = reportlab.platypus.BaseDocTemplate(
-        pdf_file,
+        options.pdf_file,
         pagesize=reportlab.lib.pagesizes.letter,
         title=doc_title,
         #showBoundary=True  # debug
     )
 
     # Construct a frame for each column.
-    frames = create_col_frames(doc, ncols)
+    frames = create_col_frames(doc, options.ncols)
 
     # Construct a template and add it to the document.
     doc.my_title = doc_title
@@ -164,13 +172,13 @@ def generate_pdf(
                 continue
             row = (
                 cctools.plain_text_to_html(product["Product Name"]),
-                calc_price_inc_tax(product["Price"], tax_fraction)
+                calc_price_inc_tax(options, product["Price"], price_multiplier)
             )
             table_data.append(row)
         if len(table_data) == 0:
             continue
-        if greybar_interval > 1:
-            for row in range(0, len(table_data), greybar_interval):
+        if options.greybar_interval > 1:
+            for row in range(0, len(table_data), options.greybar_interval):
                 styles.append(("BACKGROUND", (0, row), (1, row), greybar_color))
         table = reportlab.platypus.Table(
             data=table_data,
@@ -193,7 +201,7 @@ def generate_pdf(
 
 def main():
     """main"""
-    defaultConfig = os.path.join(
+    default_config = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "cctools.cfg"
     )
@@ -206,7 +214,7 @@ def main():
         "--config",
         action="store",
         metavar="FILE",
-        default=defaultConfig,
+        default=default_config,
         help="configuration filename (default=%default)"
     )
     option_parser.add_option(
@@ -245,6 +253,14 @@ def main():
         help="tax rate in percent (default=%default)"
     )
     option_parser.add_option(
+        "--currency",
+        action="store",
+        dest="currency",
+        metavar="USD|UGX",
+        default="USD",
+        help="currency (default=%default)"
+    )
+    option_parser.add_option(
         "--verbose",
         action="store_true",
         default=False,
@@ -259,6 +275,11 @@ def main():
     # Read config file.
     config = ConfigParser.RawConfigParser()
     config.readfp(open(options.config))
+
+    # Determine price multiplier.
+    price_multiplier = 1.0 + options.tax_percent / 100.0
+    if options.currency == "UGX":
+        price_multiplier *= float(config.get("price_list", "ugx_exchange"))
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
@@ -276,13 +297,11 @@ def main():
     if options.verbose:
         sys.stderr.write("Generating %s\n" % options.pdf_file)
     generate_pdf(
+        options,
         config,
         cc_browser,
         products,
-        options.tax_percent / 100.0,
-        options.ncols,
-        options.greybar_interval,
-        options.pdf_file
+        price_multiplier
     )
 
     if options.verbose:
