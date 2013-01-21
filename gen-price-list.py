@@ -293,6 +293,20 @@ def main():
     # Fetch products list.
     products = cc_browser.get_products()
 
+    # Clean bad products.
+    orig_products = products[:]
+    products = list()
+    for product in orig_products:
+        try:
+            if (
+                product["Category"] != "" and
+                product["Product Name"] != "" and
+                float(product["Price"]) > 0.0
+            ):
+                products.append(product)
+        except ValueError:
+            pass
+
     # Generate PDF file.
     if options.verbose:
         sys.stderr.write("Generating %s\n" % options.pdf_file)
