@@ -52,6 +52,29 @@ def check_value_in_set(type_name, item_name, item, key, valid_values):
     return is_invalid
 
 
+def check_value_is_positive(type_name, item_name, item, key):
+    """Print message if item[key] is not a positive number."""
+    if item[key] == "":
+        print "%s '%s': %s is blank" % (type_name, item_name, key)
+    else:
+        try:
+            value = float(item[key])
+            if value <= 0.0:
+                print "%s '%s': %s '%f' is not greater than zero" % (
+                    type_name,
+                    item_name,
+                    key,
+                    value
+                )
+        except ValueError:
+            print "%s '%s': %s '%s' is not a number" % (
+                type_name,
+                item_name,
+                key,
+                value
+            )
+
+
 def check_skus(products):
     """Check SKUs for uniqueness."""
     skus = dict()
@@ -112,6 +135,10 @@ def check_product(product):
                 product["HTSUS No"]
             )
 
+    check_value_is_positive("Product", display_name, product, "Cost")
+
+    check_value_is_positive("Product", display_name, product, "Price")
+
 
 def main():
     """main"""
@@ -132,6 +159,14 @@ def main():
         dest="clean",
         default=True,
         help="do not clean data before checking"
+    )
+    option_parser.add_option(
+        "--cache-ttl",
+        action="store",
+        type=int,
+        metavar="SEC",
+        default=3600,
+        help="cache TTL in seconds (default=%default)"
     )
     option_parser.add_option(
         "--verbose",
@@ -156,7 +191,8 @@ def main():
         config.get("website", "username"),
         config.get("website", "password"),
         verbose=options.verbose,
-        clean=options.clean
+        clean=options.clean,
+        cache_ttl=options.cache_ttl
     )
 
     # Check category list.
