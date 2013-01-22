@@ -98,18 +98,18 @@ def check_product(product):
         )
 
     if product["Category"] in ("Necklaces", "Bracelets"):
-        if product["MPN"] != "7117.90.9000":
-            print "Product '%s': MPN (HTSUS No) '%s' != '7117.90.9000'" % (
+        if product["HTSUS No"] != "7117.90.9000":
+            print "Product '%s': HTSUS No '%s' != '7117.90.9000'" % (
                 display_name,
-                product["MPN"]
+                product["HTSUS No"]
             )
     else:
-        if product["MPN"] == "":
-            print "Product '%s': MPN (HTSUS No) not set" % (display_name)
-        elif len(product["MPN"]) != 12:
-            print "Product '%s': Invalid MPN (HTSUS No) '%s'" % (
+        if product["HTSUS No"] == "":
+            print "Product '%s': HTSUS No not set" % (display_name)
+        elif len(product["HTSUS No"]) != 12:
+            print "Product '%s': Invalid HTSUS No '%s'" % (
                 display_name,
-                product["MPN"]
+                product["HTSUS No"]
             )
 
 
