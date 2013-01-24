@@ -4,19 +4,19 @@
 
 Requires a [website] section in config file for login info.
 
-The [lint] section of the config file contains product value checks.
-The key is the product value (column) to check and the value is a
-regular expression which the product value must match.  You can
+The [lint_product] section of the config file contains product value
+checks.  The key is the product value (column) to check and the value
+is a regular expression which the product value must match.  You can
 specify multiple checks for a product value by putting them on
 multiple lines.  The regex can be followed by a Python "if"
 expression.  For example:
 
-    [lint]
+    [lint_product]
     Teaser: \S.{9,59}  ; 10-59 chars
     Discontinued Item: Y|N  ; Y or N
     Available:
         Y|N
-        N if product["Discontinued Item"] == "Y"
+        N if item["Discontinued Item"] == "Y"
     # UPC must be blank
     UPC:
     Cost: [0-9]+\.[0-9]{2}  ; positive float
@@ -25,7 +25,10 @@ expression.  For example:
     # SKU must start with 8 if the category is Cat or Dog.
     SKU:
         [1-9][0-9]{4}
-        [8][0-9]{4} if product["Category"] in ("Cat", "Dog")
+        [8][0-9]{4} if item["Category"] in ("Cat", "Dog")
+
+The [lint_category] section is similar and is used for category value
+checks.
 """
 
 import ConfigParser
@@ -33,6 +36,17 @@ import cctools
 import optparse
 import re
 import sys
+
+def parse_checks(config, section):
+    """Parse value check definitions in config file."""
+    checks = list()
+    for name, value in config.items(section):
+        for check in value.split("\n"):
+            check = check.strip()
+            if check != "":
+                checks.append((name, check))
+    return checks
+
 
 def product_display_name(product):
     """Construct a display name for a product."""
@@ -57,34 +71,28 @@ def check_skus(products):
                 skus[sku] = display_name
 
 
-def check_product(product_checks, product):
-    """Check product for problems."""
-    display_name = product_display_name(product)
+def check_item(item_checks, item_type_name, item, item_name):
+    """Check category or product for problems."""
 
-    for key, check in product_checks:
+    for key, check in item_checks:
         check_parts = check.split(None, 2)
         if len(check_parts) == 1:
             pass
         elif len(check_parts) == 3 and check_parts[1].lower() == "if":
             predicate = check_parts[2]
-            if not eval(predicate, {"__builtins__": {}}, {"product": product}):
+            if not eval(predicate, {"__builtins__": {}}, {"item": item}):
                 continue
         else:
             print "ERROR: Unknown check syntax '%s'" % check
             sys.exit(1)
-        if not re.match(check_parts[0], product[key]):
+        if not re.match(check_parts[0], item[key]):
             print "%s '%s': Invalid '%s' of '%s' (does not match %s)" % (
-                "Product",
-                display_name,
+                item_type_name,
+                item_name,
                 key,
-                product[key],
+                item[key],
                 check_parts[0]
             )
-
-    if product["Available"] == "Y" and product["Discontinued Item"] == "Y":
-        print "Product '%s': Is Available and is a Discontinued Item" % (
-            display_name
-        )
 
 
 def main():
@@ -131,6 +139,8 @@ def main():
     config = ConfigParser.RawConfigParser()
     config.optionxform = str  # preserve case of option names
     config.readfp(open(options.config))
+    category_checks = parse_checks(config, "lint_category")
+    product_checks = parse_checks(config, "lint_product")
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
@@ -144,28 +154,25 @@ def main():
     )
 
     # Check category list.
-    #categories = cc_browser.get_categories()
-    #for category in categories:
-    #    check_category(category)
-
-    ## Build map of category ID to category name.
-    #category_names = dict()
-    #for category in categories:
-    #    category_names[category["Category Id"]] = category["Category Name"]
-
-    # Parse check definitions.
-    product_checks = list()
-    for name, value in config.items("lint"):
-        for check in value.split("\n"):
-            check = check.strip()
-            if check != "":
-                product_checks.append((name, check))
+    categories = cc_browser.get_categories()
+    for category in categories:
+        check_item(
+            category_checks,
+            "Category",
+            category,
+            category["Category Name"]
+        )
 
     # Check products list.
     products = cc_browser.get_products()
     check_skus(products)
     for product in products:
-        check_product(product_checks, product)
+        check_item(
+            product_checks,
+            "Product",
+            product,
+            product_display_name(product)
+        )
 
     if options.verbose:
         sys.stderr.write("Checks complete\n")
