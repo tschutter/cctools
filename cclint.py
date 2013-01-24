@@ -7,7 +7,11 @@ Detects problems in data exported from CoreCommerce.
 import ConfigParser
 import cctools
 import optparse
+import re
 import sys
+
+# Pattern to match HTSUS No.
+RE_HTSUS_NO = re.compile(r"^[1-9][0-9]{3}\.[0-9]{2}\.[0-9]{4}$")
 
 def product_display_name(product):
     """Construct a display name for a product."""
@@ -129,7 +133,7 @@ def check_product(product):
     else:
         if product["HTSUS No"] == "":
             print "Product '%s': HTSUS No not set" % (display_name)
-        elif len(product["HTSUS No"]) != 12:
+        elif not RE_HTSUS_NO.match(product["HTSUS No"]):
             print "Product '%s': Invalid HTSUS No '%s'" % (
                 display_name,
                 product["HTSUS No"]
