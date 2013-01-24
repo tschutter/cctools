@@ -1,17 +1,39 @@
 cctools
 =======
 
-CoreCommerce tools
+cctools is a set of utilities that work with CoreCommerce product
+data.
+
+cclint.py
+    Detects problems in CoreCommerce product and category data.
 
 gen-price-list.py
     Generates a price list from CoreCommerce data in PDF form.  Prices
     are adjusted to include sales tax and are rounded to even dollar
     amounts.  The intent is to use the price list at fairs and shows
-    to avoid the handling of change.  It also makes accounting easier
-    because you can deal with round numbers.
+    to avoid the handling of change.  It also makes accounting of cash
+    and checks easier because you can deal with round numbers.
+
+gen-po-invoice.py
+    Generates a Purchase Order / Commercial Invoice in XLSX form.
 
 gen-art-mart-checkin.py
     Generates an Art Mart Inventory Sheet.
+
+All of these tools use a common cctools.cfg configuration file.  The
+configuration file uses `INI syntax
+<http://docs.python.org/2/library/configparser.html>`_.  The config
+file must have a [website] section that specifies how the tools can
+login to CoreCommerce to download product and category lists::
+
+    [website]
+    host: www16.corecommerce.com
+    site: yoursite
+    username: cctools
+    password: super!secret
+
+I strongly suggest that you create a cctools limited user in
+CoreCommerce that only has access to Products/Categories.
 
 Notes
 -----
