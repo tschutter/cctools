@@ -1,7 +1,31 @@
 #!/usr/bin/env python
 
-"""
-Detects problems in data exported from CoreCommerce.
+"""Detects problems in CoreCommerce product data.
+
+Requires a [website] section in config file for login info.
+
+The [lint] section of the config file contains product value checks.
+The key is the product value (column) to check and the value is a
+regular expression which the product value must match.  You can
+specify multiple checks for a product value by putting them on
+multiple lines.  The regex can be followed by a Python "if"
+expression.  For example:
+
+    [lint]
+    Teaser: \S.{9,59}  ; 10-59 chars
+    Discontinued Item: Y|N  ; Y or N
+    Available:
+        Y|N
+        N if product["Discontinued Item"] == "Y"
+    # UPC must be blank
+    UPC:
+    Cost: [0-9]+\.[0-9]{2}  ; positive float
+    Price: [0-9]+\.[0-9]{2}  ; positive float
+    # SKU must be 5 digits.
+    # SKU must start with 8 if the category is Cat or Dog.
+    SKU:
+        [1-9][0-9]{4}
+        [8][0-9]{4} if product["Category"] in ("Cat", "Dog")
 """
 
 import ConfigParser
@@ -10,73 +34,10 @@ import optparse
 import re
 import sys
 
-# Pattern to match HTSUS No.
-RE_HTSUS_NO = re.compile(r"^[1-9][0-9]{3}\.[0-9]{2}\.[0-9]{4}$")
-
 def product_display_name(product):
     """Construct a display name for a product."""
     display_name = "%s %s" % (product["SKU"], product["Product Name"])
     return display_name.strip()
-
-
-def check_string(type_name, item_name, item, key, min_len=0):
-    """Print message if item[key] is empty or shorter than min_len."""
-    is_invalid = False
-    value_len = len(item[key])
-    if value_len == 0:
-        print "%s '%s': Value '%s' not defined" % (
-            type_name,
-            item_name,
-            key
-        )
-        is_invalid = True
-    elif value_len < min_len:
-        print "%s '%s': Value '%s' == '%s' is too short" % (
-            type_name,
-            item_name,
-            key,
-            item[key]
-        )
-        is_invalid = True
-    return is_invalid
-
-
-def check_value_in_set(type_name, item_name, item, key, valid_values):
-    """Print message if item[key] not in valid_values."""
-    is_invalid = False
-    if not item[key] in valid_values:
-        print "%s '%s': Invalid '%s' == '%s' not in %s" % (
-            type_name,
-            item_name,
-            key,
-            item[key],
-            valid_values
-        )
-        is_invalid = True
-    return is_invalid
-
-
-def check_value_is_positive(type_name, item_name, item, key):
-    """Print message if item[key] is not a positive number."""
-    if item[key] == "":
-        print "%s '%s': %s is blank" % (type_name, item_name, key)
-    else:
-        try:
-            value = float(item[key])
-            if value <= 0.0:
-                print "%s '%s': %s '%f' is not greater than zero" % (
-                    type_name,
-                    item_name,
-                    key,
-                    value
-                )
-        except ValueError:
-            print "%s '%s': %s '%s' is not a number" % (
-                type_name,
-                item_name,
-                key,
-                value
-            )
 
 
 def check_skus(products):
@@ -84,8 +45,8 @@ def check_skus(products):
     skus = dict()
     for product in products:
         display_name = product_display_name(product)
-        if not check_string("Product", display_name, product, "SKU"):
-            sku = product["SKU"]
+        sku = product["SKU"]
+        if sku != "":
             if sku in skus:
                 print "%s '%s': SKU already used by '%s'" % (
                     "Product",
@@ -96,52 +57,34 @@ def check_skus(products):
                 skus[sku] = display_name
 
 
-def check_product(product):
+def check_product(product_checks, product):
     """Check product for problems."""
     display_name = product_display_name(product)
 
-    check_string("Product", display_name, product, "Teaser", 10)
-
-    y_n = ("Y", "N")
-    check_value_in_set("Product", display_name, product, "Available", y_n)
-
-    check_value_in_set(
-        "Product",
-        display_name,
-        product,
-        "Discontinued Item",
-        y_n
-    )
+    for key, check in product_checks:
+        check_parts = check.split(None, 2)
+        if len(check_parts) == 1:
+            pass
+        elif len(check_parts) == 3 and check_parts[1].lower() == "if":
+            predicate = check_parts[2]
+            if not eval(predicate, {"__builtins__": {}}, {"product": product}):
+                continue
+        else:
+            print "ERROR: Unknown check syntax '%s'" % check
+            sys.exit(1)
+        if not re.match(check_parts[0], product[key]):
+            print "%s '%s': Invalid '%s' of '%s' (does not match %s)" % (
+                "Product",
+                display_name,
+                key,
+                product[key],
+                check_parts[0]
+            )
 
     if product["Available"] == "Y" and product["Discontinued Item"] == "Y":
         print "Product '%s': Is Available and is a Discontinued Item" % (
             display_name
         )
-
-    if product["UPC"] != "":
-        print "Product '%s': UPC '%s' is not blank" % (
-            display_name,
-            product["UPC"]
-        )
-
-    if product["Category"] in ("Necklaces", "Bracelets"):
-        if product["HTSUS No"] != "7117.90.9000":
-            print "Product '%s': HTSUS No '%s' != '7117.90.9000'" % (
-                display_name,
-                product["HTSUS No"]
-            )
-    else:
-        if product["HTSUS No"] == "":
-            print "Product '%s': HTSUS No not set" % (display_name)
-        elif not RE_HTSUS_NO.match(product["HTSUS No"]):
-            print "Product '%s': Invalid HTSUS No '%s'" % (
-                display_name,
-                product["HTSUS No"]
-            )
-
-    check_value_is_positive("Product", display_name, product, "Cost")
-
-    check_value_is_positive("Product", display_name, product, "Price")
 
 
 def main():
@@ -186,6 +129,7 @@ def main():
 
     # Read config file.
     config = ConfigParser.RawConfigParser()
+    config.optionxform = str  # preserve case of option names
     config.readfp(open(options.config))
 
     # Create a connection to CoreCommerce.
@@ -209,11 +153,19 @@ def main():
     #for category in categories:
     #    category_names[category["Category Id"]] = category["Category Name"]
 
+    # Parse check definitions.
+    product_checks = list()
+    for name, value in config.items("lint"):
+        for check in value.split("\n"):
+            check = check.strip()
+            if check != "":
+                product_checks.append((name, check))
+
     # Check products list.
     products = cc_browser.get_products()
     check_skus(products)
     for product in products:
-        check_product(product)
+        check_product(product_checks, product)
 
     if options.verbose:
         sys.stderr.write("Checks complete\n")
