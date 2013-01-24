@@ -29,6 +29,7 @@ class CCBrowser(object):
         verbose=True,
         cache_ttl=3600
     ):
+        self._host = host
         self._base_url = "https://%s/~%s/admin/index.php" % (host, site)
         self._username = username
         self._password = password
@@ -59,7 +60,7 @@ class CCBrowser(object):
 
         # Notify user of time consuming step.
         if self._verbose:
-            sys.stderr.write("Logging into corecommerce.com\n")
+            sys.stderr.write("Logging into %s\n" % self._host)
 
         # Open the login page.
         self._browser.open(self._base_url)
