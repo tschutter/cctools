@@ -85,13 +85,14 @@ def check_item(item_checks, item_type_name, item, item_name):
         else:
             print "ERROR: Unknown check syntax '%s'" % check
             sys.exit(1)
-        if not re.match(check_parts[0], item[key]):
+        pattern = "^" + check_parts[0] + "$"  # entire value must match
+        if not re.match(pattern, item[key]):
             print "%s '%s': Invalid '%s' of '%s' (does not match %s)" % (
                 item_type_name,
                 item_name,
                 key,
                 item[key],
-                check_parts[0]
+                pattern
             )
 
 
