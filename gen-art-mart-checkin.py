@@ -217,15 +217,16 @@ def generate_pdf(products, quantities, pdf_filename):
     table_data = [header_row]
     for product in products:
         sku = product["SKU"]
-        price = product["Price"]
-        description = "%s: %s" % (
-            product["Product Name"],
-            cctools.html_to_plain_text(product["Teaser"])
-        )
-        description = description[:68]
         if sku in quantities:
             quantity = quantities[sku]
+            # Round price to nearest dollar.
+            price = product["Price"]
             price = "$%.0f" % math.trunc(float(price) + 0.5)
+            description = "%s: %s" % (
+                product["Product Name"],
+                cctools.html_to_plain_text(product["Teaser"])
+            )
+            description = description[:68]
             table_data.append(
                 ("_____", sku, quantity, price, description, "_____")
             )
