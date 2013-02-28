@@ -367,13 +367,11 @@ def main():
         pdf_filename = options.pdf_filename
         if options.datestamp:
             today = datetime.date.today()
-            index = pdf_filename.rfind(".")
-            pdf_filename = "%s_%4i-%02i-%02i%s" % (
-                pdf_filename[:index],
+            pdf_filename = "%4d-%02d-%02d_%s" % (
                 today.year,
                 today.month,
                 today.day,
-                pdf_filename[index:]
+                pdf_filename
             )
         if options.verbose:
             sys.stderr.write("Generating %s\n" % pdf_filename)
