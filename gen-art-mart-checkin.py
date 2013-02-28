@@ -310,6 +310,13 @@ def main():
         help="output PDF filename (default=%default)"
     )
     option_parser.add_option(
+        "--no-datestamp",
+        action="store_false",
+        dest="datestamp",
+        default=True,
+        help="do not insert datestamp in output PDF filename"
+    )
+    option_parser.add_option(
         "--write-quant",
         action="store_true",
         dest="write_quant",
@@ -357,9 +364,20 @@ def main():
 
     else:
         quantities = load_quantities(options.quant_filename)
+        pdf_filename = options.pdf_filename
+        if options.datestamp:
+            today = datetime.date.today()
+            index = pdf_filename.rfind(".")
+            pdf_filename = "%s_%4i-%02i-%02i%s" % (
+                pdf_filename[:index],
+                today.year,
+                today.month,
+                today.day,
+                pdf_filename[index:]
+            )
         if options.verbose:
-            sys.stderr.write("Generating %s\n" % options.pdf_filename)
-        generate_pdf(products, quantities, options.pdf_filename)
+            sys.stderr.write("Generating %s\n" % pdf_filename)
+        generate_pdf(products, quantities, pdf_filename)
 
     if options.verbose:
         sys.stderr.write("Generation complete\n")
