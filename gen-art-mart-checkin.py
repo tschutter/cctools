@@ -220,8 +220,9 @@ def generate_pdf(products, quantities, pdf_filename):
         price = product["Price"]
         description = "%s: %s" % (
             product["Product Name"],
-            product["Teaser"].replace("&quot;", "\"")
+            cctools.html_to_plain_text(product["Teaser"])
         )
+        description = description[:68]
         if sku in quantities:
             quantity = quantities[sku]
             price = "$%.0f" % math.trunc(float(price) + 0.5)
@@ -267,7 +268,7 @@ def write_quantities(quant_filename, products):
             sku = product["SKU"]
             description = "%s: %s" % (
                 product["Product Name"],
-                product["Teaser"].replace("&quot;", "\"")
+                cctools.html_to_plain_text(product["Teaser"])
             )
             quant_file.write(",".join(["0", sku, '"%s"' % description]) + "\n")
 
@@ -342,8 +343,11 @@ def main():
     # Fetch products list.
     products = cc_browser.get_products()
 
-    # Sort products by SKU.
-    products = sorted(products, key=lambda product: product["SKU"])
+    # Sort products by category, product_name.
+    products = sorted(
+        products,
+        key=cc_browser.sort_key_by_category_and_name
+    )
 
     if options.write_quant:
         if options.verbose:
