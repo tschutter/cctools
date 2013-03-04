@@ -27,7 +27,8 @@ class CCBrowser(object):
         password,
         clean=True,
         verbose=True,
-        cache_ttl=3600
+        cache_ttl=3600,
+        proxy=None
     ):
         self._host = host
         self._base_url = "https://%s/~%s/admin/index.php" % (host, site)
@@ -46,6 +47,8 @@ class CCBrowser(object):
         if not os.path.exists(self._cache_dir):
             os.mkdir(self._cache_dir, 0700)
         self._browser = mechanize.Browser()
+        if proxy != None:
+            self._browser.set_proxies({"https": proxy})
         self._logged_in = False
         self._products = None
         self._categories = None
@@ -85,14 +88,66 @@ class CCBrowser(object):
         now = time.time()
         return expire_time < now
 
-    _EXPORT_PRODUCTS_PAGE =\
-        "m=ajax_export&instance=products&checkAccess=products"
+    def _download_personalizations_csv(self, filename):
+        """Download personalization list to a CSV file."""
 
-    def _load_export_products_page(self):
-        """Load ajax_export products page."""
+        # Login if necessary.
+        self._login()
 
-        # Open page.
-        url = "%s?%s" % (self._base_url, self._EXPORT_PRODUCTS_PAGE)
+        # Notify user of time consuming step.
+        if self._verbose:
+            sys.stderr.write("Downloading personalizations\n")
+
+        # Load export page.
+        url = "%s?%s" % (
+            self._base_url,
+            "m=ajax_export" +
+            "&instance=personalization_products&checkAccess=products"
+        )
+        self._browser.open(url)
+
+        # Call the doExport function.
+        url += "&rs=doExport"
+        self._browser.open(url)
+
+        # Fetch the result file.
+        url = self._base_url + "?m=ajax_export_send"
+        self._browser.retrieve(url, filename)
+
+    def get_personalizations(self):
+        """Return a list of per-personalization dictionaries."""
+
+        if self._products == None:
+            filename = os.path.join(self._cache_dir, "personalizations.csv")
+
+            # Download products file if it is out of date.
+            if self._is_file_expired(filename):
+                self._download_personalizations_csv(filename)
+
+            # Read personalizations file.
+            self._personalizations = list(csv.DictReader(open(filename)))
+
+            # Cleanup suspect data.
+            #if self._clean:
+            #    self._clean_personalizations()
+
+        return self._personalizations
+
+    def _download_products_csv(self, filename):
+        """Download products list to a CSV file."""
+
+        # Login if necessary.
+        self._login()
+
+        # Notify user of time consuming step.
+        if self._verbose:
+            sys.stderr.write("Downloading products\n")
+
+        # Load the export page.
+        url = (
+            self._base_url +
+            "?m=ajax_export&instance=products&checkAccess=products"
+        )
         self._browser.open(url)
 
         # Select form.
@@ -114,35 +169,9 @@ class CCBrowser(object):
             print url + " response:\n"
             print resp.read().replace("\r", "")
 
-    def _do_export_products(self):
-        """Call doExport function on the ajax_export products page.
-        This prepares a product list for download.
-        """
-
         # Call the doExport function.
-        url = "%s?%s&rs=doExport" % (self._base_url, self._EXPORT_PRODUCTS_PAGE)
-        response = self._browser.open(url)
-
-        # Read the entire response.  This ensures that we do not
-        # return until the server side prep is totally done.  The
-        # response contains percentages for a progress bar.
-        response.read()
-
-    def _download_products_csv(self, filename):
-        """Download products list to a CSV file."""
-
-        # Login if necessary.
-        self._login()
-
-        # Notify user of time consuming step.
-        if self._verbose:
-            sys.stderr.write("Downloading products\n")
-
-        # Load the export page.
-        self._load_export_products_page()
-
-        # Prepare a product list for download.
-        self._do_export_products()
+        url += "&rs=doExport"
+        self._browser.open(url)
 
         # Fetch the result file.
         url = self._base_url + "?m=ajax_export_send"
@@ -178,33 +207,6 @@ class CCBrowser(object):
 
         return self._products
 
-    _EXPORT_CATEGORIES_PAGE =\
-        "m=ajax_export&instance=categories&checkAccess=categories"
-
-    def _load_export_categories_page(self):
-        """Load ajax_export categories page."""
-
-        # Open page.
-        url = "%s?%s" % (self._base_url, self._EXPORT_CATEGORIES_PAGE)
-        self._browser.open(url)
-
-    def _do_export_categories(self):
-        """Call doExport function on the ajax_export categories page.
-        This prepares a category list for download.
-        """
-
-        # Call the doExport function.
-        url = "%s?%s&rs=doExport" % (
-            self._base_url,
-            self._EXPORT_CATEGORIES_PAGE
-        )
-        response = self._browser.open(url)
-
-        # Read the entire response.  This ensures that we do not
-        # return until the server side prep is totally done.  The
-        # response contains percentages for a progress bar.
-        response.read()
-
     def _download_categories_csv(self, filename):
         """Download categories list to a CSV file."""
 
@@ -216,10 +218,15 @@ class CCBrowser(object):
             sys.stderr.write("Downloading categories\n")
 
         # Load the export page.
-        self._load_export_categories_page()
+        url = (
+            self._base_url +
+            "?m=ajax_export&instance=categories&checkAccess=categories"
+        )
+        self._browser.open(url)
 
-        # Prepare a category list for download.
-        self._do_export_categories()
+        # Call the doExport function.
+        url += "&rs=doExport"
+        self._browser.open(url)
 
         # Fetch the result file.
         url = self._base_url + "?m=ajax_export_send"
