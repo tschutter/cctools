@@ -50,6 +50,7 @@ class CCBrowser(object):
         if proxy != None:
             self._browser.set_proxies({"https": proxy})
         self._logged_in = False
+        self._personalizations = None
         self._products = None
         self._categories = None
         self._category_sort = None
@@ -117,7 +118,7 @@ class CCBrowser(object):
     def get_personalizations(self):
         """Return a list of per-personalization dictionaries."""
 
-        if self._products == None:
+        if self._personalizations == None:
             filename = os.path.join(self._cache_dir, "personalizations.csv")
 
             # Download products file if it is out of date.
