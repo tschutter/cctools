@@ -10,6 +10,49 @@ import optparse
 import os
 import sys
 
+def table_sort(table, field):
+    return table
+
+
+def table_print_divider(col_widths):
+    print(
+        "+" + "+".join(
+            "-" * (col_width + 2)
+            for col_width in col_widths
+        ) + "+"
+    )
+
+
+def table_print_row(row, col_widths):
+    print(
+        "| " + " | ".join(
+            "%-*s" % (col_widths[col], field)
+            for col, field in enumerate(row)
+        ) + " |"
+    )
+
+
+def table_print(table, fields):
+    # Determine the column widths.
+    col_widths = list()
+    for field in fields:
+        col_widths.append(len(field))
+    for record in table:
+        for col, field in enumerate(fields):
+            col_widths[col] = max(col_widths[col], len(str(record[field])))
+
+    # Pretty print the records to the output.
+    table_print_divider(col_widths)
+    table_print_row(fields, col_widths)
+    table_print_divider(col_widths)
+    for row, record in enumerate(table):
+        table_print_row(
+            [cctools.html_to_plain_text(record[field]) for field in fields],
+            col_widths
+        )
+    table_print_divider(col_widths)
+
+
 def main():
     """main"""
     default_config = os.path.join(
@@ -35,7 +78,7 @@ def main():
         "--cache-ttl",
         action="store",
         metavar="SEC",
-        default=60,
+        default=3600,
         help="cache TTL (default=%default)"
     )
     option_parser.add_option(
@@ -67,11 +110,31 @@ def main():
 
     action = args[0]
     if (action == "products"):
-        print cc_browser.get_products()
+        products = cc_browser.get_products()
+        table_print(products, ["SKU", "Product Name", "Price", "Available", "Track Inventory", "Inventory Level", "Teaser"])
     elif (action == "categories"):
-        print cc_browser.get_categories()
+        categories = cc_browser.get_categories()
+        categories = table_sort(categories, "Sort")
+        table_print(categories, ["Category Id", "Category Name", "Sort"])
     elif (action == "personalizations"):
-        print cc_browser.get_personalizations()
+        personalizations = cc_browser.get_personalizations()
+        personalizations = sorted(
+            personalizations,
+            key=cc_browser.personalization_sort_key
+        )
+        table_print(
+            personalizations,
+            [
+                "Product SKU",
+                "Product Name",
+                "Question|Answer",
+                "SKU",
+                "Answer Sort Order",
+                "Inventory Level",
+                "Answer Input Type",
+                "Main Photo"
+            ]
+        )
     else:
         option_parser.error("invalid action")
 
