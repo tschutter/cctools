@@ -178,7 +178,7 @@ class CCBrowser(object):
         self._browser.retrieve(url, filename)
 
     def _clean_products(self):
-        """Normalize suspect data."""
+        """Normalize suspect product data."""
         # Boolean value of "" appears to mean "N".
         for product in self._products:
             # "Available" should be Y|N, but we sometimes see "".
@@ -232,6 +232,13 @@ class CCBrowser(object):
         url = self._base_url + "?m=ajax_export_send"
         self._browser.retrieve(url, filename)
 
+    def _clean_categories(self):
+        """Normalize suspect product data."""
+        # Boolean value of "" appears to mean "N".
+        for product in self._categories:
+            if not product["Hide This Category From Customers"] in ("Y", "N"):
+                product["Available"] = "N"
+
     def get_categories(self):
         """Return a list of per-category dictionaries."""
 
@@ -244,6 +251,10 @@ class CCBrowser(object):
 
             # Read categories file.
             self._categories = list(csv.DictReader(open(filename)))
+
+            # Cleanup suspect data.
+            if self._clean:
+                self._clean_categories()
 
         return self._categories
 
