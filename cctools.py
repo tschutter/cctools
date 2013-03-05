@@ -296,6 +296,13 @@ class CCBrowser(object):
             category_sort_key = category
         return category_sort_key
 
+    def personalization_sort_key(self, personalization):
+        """Return a key to sort personalizations."""
+        return (
+            personalization["Product Name"],
+            personalization["Question Sort Order"],
+            personalization["Answer Sort Order"]
+        )
 
 _HTML_TO_PLAIN_TEXT_DICT = {
     "&quot;": "\"",
