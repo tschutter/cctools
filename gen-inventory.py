@@ -2,12 +2,6 @@
 
 """
 Generate an inventory report.
-
-TODO:
-check product enabled flag
-check "inventory by flag of product (prod|person)"
-sku = -11301
-left justify column A
 """
 
 import ConfigParser
@@ -63,9 +57,11 @@ def generate_xlsx(options, config, cc_browser, inventory):
     worksheet.column_dimensions["B"].width = 6
     set_cell(worksheet, 0, 2, "Product Name", bold=True)
     worksheet.column_dimensions["C"].width = 50
+    set_cell(worksheet, 0, 3, "Enabled", bold=True)
+    worksheet.column_dimensions["D"].width = 8
 
     # Create data rows.
-    for itemid, (sku, level, name) in enumerate(inventory):
+    for itemid, (sku, level, name, enabled) in enumerate(inventory):
         row = itemid + 1
         style = set_cell(worksheet, row, 0, sku).style
         style.alignment.horizontal =\
@@ -74,6 +70,7 @@ def generate_xlsx(options, config, cc_browser, inventory):
             openpyxl.style.NumberFormat.FORMAT_TEXT
         set_cell(worksheet, row, 1, level)
         set_cell(worksheet, row, 2, name)
+        set_cell(worksheet, row, 3, enabled)
 
     # Write to file.
     workbook.save(options.xlsx_filename)
@@ -154,7 +151,10 @@ def main():
         product_name = product["Product Name"]
         product_level = product["Inventory Level"]
         if product["Track Inventory"] == "By Product":
-            inventory.append((product_sku, product_level, product_name))
+            enabled = product["Available"]
+            inventory.append(
+                (product_sku, product_level, product_name, enabled)
+            )
         else:
             for personalization in personalizations:
                 if product_sku == personalization["Product SKU"]:
@@ -164,9 +164,11 @@ def main():
                     else:
                         sku = "%s-%s" % (product_sku, pers_sku)
                     pers_level = personalization["Inventory Level"]
-                    answer = personalization["Question|Answer"].split("|")[1]
+                    answer = personalization["Question|Answer"]
+                    answer = answer.replace("|", "=")
                     name = "%s (%s)" % (product_name, answer)
-                    inventory.append((sku, pers_level, name))
+                    enabled = personalization["Answer Enabled"]
+                    inventory.append((sku, pers_level, name, enabled))
 
     #for sku, level, name in inventory:
     #    print "%-9s %4s %-45s" % (sku, level, name)
