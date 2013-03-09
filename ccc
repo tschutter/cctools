@@ -53,6 +53,140 @@ def table_print(table, fields):
     table_print_divider(col_widths)
 
 
+def parse_object_type(option_parser, arg):
+    """Determine the requested object type."""
+    if "products".startswith(arg) and len(arg) > 1:
+        return "products"
+    elif "categories".startswith(arg):
+        return "categories"
+    elif "personalizations".startswith(arg) and len(arg) > 1:
+        return "personalizations"
+    else:
+        option_parser.error("invalid object type '%s'" % arg)
+
+
+def action_list(option_parser, options, args, cc_browser):
+    """List objects of a type."""
+    if len(args) < 2:
+        option_parser.error("object type not specified")
+    elif len(args) > 2:
+        option_parser.error("invalid argument")
+    obj_type = parse_object_type(option_parser, args[1])
+    if obj_type == "products":
+        products = cc_browser.get_products()
+        table_print(
+            products,
+            [
+                "SKU",
+                "Product Name",
+                "Price",
+                "Available",
+                "Track Inventory",
+                "Inventory Level",
+                "Teaser"
+            ]
+        )
+    elif obj_type == "categories":
+        categories = cc_browser.get_categories()
+        categories = table_sort(categories, "Sort")
+        table_print(categories, ["Category Id", "Category Name", "Sort"])
+    elif obj_type == "personalizations":
+        personalizations = cc_browser.get_personalizations()
+        personalizations = sorted(
+            personalizations,
+            key=cc_browser.personalization_sort_key
+        )
+        table_print(
+            personalizations,
+            [
+                "Product SKU",
+                "Product Name",
+                "Question|Answer",
+                "SKU",
+                "Answer Sort Order",
+                "Inventory Level",
+                "Answer Input Type",
+                "Main Photo"
+            ]
+        )
+
+
+def find_object(option_parser, obj_type, objects, spec, keys):
+    """Return an object iff there is one object matched by spec."""
+    found_obj = None
+    for obj in objects:
+        for key in keys:
+            if obj[key].startswith(spec):
+                if found_obj:
+                    option_parser.error(
+                        "'%s' does not uniquely select one of the %s" % (
+                            spec,
+                            obj_type
+                        )
+                    )
+                found_obj = obj
+    if found_obj == None:
+        option_parser.error("No %s match '%s'" % (obj_type, spec))
+    return found_obj
+
+
+def print_obj(obj, key):
+    """Print obj[key] if key is defined, otherwise print entire dict."""
+    if key:
+        print obj[key]
+    else:
+        for key, value in obj.iteritems():
+            print "%s: %s" % (key, value)
+
+
+def action_show(option_parser, options, args, cc_browser):
+    """Show attributes of a specific object."""
+    if len(args) < 2:
+        option_parser.error("object type not specified")
+    elif len(args) < 3:
+        option_parser.error("SPEC not specified")
+    elif len(args) > 4:
+        option_parser.error("invalid argument")
+    obj_type = parse_object_type(option_parser, args[1])
+    spec = args[2]
+    if len(args) < 4:
+        key = None
+    else:
+        key = args[3]
+    if obj_type == "products":
+        products = cc_browser.get_products()
+        product = find_object(
+            option_parser,
+            obj_type,
+            products,
+            spec,
+            ["SKU", "Product Name"]
+        )
+        print_obj(product, key)
+
+    elif obj_type == "categories":
+        categories = cc_browser.get_categories()
+        category = find_object(
+            option_parser,
+            obj_type,
+            categories,
+            spec,
+            ["Category Name"]
+        )
+        print_obj(category, key)
+
+    elif obj_type == "personalizations":
+        personalizations = cc_browser.get_personalizations()
+        personalization = find_object(
+            option_parser,
+            obj_type,
+            personalizations,
+            spec,
+            ["Question|Answer"]
+        )
+        print_obj(personalization, key)
+
+
 def main():
     """main"""
     default_config = os.path.join(
@@ -63,7 +197,8 @@ def main():
     option_parser = optparse.OptionParser(
         usage="usage: %prog [options] action\n" +
         "  Actions:\n" +
-        "    list { products | categories | personalizations }"
+        "    list { products | categories | personalizations }\n"
+        "    show { products | categories | personalizations } SPEC"
     )
     option_parser.add_option(
         "--config",
@@ -108,50 +243,9 @@ def main():
         option_parser.error("action not specified")
     action = args[0]
     if "list".startswith(action):
-        if len(args) < 2:
-            option_parser.error("object not specified")
-        elif len(args) > 2:
-            option_parser.error("invalid argument")
-        obj = args[1]
-        if "products".startswith(obj) and len(obj) > 1:
-            products = cc_browser.get_products()
-            table_print(
-                products,
-                [
-                    "SKU",
-                    "Product Name",
-                    "Price",
-                    "Available",
-                    "Track Inventory",
-                    "Inventory Level",
-                    "Teaser"
-                ]
-            )
-        elif "categories".startswith(obj):
-            categories = cc_browser.get_categories()
-            categories = table_sort(categories, "Sort")
-            table_print(categories, ["Category Id", "Category Name", "Sort"])
-        elif "personalizations".startswith(obj) and len(obj) > 1:
-            personalizations = cc_browser.get_personalizations()
-            personalizations = sorted(
-                personalizations,
-                key=cc_browser.personalization_sort_key
-            )
-            table_print(
-                personalizations,
-                [
-                    "Product SKU",
-                    "Product Name",
-                    "Question|Answer",
-                    "SKU",
-                    "Answer Sort Order",
-                    "Inventory Level",
-                    "Answer Input Type",
-                    "Main Photo"
-                ]
-            )
-        else:
-            option_parser.error("invalid object '%s'" % obj)
+        action_list(option_parser, options, args, cc_browser)
+    elif "show".startswith(action):
+        action_show(option_parser, options, args, cc_browser)
     else:
         option_parser.error("invalid action '%s'" % action)
 
