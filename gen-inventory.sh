@@ -8,6 +8,7 @@ SCRIPTDIR=`dirname "${SCRIPT}"`
 
 # Determine the output filename.
 FILENAME="`date +%Y-%m-%d`-OnlineInventory.xlsx"
+rm -f "${FILENAME}"
 
 # Generate the inventory report.
 "${SCRIPTDIR}/gen-inventory.py" --outfile="${FILENAME}" --verbose
