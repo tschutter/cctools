@@ -5,7 +5,15 @@ cctools is a set of utilities that work with CoreCommerce product
 data.
 
 cclint.py
-    Detects problems in CoreCommerce product and category data.
+    Core library that communicates with CoreCommerce.
+
+ccc
+    Core Commerce Command line tool.  Interact with CoreCommerce from
+    the command line.  List categories, products, and
+    personalizations.
+
+gen-inventory.py
+    Generates an inventory report in spreadsheet form.
 
 gen-price-list.py
     Generates a price list from CoreCommerce data in PDF form.  Prices
