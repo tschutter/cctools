@@ -29,6 +29,9 @@ expression.  For example:
 
 The [lint_category] section is similar and is used for category value
 checks.
+
+The [lint_personalization] section is similar and is used for
+personalization value checks.
 """
 
 import ConfigParser
@@ -51,6 +54,16 @@ def parse_checks(config, section):
 def product_display_name(product):
     """Construct a display name for a product."""
     display_name = "%s %s" % (product["SKU"], product["Product Name"])
+    return display_name.strip()
+
+
+def personalization_display_name(personalization):
+    """Construct a display name for a personalization."""
+    display_name = "%s %s %s" % (
+        personalization["Product SKU"],
+        personalization["Product Name"],
+        personalization["Question|Answer"]
+    )
     return display_name.strip()
 
 
@@ -142,6 +155,7 @@ def main():
     config.readfp(open(options.config))
     category_checks = parse_checks(config, "lint_category")
     product_checks = parse_checks(config, "lint_product")
+    personalization_checks = parse_checks(config, "lint_personalization")
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
@@ -173,6 +187,16 @@ def main():
             "Product",
             product,
             product_display_name(product)
+        )
+
+    # Check personalizations list.
+    personalizations = cc_browser.get_personalizations()
+    for personalization in personalizations:
+        check_item(
+            personalization_checks,
+            "Personalization",
+            personalization,
+            personalization_display_name(personalization)
         )
 
     if options.verbose:
