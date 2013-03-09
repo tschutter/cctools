@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Test cctools.
+Command line tool for CoreCommerce access.
 """
 
 import ConfigParser
@@ -63,9 +63,7 @@ def main():
     option_parser = optparse.OptionParser(
         usage="usage: %prog [options] action\n" +
         "  Actions:\n" +
-        "    products - list products\n"
-        "    categories - list categories\n"
-        "    personalizations - list personalizations"
+        "    list { products | categories | personalizations }"
     )
     option_parser.add_option(
         "--config",
@@ -90,8 +88,6 @@ def main():
 
     # Parse command line arguments.
     (options, args) = option_parser.parse_args()
-    if len(args) != 1:
-        option_parser.error("invalid argument")
 
     # Read config file.
     config = ConfigParser.RawConfigParser()
@@ -108,35 +104,56 @@ def main():
         #proxy="localhost:8080"
     )
 
+    if len(args) < 1:
+        option_parser.error("action not specified")
     action = args[0]
-    if (action == "products"):
-        products = cc_browser.get_products()
-        table_print(products, ["SKU", "Product Name", "Price", "Available", "Track Inventory", "Inventory Level", "Teaser"])
-    elif (action == "categories"):
-        categories = cc_browser.get_categories()
-        categories = table_sort(categories, "Sort")
-        table_print(categories, ["Category Id", "Category Name", "Sort"])
-    elif (action == "personalizations"):
-        personalizations = cc_browser.get_personalizations()
-        personalizations = sorted(
-            personalizations,
-            key=cc_browser.personalization_sort_key
-        )
-        table_print(
-            personalizations,
-            [
-                "Product SKU",
-                "Product Name",
-                "Question|Answer",
-                "SKU",
-                "Answer Sort Order",
-                "Inventory Level",
-                "Answer Input Type",
-                "Main Photo"
-            ]
-        )
+    if "list".startswith(action):
+        if len(args) < 2:
+            option_parser.error("object not specified")
+        elif len(args) > 2:
+            option_parser.error("invalid argument")
+        obj = args[1]
+        if "products".startswith(obj) and len(obj) > 1:
+            products = cc_browser.get_products()
+            table_print(
+                products,
+                [
+                    "SKU",
+                    "Product Name",
+                    "Price",
+                    "Available",
+                    "Track Inventory",
+                    "Inventory Level",
+                    "Teaser"
+                ]
+            )
+        elif "categories".startswith(obj):
+            categories = cc_browser.get_categories()
+            categories = table_sort(categories, "Sort")
+            table_print(categories, ["Category Id", "Category Name", "Sort"])
+        elif "personalizations".startswith(obj) and len(obj) > 1:
+            personalizations = cc_browser.get_personalizations()
+            personalizations = sorted(
+                personalizations,
+                key=cc_browser.personalization_sort_key
+            )
+            table_print(
+                personalizations,
+                [
+                    "Product SKU",
+                    "Product Name",
+                    "Question|Answer",
+                    "SKU",
+                    "Answer Sort Order",
+                    "Inventory Level",
+                    "Answer Input Type",
+                    "Main Photo"
+                ]
+            )
+        else:
+            option_parser.error("invalid object '%s'" % obj)
     else:
-        option_parser.error("invalid action")
+        option_parser.error("invalid action '%s'" % action)
 
     return 0
 
