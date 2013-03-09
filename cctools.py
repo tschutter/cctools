@@ -115,6 +115,23 @@ class CCBrowser(object):
         url = self._base_url + "?m=ajax_export_send"
         self._browser.retrieve(url, filename)
 
+    def _clean_personalizations(self):
+        """Normalize suspect personalization data."""
+        # Boolean value of "" appears to mean "N".
+        booleans = [
+            "Answer Enabled",
+            "Default",
+            "Exclude from best seller report",
+            "Question Enabled",
+            "Required",
+            "Track Inventory"
+        ]
+        for personalization in self._personalizations:
+            # Booleans should be Y|N, but we sometimes see "".
+            for boolean in booleans:
+                if not personalization[boolean] in ("Y", "N"):
+                    personalization[boolean] = "N"
+
     def get_personalizations(self):
         """Return a list of per-personalization dictionaries."""
 
@@ -129,8 +146,8 @@ class CCBrowser(object):
             self._personalizations = list(csv.DictReader(open(filename)))
 
             # Cleanup suspect data.
-            #if self._clean:
-            #    self._clean_personalizations()
+            if self._clean:
+                self._clean_personalizations()
 
         return self._personalizations
 
@@ -181,13 +198,33 @@ class CCBrowser(object):
     def _clean_products(self):
         """Normalize suspect product data."""
         # Boolean value of "" appears to mean "N".
+        booleans = [
+            "Available",
+            "Customer Must Add To Cart To See Sales Price",
+            "Discontinued Item",
+            "Display Facebook LIKE",
+            "Display Facebook Link",
+            "Display Twitter Link",
+            "Eligible For Reward Points",
+            "Featured Product",
+            "Ignore Default Images",
+            "Include in Bing Product Feed",
+            "Include in Google Product Feed",
+            "Password protect this product",
+            "Request a Lower Price",
+            "Taxable (GST)",
+            "Taxable (HST)",
+            "Taxable (PST)",
+            "Taxable",
+            "Use Main Photo as Product Detail Thumbnail",
+            "Use Sale Price",
+            "Use Tab Navigation"
+        ]
         for product in self._products:
-            # "Available" should be Y|N, but we sometimes see "".
-            if not product["Available"] in ("Y", "N"):
-                product["Available"] = "N"
-            # "Discontinued Item" should be Y|N, but we sometimes see "".
-            if not product["Discontinued Item"] in ("Y", "N"):
-                product["Discontinued Item"] = "N"
+            # Booleans should be Y|N, but we sometimes see "".
+            for boolean in booleans:
+                if not product[boolean] in ("Y", "N"):
+                    product[boolean] = "N"
 
     def get_products(self):
         """Return a list of per-product dictionaries."""
