@@ -45,7 +45,7 @@ def generate_xlsx(options, config, cc_browser, inventory):
 
     # Create header row.
     set_cell(worksheet, 0, 0, "SKU", bold=True)
-    worksheet.column_dimensions["A"].width = 11
+    worksheet.column_dimensions["A"].width = 14
     set_cell(
         worksheet,
         0,
