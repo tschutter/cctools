@@ -182,6 +182,8 @@ def main():
     products = cc_browser.get_products()
     check_skus(products)
     for product in products:
+        for key in ["Teaser"]:
+            product[key] = cctools.html_to_plain_text(product[key])
         check_item(
             product_checks,
             "Product",
