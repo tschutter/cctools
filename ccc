@@ -23,27 +23,32 @@ def table_print_divider(col_widths):
     )
 
 
-def table_print_row(row, col_widths):
+def table_print_row(row, col_widths, mapping=None):
+    if mapping == None:
+        mapping = dict()
     print(
         "| " + " | ".join(
-            "%-*s" % (col_widths[col], field)
+            "%-*s" % (col_widths[col], mapping.get(field, field))
             for col, field in enumerate(row)
         ) + " |"
     )
 
 
-def table_print(table, fields):
+def table_print(table, fields, header_map=None):
+    if header_map == None:
+        header_map = dict()
+
     # Determine the column widths.
     col_widths = list()
     for field in fields:
-        col_widths.append(len(field))
+        col_widths.append(len(header_map.get(field, field)))
     for record in table:
         for col, field in enumerate(fields):
             col_widths[col] = max(col_widths[col], len(str(record[field])))
 
     # Pretty print the records to the output.
     table_print_divider(col_widths)
-    table_print_row(fields, col_widths)
+    table_print_row(fields, col_widths, header_map)
     table_print_divider(col_widths)
     for row, record in enumerate(table):
         table_print_row(
@@ -84,7 +89,8 @@ def action_list(option_parser, options, args, cc_browser):
                 "Track Inventory",
                 "Inventory Level",
                 "Teaser"
-            ]
+            ],
+            {"Inventory Level": "Inventory"}
         )
     elif obj_type == "categories":
         categories = cc_browser.get_categories()
@@ -107,7 +113,12 @@ def action_list(option_parser, options, args, cc_browser):
                 "Inventory Level",
                 "Answer Input Type",
                 "Main Photo"
-            ]
+            ],
+            {
+                "Answer Sort Order": "Sort",
+                "Inventory Level": "Inventory",
+                "Answer Input Type": "Answer Type"
+            }
         )
 
 
