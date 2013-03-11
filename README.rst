@@ -54,3 +54,6 @@ for boolean values a blank space is essentially the same as "N"
 meaning that that particular setting/feature is off/not being used.
 cctools.py therefore translates all boolean values that are not "Y" to
 "N".
+
+I use "mitmdump -w foo.mitm" and "mitmproxy -n -r foo.mitm" to
+analyze HTTP traffic between the browser and CC.
