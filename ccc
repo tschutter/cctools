@@ -108,6 +108,9 @@ def action_list(option_parser, options, args, cc_browser):
                 "Product SKU",
                 "Product Name",
                 "Question|Answer",
+                "Required",
+                "Track Inventory",
+                "Question Enabled",
                 "SKU",
                 "Answer Sort Order",
                 "Inventory Level",
@@ -115,9 +118,13 @@ def action_list(option_parser, options, args, cc_browser):
                 "Main Photo"
             ],
             {
+                "Product SKU": "P SKU",
+                "Required": "Q Req",
+                "Track Inventory": "Track I",
+                "Question Enabled": "Q Enab",
                 "Answer Sort Order": "Sort",
-                "Inventory Level": "Inventory",
-                "Answer Input Type": "Answer Type"
+                "Inventory Level": "I Level",
+                "Answer Input Type": "A Type"
             }
         )
 
