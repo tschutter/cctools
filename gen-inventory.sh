@@ -11,7 +11,7 @@ FILENAME="`date +%Y-%m-%d`-OnlineInventory.xlsx"
 rm -f "${FILENAME}"
 
 # Generate the inventory report.
-"${SCRIPTDIR}/gen-inventory.py" --outfile="${FILENAME}" --verbose
+"${SCRIPTDIR}/gen-inventory.py" --outfile="${FILENAME}" --verbose "$@"
 
 # Display the inventory report if it was successfully created.
 if [ -f "${FILENAME}" ]; then

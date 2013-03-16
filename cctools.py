@@ -353,6 +353,10 @@ class CCBrowser(object):
             category_sort_key = category
         return category_sort_key
 
+    def sort_key_by_sku(self, product):
+        """Return a key for a product dictionary used to sort by sku."""
+        return product["SKU"]
+
     def personalization_sort_key(self, personalization):
         """Return a key to sort personalizations."""
         return (

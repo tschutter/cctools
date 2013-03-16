@@ -107,6 +107,16 @@ def main():
         default=default_xlsx_filename,
         help="output XLSX filename (default=%default)"
     )
+    sort_choices = ["SKU", "CAT/PROD"]
+    option_parser.add_option(
+        "--sort",
+        action="store",
+        dest="sort",
+        metavar="COL",
+        choices=sort_choices,
+        default=sort_choices[0],
+        help="sort by %s" % ", ".join(sort_choices) + " (default=%default)"
+    )
     option_parser.add_option(
         "--verbose",
         action="store_true",
@@ -132,9 +142,15 @@ def main():
         verbose=options.verbose
     )
 
-    # Get list of products by category, product_name.
+    # Get list of products.
     products = cc_browser.get_products()
-    products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
+
+    # Sort products.
+    if options.sort == "SKU":
+        key = cc_browser.sort_key_by_sku
+    else:
+        key = cc_browser.sort_key_by_category_and_name
+    products = sorted(products, key=key)
 
     # Get list of personalizations.
     personalizations = cc_browser.get_personalizations()
