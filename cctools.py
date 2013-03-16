@@ -89,6 +89,40 @@ class CCBrowser(object):
         now = time.time()
         return expire_time < now
 
+    def _sajax_do_call(self, url, method, args):
+        """Call a sajax method and return the response."""
+        url += "&rs=" + method
+        for arg in args:
+            url += "&rsargs[]=" + arg
+        response = self._browser.open(url).read()
+        txt = response.strip()
+        status = txt[0]
+        data = txt[2:]
+        if (status == "-"):
+            print "ERROR: " + data
+            return
+        # Javascript uses eval(data) here to convert data to objects.
+        # For now, we hack.
+        match = re.match("var res = '(.*)'; res;", data)
+        if match:
+            return match.group(1)
+
+    def _do_export(self, url, filename):
+        """Export a file from CoreCommerce."""
+
+        # Call the doExport function until percent_complete == 100.
+        current = ""
+        while True:
+            res = self._sajax_do_call(url, "doExport", [current])
+            pieces = res.split("|")
+            if len(pieces) >= 1 and pieces[1] == "100":
+                break
+            current = pieces[0]
+
+        # Fetch the result file.
+        url = self._base_url + "?m=ajax_export_send"
+        self._browser.retrieve(url, filename)
+
     def _download_personalizations_csv(self, filename):
         """Download personalization list to a CSV file."""
 
@@ -108,12 +142,7 @@ class CCBrowser(object):
         self._browser.open(url)
 
         # Call the doExport function.
-        url += "&rs=doExport"
-        self._browser.open(url)
-
-        # Fetch the result file.
-        url = self._base_url + "?m=ajax_export_send"
-        self._browser.retrieve(url, filename)
+        self._do_export(url, filename)
 
     def _clean_personalizations(self):
         """Normalize suspect personalization data."""
@@ -188,12 +217,7 @@ class CCBrowser(object):
             print resp.read().replace("\r", "")
 
         # Call the doExport function.
-        url += "&rs=doExport"
-        self._browser.open(url)
-
-        # Fetch the result file.
-        url = self._base_url + "?m=ajax_export_send"
-        self._browser.retrieve(url, filename)
+        self._do_export(url, filename)
 
     def _clean_products(self):
         """Normalize suspect product data."""
@@ -263,12 +287,7 @@ class CCBrowser(object):
         self._browser.open(url)
 
         # Call the doExport function.
-        url += "&rs=doExport"
-        self._browser.open(url)
-
-        # Fetch the result file.
-        url = self._base_url + "?m=ajax_export_send"
-        self._browser.retrieve(url, filename)
+        self._do_export(url, filename)
 
     def _clean_categories(self):
         """Normalize suspect product data."""
