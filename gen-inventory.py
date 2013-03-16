@@ -59,9 +59,11 @@ def generate_xlsx(options, config, cc_browser, inventory):
     worksheet.column_dimensions["C"].width = 50
     set_cell(worksheet, 0, 3, "Enabled", bold=True)
     worksheet.column_dimensions["D"].width = 8
+    set_cell(worksheet, 0, 4, "Main Photo", bold=True)
+    worksheet.column_dimensions["E"].width = 11
 
     # Create data rows.
-    for itemid, (sku, level, name, enabled) in enumerate(inventory):
+    for itemid, (sku, level, name, enabled, main_photo) in enumerate(inventory):
         row = itemid + 1
         style = set_cell(worksheet, row, 0, sku).style
         style.alignment.horizontal =\
@@ -71,6 +73,7 @@ def generate_xlsx(options, config, cc_browser, inventory):
         set_cell(worksheet, row, 1, level)
         set_cell(worksheet, row, 2, name)
         set_cell(worksheet, row, 3, enabled)
+        set_cell(worksheet, row, 4, main_photo)
 
     # Write to file.
     workbook.save(options.xlsx_filename)
@@ -168,8 +171,9 @@ def main():
         product_level = product["Inventory Level"]
         if product["Track Inventory"] == "By Product":
             enabled = product["Available"]
+            main_photo = product["Main Photo (Image)"]
             inventory.append(
-                (product_sku, product_level, product_name, enabled)
+                (product_sku, product_level, product_name, enabled, main_photo)
             )
         else:
             for personalization in personalizations:
@@ -184,7 +188,10 @@ def main():
                     answer = answer.replace("|", "=")
                     name = "%s (%s)" % (product_name, answer)
                     enabled = personalization["Answer Enabled"]
-                    inventory.append((sku, pers_level, name, enabled))
+                    main_photo = personalization["Main Photo"]
+                    inventory.append(
+                        (sku, pers_level, name, enabled, main_photo)
+                    )
 
     #for sku, level, name in inventory:
     #    print "%-9s %4s %-45s" % (sku, level, name)
