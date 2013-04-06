@@ -37,6 +37,7 @@ personalization value checks.
 import ConfigParser
 import cctools
 import optparse
+import os
 import re
 import sys
 
@@ -111,6 +112,11 @@ def check_item(item_checks, item_type_name, item, item_name):
 
 def main():
     """main"""
+    defaultConfig = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "cctools.cfg"
+    )
+
     option_parser = optparse.OptionParser(
         usage="usage: %prog [options]\n" +
         "  Detects problems in data exported from CoreCommerce."
@@ -119,7 +125,7 @@ def main():
         "--config",
         action="store",
         metavar="FILE",
-        default="cctools.cfg",
+        default=defaultConfig,
         help="configuration filename (default=%default)"
     )
     option_parser.add_option(
