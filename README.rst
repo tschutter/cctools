@@ -5,6 +5,9 @@ cctools is a set of utilities that work with CoreCommerce product
 data.
 
 cclint.py
+    Detects problems in CoreCommerce product data.
+
+cctools.py
     Core library that communicates with CoreCommerce.
 
 ccc
