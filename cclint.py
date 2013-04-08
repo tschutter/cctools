@@ -85,7 +85,7 @@ def check_skus(products):
                 skus[sku] = display_name
 
 
-def check_item(item_checks, item_type_name, item, item_name):
+def check_item(item_checks, item_type_name, items, item, item_name):
     """Check category or product for problems."""
 
     for key, check in item_checks:
@@ -94,7 +94,11 @@ def check_item(item_checks, item_type_name, item, item_name):
             pass
         elif len(check_parts) == 3 and check_parts[1].lower() == "if":
             predicate = check_parts[2]
-            if not eval(predicate, {"__builtins__": {}}, {"item": item}):
+            if not eval(
+                predicate,
+                {"__builtins__": { "len": len }},
+                {"items": items, "item": item}
+            ):
                 continue
         else:
             print "ERROR: Unknown check syntax '%s'" % check
@@ -180,6 +184,7 @@ def main():
         check_item(
             category_checks,
             "Category",
+            categories,
             category,
             category["Category Name"]
         )
@@ -193,6 +198,7 @@ def main():
         check_item(
             product_checks,
             "Product",
+            products,
             product,
             product_display_name(product)
         )
@@ -203,6 +209,7 @@ def main():
         check_item(
             personalization_checks,
             "Personalization",
+            personalizations,
             personalization,
             personalization_display_name(personalization)
         )
