@@ -90,12 +90,20 @@ def action_list(option_parser, options, args, cc_browser):
                 "Inventory Level",
                 "Teaser"
             ],
-            {"Inventory Level": "Inventory"}
+            {
+                "Available": "Avail",
+                "Track Inventory": "TrkInv",
+                "Inventory Level": "InvLvl"
+            }
         )
     elif obj_type == "categories":
         categories = cc_browser.get_categories()
         categories = table_sort(categories, "Sort")
-        table_print(categories, ["Category Id", "Category Name", "Sort"])
+        table_print(
+            categories,
+            ["Category Id", "Category Name", "Sort"],
+            { "Category Id": "CatId" }
+        )
     elif obj_type == "personalizations":
         personalizations = cc_browser.get_personalizations()
         personalizations = sorted(
@@ -118,13 +126,13 @@ def action_list(option_parser, options, args, cc_browser):
                 "Main Photo"
             ],
             {
-                "Product SKU": "P SKU",
-                "Required": "Q Req",
-                "Track Inventory": "Track I",
-                "Question Enabled": "Q Enab",
+                "Product SKU": "PrdSKU",
+                "Required": "QuesReq",
+                "Track Inventory": "TrkInv",
+                "Question Enabled": "QuesEnab",
                 "Answer Sort Order": "Sort",
-                "Inventory Level": "I Level",
-                "Answer Input Type": "A Type"
+                "Inventory Level": "InvLvl",
+                "Answer Input Type": "AnsType"
             }
         )
 
