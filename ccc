@@ -60,12 +60,12 @@ def table_print(table, fields, header_map=None):
 
 def parse_object_type(option_parser, arg):
     """Determine the requested object type."""
-    if "products".startswith(arg) and len(arg) > 1:
-        return "products"
-    elif "categories".startswith(arg):
-        return "categories"
-    elif "personalizations".startswith(arg) and len(arg) > 1:
-        return "personalizations"
+    if "product".startswith(arg) and len(arg) > 1:
+        return "product"
+    elif "category".startswith(arg):
+        return "category"
+    elif "personalization".startswith(arg) and len(arg) > 1:
+        return "personalization"
     else:
         option_parser.error("invalid object type '%s'" % arg)
 
@@ -77,7 +77,7 @@ def action_list(option_parser, options, args, cc_browser):
     elif len(args) > 2:
         option_parser.error("invalid argument")
     obj_type = parse_object_type(option_parser, args[1])
-    if obj_type == "products":
+    if obj_type == "product":
         products = cc_browser.get_products()
         table_print(
             products,
@@ -96,7 +96,7 @@ def action_list(option_parser, options, args, cc_browser):
                 "Inventory Level": "InvLvl"
             }
         )
-    elif obj_type == "categories":
+    elif obj_type == "category":
         categories = cc_browser.get_categories()
         categories = table_sort(categories, "Sort")
         table_print(
@@ -104,7 +104,7 @@ def action_list(option_parser, options, args, cc_browser):
             ["Category Id", "Category Name", "Sort"],
             { "Category Id": "CatId" }
         )
-    elif obj_type == "personalizations":
+    elif obj_type == "personalization":
         personalizations = cc_browser.get_personalizations()
         personalizations = sorted(
             personalizations,
@@ -179,7 +179,7 @@ def action_show(option_parser, options, args, cc_browser):
         key = None
     else:
         key = args[3]
-    if obj_type == "products":
+    if obj_type == "product":
         products = cc_browser.get_products()
         product = find_object(
             option_parser,
@@ -190,7 +190,7 @@ def action_show(option_parser, options, args, cc_browser):
         )
         print_obj(product, key)
 
-    elif obj_type == "categories":
+    elif obj_type == "category":
         categories = cc_browser.get_categories()
         category = find_object(
             option_parser,
@@ -201,7 +201,7 @@ def action_show(option_parser, options, args, cc_browser):
         )
         print_obj(category, key)
 
-    elif obj_type == "personalizations":
+    elif obj_type == "personalization":
         personalizations = cc_browser.get_personalizations()
         personalization = find_object(
             option_parser,
@@ -211,6 +211,70 @@ def action_show(option_parser, options, args, cc_browser):
             ["Question|Answer"]
         )
         print_obj(personalization, key)
+
+
+def update_obj(option_parser, options, product, key_values, cc_browser):
+    """Update attributes of a specific object."""
+    for key_value in key_values:
+        split_key_value = key_value.split("=")
+        if len(split_key_value) != 2:
+            option_parser.error("Invalid KEY=VALUE '%s'" % key_value)
+        key = split_key_value[0]
+        if not cc_browser.is_valid_product_update_key(key):
+            option_parser.error("Invalid KEY '%s'" % key)
+        value = split_key_value[1]
+        #print "%s %s %s->%s\n" % (product["SKU"], key, product[key], value)
+        cc_browser.update_product(product["SKU"], key, value)
+
+
+def action_update(option_parser, options, args, cc_browser):
+    """Update attributes of a specific object."""
+    if len(args) < 2:
+        option_parser.error("object type not specified")
+    elif len(args) < 3:
+        option_parser.error("SPEC not specified")
+    elif len(args) < 4:
+        option_parser.error("KEY=VALUE not specified")
+    obj_type = parse_object_type(option_parser, args[1])
+    spec = args[2]
+    if obj_type == "product":
+        products = cc_browser.get_products()
+        product = find_object(
+            option_parser,
+            obj_type,
+            products,
+            spec,
+            ["SKU", "Product Name"]
+        )
+        update_obj(option_parser, options, product, args[3:], cc_browser)
+
+    elif obj_type == "category":
+        categories = cc_browser.get_categories()
+        category = find_object(
+            option_parser,
+            obj_type,
+            categories,
+            spec,
+            ["Category Name"]
+        )
+        update_obj(option_parser, options, category, args[3:], cc_browser)
+
+    elif obj_type == "personalization":
+        personalizations = cc_browser.get_personalizations()
+        personalization = find_object(
+            option_parser,
+            obj_type,
+            personalizations,
+            spec,
+            ["Question|Answer"]
+        )
+        update_obj(
+            option_parser,
+            options,
+            personalization,
+            args[3:],
+            cc_browser
+        )
 
 
 def main():
@@ -223,8 +287,12 @@ def main():
     option_parser = optparse.OptionParser(
         usage="usage: %prog [options] action\n" +
         "  Actions:\n" +
-        "    list { products | categories | personalizations }\n"
-        "    show { products | categories | personalizations } SPEC"
+        "    list { product | category | personalization }\n"
+        "      List objects in table form.\n"
+        "    show { product | category | personalization } SPEC [KEY]\n"
+        "      List key, values of an object.\n"
+        "    update { product | category | personalization } SPEC KEY=VAL ...\n"
+        "      Update values of an object."
     )
     option_parser.add_option(
         "--config",
@@ -262,7 +330,7 @@ def main():
         config.get("website", "password"),
         cache_ttl=options.cache_ttl,
         verbose=options.verbose,
-        #proxy="localhost:8080"
+        #proxy="localhost:8080"  # allow MITM analysis
     )
 
     if len(args) < 1:
@@ -272,6 +340,8 @@ def main():
         action_list(option_parser, options, args, cc_browser)
     elif "show".startswith(action):
         action_show(option_parser, options, args, cc_browser)
+    elif "update".startswith(action):
+        action_update(option_parser, options, args, cc_browser)
     else:
         option_parser.error("invalid action '%s'" % action)
 
