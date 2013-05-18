@@ -73,8 +73,8 @@ class CCBrowser(object):
         self._browser.select_form(name="digiSHOP")
 
         # Set the form values.
-        self._browser['userId'] = self._username
-        self._browser['password'] = self._password
+        self._browser["userId"] = self._username
+        self._browser["password"] = self._password
 
         # Submit the form (press the "Login" button).
         self._browser.submit()
@@ -268,6 +268,106 @@ class CCBrowser(object):
                 self._clean_products()
 
         return self._products
+
+    _PRODUCT_KEY_MAP = {
+        "Price": "pPrice"
+    }
+
+    def is_valid_product_update_key(self, key):
+        """Return True if key is a valid product update key."""
+        return key in self._PRODUCT_KEY_MAP
+
+    def update_product(self, sku, key, value):
+        """Login to site."""
+
+        # Login if necessary.
+        self._login()
+
+        # Notify user of time consuming step.
+        if self._verbose:
+            sys.stderr.write(
+                "Updating product SKU=%s, setting %s to %s\n" % (
+                    sku,
+                    key,
+                    value
+                )
+            )
+
+        # Open the upload page.
+        self._browser.open(
+            self._base_url + "?m=ajax_import&instance=product_import"
+        )
+        for form in self._browser.forms():
+            print "Form name:", form.name
+            print form
+
+        # Select first and only form on page.
+        self._browser.select_form(nr=0)
+
+        #print [item.name for item in form.find_control('useFile').items]
+        # Set the form values.
+        #self._browser["instance"] = "product_import"
+        #self._browser["xsubmit"] = "true"
+        #self._browser["file"] = "cctools.csv"
+        #self._browser["useFile"] = ["Y",]
+        with open("/tmp/cctools.csv", "wt") as tfile:
+            tfile.write("SKU,%s\n%s,%s\n" % (key, sku, value))
+        tfile.close()
+        self._browser.form.add_file(open("/tmp/cctools.csv"), 'text/csv', "/tmp/cctools.csv", name='importFile')
+        #self._browser["importFile"] = "SKU,%s\n%s,%s\n" % (key, sku, value)
+        self._browser["updateType"] = "update"
+
+        # Submit the form (press the "????" button).
+        self._browser.submit()
+
+        # https://www16.corecommerce.com/~cohu1/admin/index.php?m=ajax_import&instance=product_import
+        # POST https://www16.corecommerce.com/~cohu1/admin/index.php
+        #   m:           ajax_import
+        #   instance:    product_import
+        #   xsubmit:     true
+        #   file:
+        #   useFile:     Y
+        #   importFile:  SKU,Price
+        #                00000,5.62
+        #   updateType:  update
+
+        # Open the update page.
+        self._browser.open(
+            self._base_url + "?m=ajax_import_save&instance=product_import"
+        )
+        for form in self._browser.forms():
+            print "Form name:", form.name
+            print form
+
+        # Select first and only form on page.
+        self._browser.select_form(nr=0)
+
+        # Set the form values.
+        #self._browser["instance"] = "product_import"
+        self._browser["go"] = self._base_url + "?m=ajax_import&instance=product_import"
+        self._browser["submit"] = "true"
+        self._browser["file"] = "cctools.csv"
+        self._browser["useFile"] = "Y"
+        self._browser["instance"] = "product_import"
+        self._browser["updateType"] = "update"
+        self._browser["fields[0]"] = "pNum"
+        self._browser["fields[1]"] = self._PRODUCT_KEY_MAP[key]
+        self._browser["ignore"] = "Y"
+
+        # Submit the form (press the "????" button).
+        self._browser.submit()
+
+        # POST https://www16.corecommerce.com/~cohu1/admin/index.php?m=ajax_import_save&instance=product_import
+        #   m:           ajax_import_save
+        #   go:          https://www16.corecommerce.com/~cohu1/admin/index.php?m=ajax_import&instance=product_import
+        #   submit:      true
+        #   file:        test-prod-update.csv
+        #   useFile:     Y
+        #   instance:    product_import
+        #   updateType:  update
+        #   fields[0]:   pNum
+        #   fields[1]:   pPrice
+        #   ignore:      Y
 
     def _download_categories_csv(self, filename):
         """Download categories list to a CSV file."""
