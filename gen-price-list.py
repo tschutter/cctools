@@ -145,6 +145,13 @@ def generate_pdf(
     col_widths = [table_width - price_width, price_width]
     story = []
 
+    # Remove excluded categories.
+    if options.exclude_categories:
+        products = filter(
+            lambda x: x["Category"] not in options.exclude_categories,
+            products
+        )
+
     # Sort products by category, product_name.
     products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
 
@@ -216,6 +223,13 @@ def main():
         metavar="FILE",
         default=default_config,
         help="configuration filename (default=%default)"
+    )
+    option_parser.add_option(
+        "--exclude-category",
+        action="append",
+        dest="exclude_categories",
+        metavar="CAT",
+        help="exclude category from output"
     )
     option_parser.add_option(
         "--pdf-file",
