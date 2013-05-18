@@ -114,12 +114,12 @@ def action_list(option_parser, options, args, cc_browser):
             personalizations,
             [
                 "Product SKU",
+                "SKU",
                 "Product Name",
                 "Question|Answer",
                 "Required",
                 "Track Inventory",
                 "Question Enabled",
-                "SKU",
                 "Answer Sort Order",
                 "Inventory Level",
                 "Answer Input Type",
