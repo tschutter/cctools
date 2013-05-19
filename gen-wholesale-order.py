@@ -52,7 +52,7 @@ def row_number(row):
 def add_title(worksheet):
     """Add worksheet title."""
     now = datetime.datetime.now()
-    style = set_cell(worksheet, 0, 0, "Wholesale Order Form", bold=True).style
+    style = set_cell(worksheet, 0, 0, "CoHU Wholesale Order", bold=True).style
     style.font.size = 20
     # merge_cells not supported by openpyxl-1.5.6 (Ubuntu 12.04)
     #worksheet.merge_cells(start_row=0, start_column=0, end_row=0, end_column=2)
