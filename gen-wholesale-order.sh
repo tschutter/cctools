@@ -7,12 +7,12 @@ SCRIPT=`readlink --canonicalize "$0"`
 SCRIPTDIR=`dirname "${SCRIPT}"`
 
 # Determine the output filename.
-FILENAME="`date +%Y-%m-%d`-WholesalePrices.xlsx"
+FILENAME="`date +%Y-%m-%d`-WholesaleOrder.xlsx"
 
-# Generate the po/invoice.
-"${SCRIPTDIR}/gen-wholesale-price-list.py" --outfile="${FILENAME}" --verbose
+# Generate the order form.
+"${SCRIPTDIR}/gen-wholesale-order.py" --outfile="${FILENAME}" --verbose
 
-# Display the po/invoice if it was successfully created.
+# Display the order form if it was successfully created.
 if [ -f "${FILENAME}" ]; then
     localc "${FILENAME}"
 fi
