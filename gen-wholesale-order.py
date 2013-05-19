@@ -49,17 +49,26 @@ def row_number(row):
     return row + 1
 
 
-def add_title(worksheet):
+def add_title(options, worksheet):
     """Add worksheet title."""
+    row = 0
     now = datetime.datetime.now()
-    style = set_cell(worksheet, 0, 0, "CoHU Wholesale Order", bold=True).style
+    style = set_cell(worksheet, row, 0, "CoHU Wholesale Order", bold=True).style
     style.font.size = 20
     # merge_cells not supported by openpyxl-1.5.6 (Ubuntu 12.04)
     #worksheet.merge_cells(start_row=0, start_column=0, end_row=0, end_column=2)
     worksheet.row_dimensions[1].height = 25
+    row += 1
 
     cell_text = now.strftime("Date: %Y-%m-%d")
-    set_cell(worksheet, 1, 0, cell_text)
+    set_cell(worksheet, row, 0, cell_text)
+    row += 1
+
+    cell_text = "Prices are {:.0%} of retail".format(options.wholesale_fraction)
+    set_cell(worksheet, row, 0, cell_text)
+    row += 1
+
+    return row
 
 def add_products(options, worksheet, row, cc_browser, products):
     """Add row for each product."""
@@ -199,10 +208,10 @@ def add_order_form(options, cc_browser, products, worksheet):
     worksheet.title = "Wholesale Order Form"
 
     # Add title.
-    add_title(worksheet)
+    row = add_title(options, worksheet)
 
     # Blank row.
-    row = 3
+    row += 1
 
     # Add products.
     add_products(
