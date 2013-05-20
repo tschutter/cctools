@@ -10,10 +10,6 @@ import optparse
 import os
 import sys
 
-def table_sort(table, field):
-    return table
-
-
 def table_print_divider(col_widths):
     print(
         "+" + "+".join(
@@ -79,11 +75,13 @@ def action_list(option_parser, options, args, cc_browser):
     obj_type = parse_object_type(option_parser, args[1])
     if obj_type == "product":
         products = cc_browser.get_products()
+        products = sorted(products, key=lambda x: x["SKU"])
         table_print(
             products,
             [
                 "SKU",
                 "Product Name",
+                "Cost",
                 "Price",
                 "Available",
                 "Track Inventory",
@@ -98,7 +96,7 @@ def action_list(option_parser, options, args, cc_browser):
         )
     elif obj_type == "category":
         categories = cc_browser.get_categories()
-        categories = table_sort(categories, "Sort")
+        categories = sorted(categories, key=lambda x: x["Sort"])
         table_print(
             categories,
             ["Category Id", "Category Name", "Sort"],
@@ -129,7 +127,7 @@ def action_list(option_parser, options, args, cc_browser):
                 "Product SKU": "PrdSKU",
                 "Required": "QuesReq",
                 "Track Inventory": "TrkInv",
-                "Question Enabled": "QuesEnab",
+                "Question Enabled": "QEnab",
                 "Answer Sort Order": "Sort",
                 "Inventory Level": "InvLvl",
                 "Answer Input Type": "AnsType"

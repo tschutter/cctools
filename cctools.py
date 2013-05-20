@@ -460,7 +460,7 @@ class CCBrowser(object):
     def personalization_sort_key(self, personalization):
         """Return a key to sort personalizations."""
         return (
-            personalization["Product Name"],
+            personalization["Product SKU"],
             personalization["Question Sort Order"],
             personalization["Answer Sort Order"]
         )
