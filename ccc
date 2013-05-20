@@ -10,6 +10,20 @@ import optparse
 import os
 import sys
 
+HEADER_MAP = {
+    "Available": "Avail",
+    "Track Inventory": "TrkInv",
+    "Inventory Level": "InvLvl",
+    "Category Id": "CatId",
+    "Product SKU": "PrdSKU",
+    "Required": "QuesReq",
+    "Track Inventory": "TrkInv",
+    "Question Enabled": "QEnab",
+    "Answer Sort Order": "Sort",
+    "Inventory Level": "InvLvl",
+    "Answer Input Type": "AnsType"
+}
+
 def table_print_divider(col_widths):
     print(
         "+" + "+".join(
@@ -66,6 +80,45 @@ def parse_object_type(option_parser, arg):
         option_parser.error("invalid object type '%s'" % arg)
 
 
+def reverse_lookup_header_map(header_map, value):
+    """Return key from header_map that maps to value."""
+    for key in header_map:
+        if value == header_map[key]:
+            return key
+    return None
+
+
+def adjust_field_list(fields, option_parser, options, header_map):
+    """Add and remove fields from field list."""
+
+    # Remove fields specified by --del-field.
+    if options.del_fields:
+        for del_field in options.del_fields:
+            if del_field == "*":
+                del fields[:]
+            elif del_field in fields:
+                fields.remove(del_field)
+            else:
+                # Try the mapped form.
+                del_field2 = reverse_lookup_header_map(header_map, del_field)
+                if del_field2 in fields:
+                    fields.remove(del_field2)
+                else:
+                    option_parser.error(
+                        "field '%s' to delete not found" % del_field
+                    )
+
+    # Add fields specified by --add-field.
+    if options.add_fields:
+        for add_field in options.add_fields:
+            if add_field in fields:
+                option_parser.error(
+                    "field '%s' to add already in field list" % add_field
+                )
+            else:
+                fields.append(add_field)
+
+
 def action_list(option_parser, options, args, cc_browser):
     """List objects of a type."""
     if len(args) < 2:
@@ -76,63 +129,44 @@ def action_list(option_parser, options, args, cc_browser):
     if obj_type == "product":
         products = cc_browser.get_products()
         products = sorted(products, key=lambda x: x["SKU"])
-        table_print(
-            products,
-            [
-                "SKU",
-                "Product Name",
-                "Cost",
-                "Price",
-                "Available",
-                "Track Inventory",
-                "Inventory Level",
-                "Teaser"
-            ],
-            {
-                "Available": "Avail",
-                "Track Inventory": "TrkInv",
-                "Inventory Level": "InvLvl"
-            }
-        )
+        fields = [
+            "SKU",
+            "Product Name",
+            "Cost",
+            "Price",
+            "Available",
+            "Track Inventory",
+            "Inventory Level",
+            "Teaser"
+        ]
+        adjust_field_list(fields, option_parser, options, HEADER_MAP)
+        table_print(products, fields, HEADER_MAP)
     elif obj_type == "category":
         categories = cc_browser.get_categories()
         categories = sorted(categories, key=lambda x: x["Sort"])
-        table_print(
-            categories,
-            ["Category Id", "Category Name", "Sort"],
-            { "Category Id": "CatId" }
-        )
+        fields = ["Category Id", "Category Name", "Sort"]
+        adjust_field_list(fields, option_parser, options, HEADER_MAP)
+        table_print(categories, fields, HEADER_MAP)
     elif obj_type == "personalization":
         personalizations = cc_browser.get_personalizations()
         personalizations = sorted(
             personalizations,
             key=cc_browser.personalization_sort_key
         )
-        table_print(
-            personalizations,
-            [
-                "Product SKU",
-                "SKU",
-                "Product Name",
-                "Question|Answer",
-                "Required",
-                "Track Inventory",
-                "Question Enabled",
-                "Answer Sort Order",
-                "Inventory Level",
-                "Answer Input Type",
-                "Main Photo"
-            ],
-            {
-                "Product SKU": "PrdSKU",
-                "Required": "QuesReq",
-                "Track Inventory": "TrkInv",
-                "Question Enabled": "QEnab",
-                "Answer Sort Order": "Sort",
-                "Inventory Level": "InvLvl",
-                "Answer Input Type": "AnsType"
-            }
-        )
+        fields = [
+            "Product SKU",
+            "SKU",
+            "Product Name",
+            "Question|Answer",
+            "Required",
+            "Track Inventory",
+            "Question Enabled",
+            "Answer Sort Order",
+            "Inventory Level",
+            "Answer Input Type",
+            "Main Photo"
+        ]
+        table_print(personalizations, fields, HEADER_MAP)
 
 
 def find_object(option_parser, obj_type, objects, spec, keys):
@@ -312,6 +346,27 @@ def main():
         default=False,
         help="display progress messages"
     )
+
+    list_group = optparse.OptionGroup(
+        option_parser,
+        "list options",
+        "List objects in table form."
+    )
+    list_group.add_option(
+        "--add-field",
+        action="append",
+        dest="add_fields",
+        metavar="FLD",
+        help="additional field to report"
+    )
+    list_group.add_option(
+        "--del-field",
+        action="append",
+        dest="del_fields",
+        metavar="FLD",
+        help="remove field from report"
+    )
+    option_parser.add_option_group(list_group)
 
     # Parse command line arguments.
     (options, args) = option_parser.parse_args()
