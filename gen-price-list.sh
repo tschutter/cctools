@@ -6,13 +6,16 @@
 SCRIPT=`readlink --canonicalize "$0"`
 SCRIPTDIR=`dirname "${SCRIPT}"`
 
+# Determine the output filename.
 FILENAME="PriceListRetailTaxInc.pdf"
+rm -f ${FILENAME}
 
 # Generate the price list.
 "${SCRIPTDIR}/gen-price-list.py"\
     --exclude-category=Earrings\
     --pdf-file="${FILENAME}"\
-    --verbose
+    --verbose\
+    "$@"
 
 # Display the price list if it was successfully created.
 if [ -f "${FILENAME}" ]; then

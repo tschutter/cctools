@@ -8,11 +8,12 @@ SCRIPTDIR=`dirname "${SCRIPT}"`
 
 # Determine the output filename.
 FILENAME="`date +%Y-%m-%d`-WholesaleOrder.xlsx"
+rm -f ${FILENAME}
 
 # Generate the order form.
-"${SCRIPTDIR}/gen-wholesale-order.py" --outfile="${FILENAME}" --verbose
+"${SCRIPTDIR}/gen-wholesale-order.py" --outfile="${FILENAME}" --verbose "$@"
 
 # Display the order form if it was successfully created.
 if [ -f "${FILENAME}" ]; then
-    localc "${FILENAME}"
+    localc "${FILENAME}" &
 fi

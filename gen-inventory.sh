@@ -15,5 +15,5 @@ rm -f "${FILENAME}"
 
 # Display the inventory report if it was successfully created.
 if [ -f "${FILENAME}" ]; then
-    localc "${FILENAME}"
+    localc "${FILENAME}" &
 fi

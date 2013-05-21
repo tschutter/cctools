@@ -22,9 +22,9 @@ if [ -f "${FILENAME}" ]; then
 fi
 
 # Generate the po/invoice.
-"${SCRIPTDIR}/gen-po-invoice.py" --number="${NUMBER}" --outfile="${FILENAME}" --verbose
+"${SCRIPTDIR}/gen-po-invoice.py" --number="${NUMBER}" --outfile="${FILENAME}" --verbose "$@"
 
 # Display the po/invoice if it was successfully created.
 if [ -f "${FILENAME}" ]; then
-    localc "${FILENAME}"
+    localc "${FILENAME}" &
 fi
