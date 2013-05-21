@@ -194,6 +194,29 @@ def action_list(option_parser, options, args, cc_browser):
         output_records(options, personalizations, fields, HEADER_MAP)
 
 
+def action_list_fields(option_parser, options, args, cc_browser):
+    """List fields of a type."""
+    if len(args) < 2:
+        option_parser.error("object type not specified")
+    elif len(args) > 2:
+        option_parser.error("invalid argument")
+    obj_type = parse_object_type(option_parser, args[1])
+    if obj_type == "product":
+        products = cc_browser.get_products()
+        field_names = sorted(products[0].keys())
+    elif obj_type == "category":
+        categories = cc_browser.get_categories()
+        field_names = sorted(categories[0].keys())
+    elif obj_type == "personalization":
+        personalizations = cc_browser.get_personalizations()
+        field_names = sorted(personalizations[0].keys())
+    fields = ["Field Name"]
+    records = list()
+    for field_name in field_names:
+        records.append({"Field Name": field_name})
+    output_records(options, records, fields)
+
+
 def find_object(option_parser, obj_type, objects, spec, keys):
     """Return an object iff there is one object matched by spec."""
     found_obj = None
@@ -404,6 +427,13 @@ def main():
     )
     option_parser.add_option_group(list_group)
 
+    list_fields_group = optparse.OptionGroup(
+        option_parser,
+        "list-fields options",
+        "List fields."
+    )
+    option_parser.add_option_group(list_fields_group)
+
     # Parse command line arguments.
     (options, args) = option_parser.parse_args()
 
@@ -427,6 +457,8 @@ def main():
     action = args[0]
     if "list".startswith(action):
         action_list(option_parser, options, args, cc_browser)
+    elif "list-fields".startswith(action):
+        action_list_fields(option_parser, options, args, cc_browser)
     elif "show".startswith(action):
         action_show(option_parser, options, args, cc_browser)
     elif "update".startswith(action):
