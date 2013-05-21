@@ -52,7 +52,6 @@ def row_number(row):
 def add_title(options, worksheet):
     """Add worksheet title."""
     row = 0
-    now = datetime.datetime.now()
     style = set_cell(worksheet, row, 0, "CoHU Wholesale Order", bold=True).style
     style.font.size = 20
     # merge_cells not supported by openpyxl-1.5.6 (Ubuntu 12.04)
@@ -60,7 +59,13 @@ def add_title(options, worksheet):
     worksheet.row_dimensions[1].height = 25
     row += 1
 
+    now = datetime.datetime.now()
     cell_text = now.strftime("Date: %Y-%m-%d")
+    set_cell(worksheet, row, 0, cell_text)
+    row += 1
+
+    valid_date = now + datetime.timedelta(days = int(options.valid_ndays))
+    cell_text = valid_date.strftime("Valid until: %Y-%m-%d")
     set_cell(worksheet, row, 0, cell_text)
     row += 1
 
@@ -170,7 +175,7 @@ def add_products(options, worksheet, row, cc_browser, products):
     last_product_row = row - 1
 
     # Set column widths.
-    worksheet.column_dimensions[col_letter(col_category)].width = 20
+    worksheet.column_dimensions[col_letter(col_category)].width = 21
     worksheet.column_dimensions[col_letter(col_description)].width = 65
     worksheet.column_dimensions[col_letter(col_price)].width = 5
     worksheet.column_dimensions[col_letter(col_qty)].width = 5
@@ -252,7 +257,7 @@ def main():
 
     option_parser = optparse.OptionParser(
         usage="usage: %prog [options]\n" +
-        "  Generates a Purchase Order / Commercial Invoice."
+        "  Generates a wholesale order form."
     )
     option_parser.add_option(
         "--config",
@@ -267,6 +272,12 @@ def main():
         metavar="FRAC",
         default=0.5,
         help="wholesale price fraction (default=%default)"
+    )
+    option_parser.add_option(
+        "--valid-ndays",
+        metavar="N",
+        default=30,
+        help="number of days prices are valid (default=%default)"
     )
     option_parser.add_option(
         "--outfile",
