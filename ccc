@@ -24,7 +24,25 @@ HEADER_MAP = {
     "Answer Input Type": "AnsType"
 }
 
-def table_print_divider(col_widths):
+def output_csv(options, records, fields, header_map=None):
+    """Output records in CSV format."""
+    delim = options.delimiter
+
+    # Output header.
+    if header_map == None:
+        header_map = dict()
+    print(delim.join([header_map.get(field, field) for field in fields]))
+
+    # Output records.
+    for record in records:
+        print(
+            delim.join(
+                [cctools.html_to_plain_text(record[field]) for field in fields]
+            )
+        )
+
+
+def output_table_divider(col_widths):
     print(
         "+" + "+".join(
             "-" * (col_width + 2)
@@ -33,7 +51,7 @@ def table_print_divider(col_widths):
     )
 
 
-def table_print_row(row, col_widths, mapping=None):
+def output_table_row(row, col_widths, mapping=None):
     if mapping == None:
         mapping = dict()
     print(
@@ -44,7 +62,7 @@ def table_print_row(row, col_widths, mapping=None):
     )
 
 
-def table_print(table, fields, header_map=None):
+def output_table(records, fields, header_map=None):
     if header_map == None:
         header_map = dict()
 
@@ -52,20 +70,27 @@ def table_print(table, fields, header_map=None):
     col_widths = list()
     for field in fields:
         col_widths.append(len(header_map.get(field, field)))
-    for record in table:
+    for record in records:
         for col, field in enumerate(fields):
             col_widths[col] = max(col_widths[col], len(str(record[field])))
 
     # Pretty print the records to the output.
-    table_print_divider(col_widths)
-    table_print_row(fields, col_widths, header_map)
-    table_print_divider(col_widths)
-    for row, record in enumerate(table):
-        table_print_row(
+    output_table_divider(col_widths)
+    output_table_row(fields, col_widths, header_map)
+    output_table_divider(col_widths)
+    for row, record in enumerate(records):
+        output_table_row(
             [cctools.html_to_plain_text(record[field]) for field in fields],
             col_widths
         )
-    table_print_divider(col_widths)
+    output_table_divider(col_widths)
+
+
+def output_records(options, records, fields, header_map=None):
+    if options.format == "csv":
+        output_csv(options, records, fields, header_map)
+    elif options.format == "table":
+        output_table(records, fields, header_map)
 
 
 def parse_object_type(option_parser, arg):
@@ -140,13 +165,13 @@ def action_list(option_parser, options, args, cc_browser):
             "Teaser"
         ]
         adjust_field_list(fields, option_parser, options, HEADER_MAP)
-        table_print(products, fields, HEADER_MAP)
+        output_records(options, products, fields, HEADER_MAP)
     elif obj_type == "category":
         categories = cc_browser.get_categories()
         categories = sorted(categories, key=lambda x: x["Sort"])
         fields = ["Category Id", "Category Name", "Sort"]
         adjust_field_list(fields, option_parser, options, HEADER_MAP)
-        table_print(categories, fields, HEADER_MAP)
+        output_records(options, categories, fields, HEADER_MAP)
     elif obj_type == "personalization":
         personalizations = cc_browser.get_personalizations()
         personalizations = sorted(
@@ -166,7 +191,7 @@ def action_list(option_parser, options, args, cc_browser):
             "Answer Input Type",
             "Main Photo"
         ]
-        table_print(personalizations, fields, HEADER_MAP)
+        output_records(options, personalizations, fields, HEADER_MAP)
 
 
 def find_object(option_parser, obj_type, objects, spec, keys):
@@ -328,17 +353,28 @@ def main():
     )
     option_parser.add_option(
         "--config",
-        action="store",
         metavar="FILE",
         default=default_config,
         help="configuration filename (default=%default)"
     )
     option_parser.add_option(
         "--cache-ttl",
-        action="store",
         metavar="SEC",
         default=3600,
         help="cache TTL (default=%default)"
+    )
+    option_parser.add_option(
+        "--format",
+        choices=["csv", "table"],
+        default="table",
+        help="output format [csv, table] (default=%default)"
+    )
+    option_parser.add_option(
+        "--delimiter",
+        dest="delimiter",
+        metavar="DELIM",
+        default="|",
+        help="output CSV delimiter (default=%default)"
     )
     option_parser.add_option(
         "--verbose",
@@ -350,7 +386,7 @@ def main():
     list_group = optparse.OptionGroup(
         option_parser,
         "list options",
-        "List objects in table form."
+        "List objects."
     )
     list_group.add_option(
         "--add-field",
