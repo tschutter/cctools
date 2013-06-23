@@ -22,7 +22,13 @@ if [ -f "${FILENAME}" ]; then
 fi
 
 # Generate the po/invoice.
-"${SCRIPTDIR}/gen-po-invoice.py" --number="${NUMBER}" --outfile="${FILENAME}" --verbose "$@"
+# SKU 30001 = All other Earrings
+"${SCRIPTDIR}/gen-po-invoice.py"\
+    --number="${NUMBER}"\
+    --outfile="${FILENAME}"\
+    --exclude-sku=30001\
+    --verbose\
+    "$@"
 
 # Display the po/invoice if it was successfully created.
 if [ -f "${FILENAME}" ]; then

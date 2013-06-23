@@ -62,9 +62,6 @@ def add_header(options, config, worksheet, row):
     col_value_name = 2
     col_value = col_value_name + 1
 
-    # Prefixing a value with a single quote forces it to be considered text.
-    # NOTE: Not supported by localc-3.5.
-
     set_cell(
         worksheet,
         row,
@@ -73,7 +70,8 @@ def add_header(options, config, worksheet, row):
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
     )
-    set_cell(worksheet, row, col_value, "'" + options.number)
+    cell = worksheet.cell(row=row, column=col_value)
+    cell.set_value_explicit(options.number)  # Force type to be string.
     row += 1
 
     set_cell(
@@ -84,8 +82,9 @@ def add_header(options, config, worksheet, row):
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
     )
-    date_str = datetime.date.today().strftime("'%B %d, %Y")
-    set_cell(worksheet, row, col_value, date_str)
+    date_str = datetime.date.today().strftime("%B %d, %Y")
+    cell = worksheet.cell(row=row, column=col_value)
+    cell.set_value_explicit(date_str)  # Force type to be string.
     row += 1
 
     set_cell(
@@ -205,7 +204,7 @@ def add_header(options, config, worksheet, row):
     return row
 
 
-def add_products(worksheet, row, cc_browser, products):
+def add_products(options, worksheet, row, cc_browser, products):
     """Add row for each product."""
     col_line_no = 0
     col_sku = 1
@@ -274,6 +273,13 @@ def add_products(worksheet, row, cc_browser, products):
     )
     row += 1
 
+    # Remove excluded SKUs.
+    if options.exclude_skus:
+        products = filter(
+            lambda x: str(x["SKU"]) not in options.exclude_skus,
+            products
+        )
+
     # Sort products by category, product_name.
     products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
 
@@ -323,7 +329,7 @@ def add_products(worksheet, row, cc_browser, products):
     # Set column widths.
     worksheet.column_dimensions[col_letter(col_line_no)].width = 8
     worksheet.column_dimensions[col_letter(col_sku)].width = 6
-    worksheet.column_dimensions[col_letter(col_description)].width = 60
+    worksheet.column_dimensions[col_letter(col_description)].width = 66
     worksheet.column_dimensions[col_letter(col_price)].width = 5
     worksheet.column_dimensions[col_letter(col_qty)].width = 5
     worksheet.column_dimensions[col_letter(col_total)].width = 8
@@ -472,6 +478,7 @@ def add_invoice(options, config, cc_browser, products, worksheet):
 
     # Add products.
     row, col_qty, col_total, first_product_row, last_product_row = add_products(
+        options,
         worksheet,
         row,
         cc_browser,
@@ -578,6 +585,13 @@ def main():
         help="output XLSX filename (default=%default)"
     )
     option_parser.add_option(
+        "--exclude-sku",
+        action="append",
+        dest="exclude_skus",
+        metavar="SKU",
+        help="exclude SKU from output"
+    )
+    option_parser.add_option(
         "--verbose",
         action="store_true",
         default=False,
@@ -607,7 +621,9 @@ def main():
 
     # Generate spreadsheet.
     if options.verbose:
-        sys.stderr.write("Generating %s\n" % options.xlsx_filename)
+        sys.stderr.write(
+            "Generating %s\n" % os.path.abspath(options.xlsx_filename)
+        )
     generate_xlsx(options, config, cc_browser, products)
 
     if options.verbose:
