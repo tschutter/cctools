@@ -152,6 +152,13 @@ def generate_pdf(
             products
         )
 
+    # Remove excluded SKUs.
+    if options.exclude_skus:
+        products = filter(
+            lambda x: str(x["SKU"]) not in options.exclude_skus,
+            products
+        )
+
     # Sort products by category, product_name.
     products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
 
@@ -177,10 +184,16 @@ def generate_pdf(
             category = product["Category"]
             if product["Discontinued Item"] == "Y":
                 continue
-            row = (
-                cctools.plain_text_to_html(product["Product Name"]),
-                calc_price_inc_tax(options, product["Price"], price_multiplier)
+            product_name = cctools.plain_text_to_html(product["Product Name"])
+            price = calc_price_inc_tax(
+                options,
+                product["Price"],
+                price_multiplier
             )
+            if options.display_sku:
+                row = ("%s (%s)" % (product_name, product["SKU"]), price)
+            else:
+                row = (product_name, price)
             table_data.append(row)
         if len(table_data) == 0:
             continue
@@ -232,12 +245,26 @@ def main():
         help="exclude category from output"
     )
     option_parser.add_option(
+        "--exclude-sku",
+        action="append",
+        dest="exclude_skus",
+        metavar="SKU",
+        help="exclude SKU from output"
+    )
+    option_parser.add_option(
         "--pdf-file",
         action="store",
         dest="pdf_file",
         metavar="PDF_FILE",
         default="PriceListRetailTaxInc.pdf",
         help="output PDF filename (default=%default)"
+    )
+    option_parser.add_option(
+        "--display-sku",
+        action="store_true",
+        dest="display_sku",
+        default=False,
+        help="display SKU with product name"
     )
     option_parser.add_option(
         "--ncols",
