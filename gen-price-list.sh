@@ -29,4 +29,7 @@ if [ -f "${FILENAME}" ]; then
     # when this shell exits.
     set -m
     evince "${FILENAME}" &
+else
+    echo "ERROR: '${FILENAME}' not created"
+    read -p "Press [Enter] to continue..." key
 fi
