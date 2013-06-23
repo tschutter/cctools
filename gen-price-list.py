@@ -350,7 +350,7 @@ def main():
 
     # Generate PDF file.
     if options.verbose:
-        sys.stderr.write("Generating %s\n" % options.pdf_file)
+        sys.stderr.write("Generating %s\n" % os.path.abspath(options.pdf_file))
     generate_pdf(
         options,
         config,
