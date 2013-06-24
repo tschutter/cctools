@@ -16,6 +16,7 @@ import datetime
 # Cell style constants.
 ALIGNMENT_HORIZONTAL_RIGHT = openpyxl.style.Alignment.HORIZONTAL_RIGHT
 ALIGNMENT_VERTICAL_TOP = openpyxl.style.Alignment.VERTICAL_TOP
+NUMBER_FORMAT_USD = openpyxl.style.NumberFormat.FORMAT_CURRENCY_USD_SIMPLE
 
 def set_cell(
     worksheet,
@@ -308,7 +309,7 @@ def add_products(options, worksheet, row, cc_browser, products):
             set_cell(worksheet, row, col_sku, product["SKU"])
             set_cell(worksheet, row, col_description, description)
             style = set_cell(worksheet, row, col_price, product["Cost"]).style
-            style.number_format.format_code = "0.00"
+            style.number_format.format_code = NUMBER_FORMAT_USD
             total_formula = "=IF(%s%i=\"\", \"\", %s%i * %s%i)" % (
                 col_letter(col_qty),
                 row_number(row),
@@ -318,7 +319,7 @@ def add_products(options, worksheet, row, cc_browser, products):
                 row_number(row)
             )
             style = set_cell(worksheet, row, col_total, total_formula).style
-            style.number_format.format_code = "#,###.00"
+            style.number_format.format_code = NUMBER_FORMAT_USD
             set_cell(worksheet, row, col_htsus_no, htsus_no)
             row += 1
             lineno += 1
@@ -330,9 +331,9 @@ def add_products(options, worksheet, row, cc_browser, products):
     worksheet.column_dimensions[col_letter(col_line_no)].width = 8
     worksheet.column_dimensions[col_letter(col_sku)].width = 6
     worksheet.column_dimensions[col_letter(col_description)].width = 66
-    worksheet.column_dimensions[col_letter(col_price)].width = 5
+    worksheet.column_dimensions[col_letter(col_price)].width = 7
     worksheet.column_dimensions[col_letter(col_qty)].width = 5
-    worksheet.column_dimensions[col_letter(col_total)].width = 8
+    worksheet.column_dimensions[col_letter(col_total)].width = 10
     worksheet.column_dimensions[col_letter(col_htsus_no)].width = 12
     worksheet.column_dimensions[col_letter(col_instructions)].width = 30
 
@@ -387,7 +388,7 @@ def add_totals(
         row_number(last_product_row)
     )
     style = set_cell(worksheet, row, col_total, sub_total_formula).style
-    style.number_format.format_code = "#,###.00"
+    style.number_format.format_code = NUMBER_FORMAT_USD
     row += 1
 
     # Discount.
@@ -406,7 +407,7 @@ def add_totals(
         -percent_discount / 100.0
     )
     style = set_cell(worksheet, row, col_total, discount_formula).style
-    style.number_format.format_code = "#,###.00"
+    style.number_format.format_code = NUMBER_FORMAT_USD
     last_adjustment_row = row
     row += 1
 
@@ -440,7 +441,7 @@ def add_totals(
         row_number(last_adjustment_row)
     )
     style = set_cell(worksheet, row, col_total, total_formula).style
-    style.number_format.format_code = "#,###.00"
+    style.number_format.format_code = NUMBER_FORMAT_USD
     row += 1
 
     return(row)
