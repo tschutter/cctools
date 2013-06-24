@@ -16,4 +16,7 @@ rm -f "${FILENAME}"
 # Display the inventory report if it was successfully created.
 if [ -f "${FILENAME}" ]; then
     localc "${FILENAME}" &
+else
+    echo "ERROR: '${FILENAME}' not created"
+    read -p "Press [Enter] to continue..." key
 fi
