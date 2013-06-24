@@ -135,6 +135,13 @@ def add_products(options, worksheet, row, cc_browser, products):
     )
     row += 1
 
+    # Remove excluded SKUs.
+    if options.exclude_skus:
+        products = filter(
+            lambda x: str(x["SKU"]) not in options.exclude_skus,
+            products
+        )
+
     # Sort products by category, product_name.
     products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
 
@@ -177,7 +184,7 @@ def add_products(options, worksheet, row, cc_browser, products):
     # Set column widths.
     worksheet.column_dimensions[col_letter(col_category)].width = 21
     worksheet.column_dimensions[col_letter(col_description)].width = 65
-    worksheet.column_dimensions[col_letter(col_price)].width = 5
+    worksheet.column_dimensions[col_letter(col_price)].width = 6
     worksheet.column_dimensions[col_letter(col_qty)].width = 5
     worksheet.column_dimensions[col_letter(col_total)].width = 8
     worksheet.column_dimensions[col_letter(col_sku)].width = 6
@@ -286,6 +293,13 @@ def main():
         metavar="FILE",
         default=default_xlsx_filename,
         help="output XLSX filename (default=%default)"
+    )
+    option_parser.add_option(
+        "--exclude-sku",
+        action="append",
+        dest="exclude_skus",
+        metavar="SKU",
+        help="exclude SKU from output"
     )
     option_parser.add_option(
         "--verbose",

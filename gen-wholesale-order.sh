@@ -11,7 +11,12 @@ FILENAME="`date +%Y-%m-%d`-WholesaleOrder.xlsx"
 rm -f ${FILENAME}
 
 # Generate the order form.
-"${SCRIPTDIR}/gen-wholesale-order.py" --outfile="${FILENAME}" --verbose "$@"
+# SKU 30001 = All other Earrings
+"${SCRIPTDIR}/gen-wholesale-order.py"\
+    --outfile="${FILENAME}"\
+    --exclude-sku=30001\
+    --verbose\
+    "$@"
 
 # Display the order form if it was successfully created.
 if [ -f "${FILENAME}" ]; then
