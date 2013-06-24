@@ -32,6 +32,9 @@ fi
 
 # Display the po/invoice if it was successfully created.
 if [ -f "${FILENAME}" ]; then
+    # Enable monitor mode (job control).  If not set, localc will exit
+    # when this shell exits.
+    set -m
     localc "${FILENAME}" &
 else
     echo "ERROR: '${FILENAME}' not created"
