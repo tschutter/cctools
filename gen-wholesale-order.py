@@ -17,6 +17,7 @@ import datetime
 # Cell style constants.
 ALIGNMENT_HORIZONTAL_RIGHT = openpyxl.style.Alignment.HORIZONTAL_RIGHT
 ALIGNMENT_VERTICAL_TOP = openpyxl.style.Alignment.VERTICAL_TOP
+NUMBER_FORMAT_USD = openpyxl.style.NumberFormat.FORMAT_CURRENCY_USD_SIMPLE
 
 def set_cell(
     worksheet,
@@ -147,7 +148,6 @@ def add_products(options, worksheet, row, cc_browser, products):
     products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
 
     # Group products by category.
-    FORMAT_USD = openpyxl.style.NumberFormat.FORMAT_CURRENCY_USD_SIMPLE
     first_product_row = row
     for _, product_group in itertools.groupby(
         products,
@@ -167,7 +167,7 @@ def add_products(options, worksheet, row, cc_browser, products):
             rounded_price = math.floor(float(online_price) + 0.5)
             wholesale_price = rounded_price * options.wholesale_fraction
             style = set_cell(worksheet, row, col_price, wholesale_price).style
-            style.number_format.format_code = FORMAT_USD
+            style.number_format.format_code = NUMBER_FORMAT_USD
             total_formula = "=IF(%s%i=\"\", \"\", %s%i * %s%i)" % (
                 col_letter(col_qty),
                 row_number(row),
@@ -177,7 +177,7 @@ def add_products(options, worksheet, row, cc_browser, products):
                 row_number(row)
             )
             style = set_cell(worksheet, row, col_total, total_formula).style
-            style.number_format.format_code = FORMAT_USD
+            style.number_format.format_code = NUMBER_FORMAT_USD
             set_cell(worksheet, row, col_sku, product["SKU"])
             set_cell(worksheet, row, col_size, product["Size"])
             row += 1
@@ -212,7 +212,7 @@ def add_products(options, worksheet, row, cc_browser, products):
         row_number(last_product_row)
     )
     style = set_cell(worksheet, row, col_total, total_amount_formula).style
-    style.number_format.format_code = FORMAT_USD
+    style.number_format.format_code = NUMBER_FORMAT_USD
 
 
 def add_order_form(options, config, cc_browser, products, worksheet):
