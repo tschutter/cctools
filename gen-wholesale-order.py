@@ -49,10 +49,11 @@ def row_number(row):
     return row + 1
 
 
-def add_title(options, worksheet):
+def add_title(options, config, worksheet):
     """Add worksheet title."""
     row = 0
-    style = set_cell(worksheet, row, 0, "CoHU Wholesale Order", bold=True).style
+    doc_title = config.get("wholesale_order", "title")
+    style = set_cell(worksheet, row, 0, doc_title, bold=True).style
     style.font.size = 20
     # merge_cells not supported by openpyxl-1.5.6 (Ubuntu 12.04)
     #worksheet.merge_cells(start_row=0, start_column=0, end_row=0, end_column=2)
@@ -182,11 +183,11 @@ def add_products(options, worksheet, row, cc_browser, products):
     last_product_row = row - 1
 
     # Set column widths.
-    worksheet.column_dimensions[col_letter(col_category)].width = 21
+    worksheet.column_dimensions[col_letter(col_category)].width = 20
     worksheet.column_dimensions[col_letter(col_description)].width = 65
     worksheet.column_dimensions[col_letter(col_price)].width = 6
     worksheet.column_dimensions[col_letter(col_qty)].width = 5
-    worksheet.column_dimensions[col_letter(col_total)].width = 8
+    worksheet.column_dimensions[col_letter(col_total)].width = 9
     worksheet.column_dimensions[col_letter(col_sku)].width = 6
     worksheet.column_dimensions[col_letter(col_size)].width = 24
 
@@ -213,14 +214,14 @@ def add_products(options, worksheet, row, cc_browser, products):
     style.number_format.format_code = "#,##0.00"
 
 
-def add_order_form(options, cc_browser, products, worksheet):
+def add_order_form(options, config, cc_browser, products, worksheet):
     """Create the Wholesale Order Form worksheet."""
 
     # Prepare worksheet.
     worksheet.title = "Wholesale Order Form"
 
     # Add title.
-    row = add_title(options, worksheet)
+    row = add_title(options, config, worksheet)
 
     # Blank row.
     row += 1
@@ -235,7 +236,7 @@ def add_order_form(options, cc_browser, products, worksheet):
     )
 
 
-def generate_xlsx(options, cc_browser, products):
+def generate_xlsx(options, config, cc_browser, products):
     """Generate the XLS file."""
 
     # Construct a document.
@@ -244,6 +245,7 @@ def generate_xlsx(options, cc_browser, products):
     # Create PO-Invoice worksheet.
     add_order_form(
         options,
+        config,
         cc_browser,
         products,
         workbook.worksheets[0]
@@ -332,7 +334,7 @@ def main():
     # Generate spreadsheet.
     if options.verbose:
         sys.stderr.write("Generating %s\n" % options.xlsx_filename)
-    generate_xlsx(options, cc_browser, products)
+    generate_xlsx(options, config, cc_browser, products)
 
     if options.verbose:
         sys.stderr.write("Generation complete\n")
