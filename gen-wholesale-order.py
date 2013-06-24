@@ -147,6 +147,7 @@ def add_products(options, worksheet, row, cc_browser, products):
     products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
 
     # Group products by category.
+    FORMAT_USD = openpyxl.style.NumberFormat.FORMAT_CURRENCY_USD_SIMPLE
     first_product_row = row
     for _, product_group in itertools.groupby(
         products,
@@ -166,7 +167,7 @@ def add_products(options, worksheet, row, cc_browser, products):
             rounded_price = math.floor(float(online_price) + 0.5)
             wholesale_price = rounded_price * options.wholesale_fraction
             style = set_cell(worksheet, row, col_price, wholesale_price).style
-            style.number_format.format_code = "0.00"
+            style.number_format.format_code = FORMAT_USD
             total_formula = "=IF(%s%i=\"\", \"\", %s%i * %s%i)" % (
                 col_letter(col_qty),
                 row_number(row),
@@ -176,7 +177,7 @@ def add_products(options, worksheet, row, cc_browser, products):
                 row_number(row)
             )
             style = set_cell(worksheet, row, col_total, total_formula).style
-            style.number_format.format_code = "#,###.00"
+            style.number_format.format_code = FORMAT_USD
             set_cell(worksheet, row, col_sku, product["SKU"])
             set_cell(worksheet, row, col_size, product["Size"])
             row += 1
@@ -185,9 +186,9 @@ def add_products(options, worksheet, row, cc_browser, products):
     # Set column widths.
     worksheet.column_dimensions[col_letter(col_category)].width = 20
     worksheet.column_dimensions[col_letter(col_description)].width = 65
-    worksheet.column_dimensions[col_letter(col_price)].width = 6
+    worksheet.column_dimensions[col_letter(col_price)].width = 7
     worksheet.column_dimensions[col_letter(col_qty)].width = 5
-    worksheet.column_dimensions[col_letter(col_total)].width = 9
+    worksheet.column_dimensions[col_letter(col_total)].width = 10
     worksheet.column_dimensions[col_letter(col_sku)].width = 6
     worksheet.column_dimensions[col_letter(col_size)].width = 24
 
@@ -211,7 +212,7 @@ def add_products(options, worksheet, row, cc_browser, products):
         row_number(last_product_row)
     )
     style = set_cell(worksheet, row, col_total, total_amount_formula).style
-    style.number_format.format_code = "#,##0.00"
+    style.number_format.format_code = FORMAT_USD
 
 
 def add_order_form(options, config, cc_browser, products, worksheet):
