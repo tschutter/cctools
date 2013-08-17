@@ -12,6 +12,12 @@ rm -f ${FILENAME}
 
 # Generate the price list.
 "${SCRIPTDIR}/gen-price-list.py"\
+    --exclude-sku=40025\
+    --exclude-sku=40027\
+    --exclude-sku=40043\
+    --exclude-sku=40052\
+    --exclude-sku=40064\
+    --exclude-sku=40068\
     --exclude-sku=40073\
     --exclude-sku=70074\
     --exclude-sku=70075\
