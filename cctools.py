@@ -415,17 +415,26 @@ class CCBrowser(object):
 
         return self._categories
 
+    def set_category_sort_order(self, categories):
+        """Build the dictionary used for sorting by category based
+        upon the specified category names.
+        """
+        self._category_sort = dict()
+        for sort, name in enumerate(categories):
+            self._category_sort[name] = sort
+
     def _init_category_sort(self):
-        """Build the dictionary used for sorting by category."""
+        """Build the dictionary used for sorting by category based
+        upon the category Sort value from CoreCommerce.
+        """
         if self._category_sort == None:
             if self._categories == None:
                 self.get_categories()
-            category_sort = dict()
+            self._category_sort = dict()
             for category in self._categories:
                 name = category["Category Name"]
                 sort = int(category["Sort"])
-                category_sort[name] = sort
-            self._category_sort = category_sort
+                self._category_sort[name] = sort
 
     def sort_key_by_category_and_name(self, product):
         """Return a key for a product dictionary used to sort by

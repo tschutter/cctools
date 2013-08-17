@@ -145,8 +145,14 @@ def generate_pdf(
     col_widths = [table_width - price_width, price_width]
     story = []
 
-    # Remove excluded categories.
-    if options.exclude_categories:
+    # Remove products that are not requested.
+    if options.categories:
+        cc_browser.set_category_sort_order(options.categories)
+        products = filter(
+            lambda x: x["Category"] in options.categories,
+            products
+        )
+    elif options.exclude_categories:
         products = filter(
             lambda x: x["Category"] not in options.exclude_categories,
             products
@@ -238,6 +244,13 @@ def main():
         help="configuration filename (default=%default)"
     )
     option_parser.add_option(
+        "--category",
+        action="append",
+        dest="categories",
+        metavar="CAT",
+        help="include category in output"
+    )
+    option_parser.add_option(
         "--exclude-category",
         action="append",
         dest="exclude_categories",
@@ -312,6 +325,8 @@ def main():
     (options, args) = option_parser.parse_args()
     if len(args) != 0:
         option_parser.error("invalid argument")
+    if options.categories and options.exclude_categories:
+        option_parser.error("--category and --exclude-category specified")
 
     # Read config file.
     config = ConfigParser.RawConfigParser()

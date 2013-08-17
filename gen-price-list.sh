@@ -12,6 +12,12 @@ rm -f ${FILENAME}
 
 # Generate the price list.
 "${SCRIPTDIR}/gen-price-list.py"\
+    --category="Necklaces"\
+    --category="Bags & Purses"\
+    --category="Bracelets"\
+    --category="Baskets, Trivets & Bowls"\
+    --category="Earrings"\
+    --category="Miscellaneous"\
     --exclude-sku=40025\
     --exclude-sku=40027\
     --exclude-sku=40043\
