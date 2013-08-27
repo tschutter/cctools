@@ -165,6 +165,9 @@ def generate_pdf(
             products
         )
 
+    # Removed discontinued products.
+    products = filter(lambda x: x["Discontinued Item"] != "Y", products)
+
     # Sort products by category, product_name.
     products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
 
@@ -188,8 +191,6 @@ def generate_pdf(
         table_data = list()
         for product in product_group:
             category = product["Category"]
-            if product["Discontinued Item"] == "Y":
-                continue
             product_name = cctools.plain_text_to_html(product["Product Name"])
             price = calc_price_inc_tax(
                 options,
@@ -234,7 +235,8 @@ def main():
 
     option_parser = optparse.OptionParser(
         usage="usage: %prog [options]\n" +
-        "  Generates a price list from CoreCommerce data in PDF form."
+        "  Generates a price list from CoreCommerce data in PDF form.\n" +
+        "  Items that are discontinued are not included."
     )
     option_parser.add_option(
         "--config",
