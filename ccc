@@ -381,6 +381,12 @@ def main():
         help="configuration filename (default=%default)"
     )
     option_parser.add_option(
+        "--refresh-cache",
+        action="store_true",
+        default=False,
+        help="refresh cache from website"
+    )
+    option_parser.add_option(
         "--cache-ttl",
         metavar="SEC",
         default=3600,
@@ -447,7 +453,7 @@ def main():
         config.get("website", "site"),
         config.get("website", "username"),
         config.get("website", "password"),
-        cache_ttl=options.cache_ttl,
+        cache_ttl=0 if options.refresh_cache else options.cache_ttl,
         verbose=options.verbose,
         #proxy="localhost:8080"  # allow MITM analysis
     )

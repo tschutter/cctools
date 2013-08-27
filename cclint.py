@@ -140,6 +140,12 @@ def main():
         help="do not clean data before checking"
     )
     option_parser.add_option(
+        "--refresh-cache",
+        action="store_true",
+        default=False,
+        help="refresh cache from website"
+    )
+    option_parser.add_option(
         "--cache-ttl",
         action="store",
         type=int,
@@ -175,7 +181,7 @@ def main():
         config.get("website", "password"),
         verbose=options.verbose,
         clean=options.clean,
-        cache_ttl=options.cache_ttl
+        cache_ttl=0 if options.refresh_cache else options.cache_ttl
     )
 
     # Check category list.
