@@ -58,5 +58,12 @@ meaning that that particular setting/feature is off/not being used.
 cctools.py therefore translates all boolean values that are not "Y" to
 "N".
 
-I use "mitmdump -w foo.mitm" and "mitmproxy -n -r foo.mitm" to
-analyze HTTP traffic between the browser and CC.
+The inline HTML comments in the inline JavaScript are to prevent older
+browsers that do not understand the script element from displaying the
+script code in plain text::
+
+    <script type="text/javascript">
+        <!--
+        // JavaScript code here
+        -->
+    </script>
