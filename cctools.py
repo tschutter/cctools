@@ -5,6 +5,7 @@ Web scraper interface to CoreCommerce.
 """
 
 import csv
+import json
 import mechanize  # sudo apt-get install python-mechanize
 import os
 import re
@@ -31,7 +32,8 @@ class CCBrowser(object):
         proxy=None
     ):
         self._host = host
-        self._base_url = "https://%s/~%s/admin/index.php" % (host, site)
+        self._base_url = "https://%s/~%s" % (host, site)
+        self._admin_url = self._base_url + "/admin/index.php"
         self._username = username
         self._password = password
         self._clean = clean
@@ -67,7 +69,7 @@ class CCBrowser(object):
             sys.stderr.write("Logging into %s\n" % self._host)
 
         # Open the login page.
-        self._browser.open(self._base_url)
+        self._browser.open(self._admin_url)
 
         # Find the login form.
         self._browser.select_form(name="digiSHOP")
@@ -89,38 +91,50 @@ class CCBrowser(object):
         now = time.time()
         return expire_time < now
 
-    def _sajax_do_call(self, url, method, args):
-        """Call a sajax method and return the response."""
-        url += "&rs=" + method
-        for arg in args:
-            url += "&rsargs[]=" + arg
-        response = self._browser.open(url).read()
-        txt = response.strip()
-        status = txt[0]
-        data = txt[2:]
-        if (status == "-"):
-            print "ERROR: " + data
-            return
-        # Javascript uses eval(data) here to convert data to objects.
-        # For now, we hack.
-        match = re.match("var res = '(.*)'; res;", data)
-        if match:
-            return match.group(1)
-
     def _do_export(self, url, filename):
         """Export a file from CoreCommerce."""
+        # This method was derived from the following javascript code
+        # returned by pressing the "Export" button.
+        #
+        # jQuery.ajax({
+        #     type : "GET",
+        #     cache : false,
+        #     url : 'https://HOST/~SITE/controllers/ajaxController.php',
+        #     data : {
+        #         object : 'ExportAjax',
+        #         'function' : 'processExportCycle',
+        #         current : current
+        #     }
+        # })
+        # .done(function(response) {
+        #     var responseObject = jQuery.parseJSON(response);
+        #     var current = responseObject.current;
+        #     var percentComplete = responseObject.percentComplete;
+        #     if(percentComplete == '100'){
+        #         var url = 'https://HOST/~SITE/admin/index.php?m=ajax_export_send';
+        #         var parent = window.opener;
+        #         parent.location = url;
+        #     } else {
+        #         doExport(current);
+        #     }
+        # })
 
-        # Call the doExport function until percent_complete == 100.
-        current = ""
+        # Call the processExportCycle function until percentComplete == 100.
+        ajax_controller_url = self._base_url + "/controllers/ajaxController.php"
+        current = 0
         while True:
-            res = self._sajax_do_call(url, "doExport", [current])
-            pieces = res.split("|")
-            if len(pieces) >= 1 and pieces[1] == "100":
+            url = "%s?object=ExportAjax&function=processExportCycle&current=%i" % (
+                ajax_controller_url,
+                current
+            )
+            response = self._browser.open(url).read()
+            response_object = json.loads(response)
+            if response_object["percentComplete"] == 100:
                 break
-            current = pieces[0]
+            current = response_object["current"]
 
         # Fetch the result file.
-        url = self._base_url + "?m=ajax_export_send"
+        url = self._admin_url + "?m=ajax_export_send"
         self._browser.retrieve(url, filename)
 
     def _download_personalizations_csv(self, filename):
@@ -135,7 +149,7 @@ class CCBrowser(object):
 
         # Load export page.
         url = "%s?%s" % (
-            self._base_url,
+            self._admin_url,
             "m=ajax_export" +
             "&instance=personalization_products&checkAccess=products"
         )
@@ -192,7 +206,7 @@ class CCBrowser(object):
 
         # Load the export page.
         url = (
-            self._base_url +
+            self._admin_url +
             "?m=ajax_export&instance=products&checkAccess=products"
         )
         self._browser.open(url)
@@ -210,10 +224,11 @@ class CCBrowser(object):
                 )
         category_list.value = [""]  # name where values = ["All Categories"]
 
-        # Submit the form (press the "" button).
+        # Submit the form (press the "Export" button).
         resp = self._browser.submit()
         if False:  # debug
-            print url + " response:\n"
+            # Examine the source of the doExport method.
+            print "Response from %s:\n" % url
             print resp.read().replace("\r", "")
 
         # Call the doExport function.
@@ -295,7 +310,7 @@ class CCBrowser(object):
 
         # Open the upload page.
         self._browser.open(
-            self._base_url + "?m=ajax_import&instance=product_import"
+            self._admin_url + "?m=ajax_import&instance=product_import"
         )
         for form in self._browser.forms():
             print "Form name:", form.name
@@ -333,7 +348,7 @@ class CCBrowser(object):
 
         # Open the update page.
         self._browser.open(
-            self._base_url + "?m=ajax_import_save&instance=product_import"
+            self._admin_url + "?m=ajax_import_save&instance=product_import"
         )
         for form in self._browser.forms():
             print "Form name:", form.name
@@ -344,7 +359,7 @@ class CCBrowser(object):
 
         # Set the form values.
         #self._browser["instance"] = "product_import"
-        self._browser["go"] = self._base_url + "?m=ajax_import&instance=product_import"
+        self._browser["go"] = self._admin_url + "?m=ajax_import&instance=product_import"
         self._browser["submit"] = "true"
         self._browser["file"] = "cctools.csv"
         self._browser["useFile"] = "Y"
@@ -381,7 +396,7 @@ class CCBrowser(object):
 
         # Load the export page.
         url = (
-            self._base_url +
+            self._admin_url +
             "?m=ajax_export&instance=categories&checkAccess=categories"
         )
         self._browser.open(url)
