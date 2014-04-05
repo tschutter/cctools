@@ -245,7 +245,7 @@ def print_obj(obj, key):
     if key:
         print(obj[key])
     else:
-        for key, value in obj.iteritems():
+        for key, value in obj.items():
             print("%s: %s" % (key, value))
 
 
