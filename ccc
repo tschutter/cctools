@@ -1,10 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 """
 Command line tool for CoreCommerce access.
 """
 
+from __future__ import print_function
 import ConfigParser
+#import argparse
 import cctools
 import optparse
 import os
@@ -146,6 +148,7 @@ def adjust_field_list(fields, option_parser, options, header_map):
 
 def action_list(option_parser, options, args, cc_browser):
     """List objects of a type."""
+#    if options.obj_type == "product":
     if len(args) < 2:
         option_parser.error("object type not specified")
     elif len(args) > 2:
@@ -201,6 +204,7 @@ def action_list_fields(option_parser, options, args, cc_browser):
     elif len(args) > 2:
         option_parser.error("invalid argument")
     obj_type = parse_object_type(option_parser, args[1])
+#    if args.obj_type == "product":
     if obj_type == "product":
         products = cc_browser.get_products()
         field_names = sorted(products[0].keys())
@@ -239,10 +243,10 @@ def find_object(option_parser, obj_type, objects, spec, keys):
 def print_obj(obj, key):
     """Print obj[key] if key is defined, otherwise print entire dict."""
     if key:
-        print obj[key]
+        print(obj[key])
     else:
         for key, value in obj.iteritems():
-            print "%s: %s" % (key, value)
+            print("%s: %s" % (key, value))
 
 
 def action_show(option_parser, options, args, cc_browser):
@@ -259,6 +263,7 @@ def action_show(option_parser, options, args, cc_browser):
         key = None
     else:
         key = args[3]
+#    if args.obj_type == "product":
     if obj_type == "product":
         products = cc_browser.get_products()
         product = find_object(
@@ -268,6 +273,7 @@ def action_show(option_parser, options, args, cc_browser):
             spec,
             ["SKU", "Product Name"]
         )
+#        print_obj(product, args.key)
         print_obj(product, key)
 
     elif obj_type == "category":
@@ -279,6 +285,7 @@ def action_show(option_parser, options, args, cc_browser):
             spec,
             ["Category Name"]
         )
+#        print_obj(category, args.key)
         print_obj(category, key)
 
     elif obj_type == "personalization":
@@ -290,6 +297,7 @@ def action_show(option_parser, options, args, cc_browser):
             spec,
             ["Question|Answer"]
         )
+#        print_obj(personalization, args.key)
         print_obj(personalization, key)
 
 
@@ -317,37 +325,52 @@ def action_update(option_parser, options, args, cc_browser):
         option_parser.error("KEY=VALUE not specified")
     obj_type = parse_object_type(option_parser, args[1])
     spec = args[2]
+#    if args.obj_type == "product":
     if obj_type == "product":
         products = cc_browser.get_products()
         product = find_object(
             option_parser,
             obj_type,
             products,
+#            args.spec,
             spec,
             ["SKU", "Product Name"]
         )
+#        update_obj(option_parser, args, product, args.keyval, cc_browser)
         update_obj(option_parser, options, product, args[3:], cc_browser)
 
+#    elif args.obj_type == "category":
     elif obj_type == "category":
         categories = cc_browser.get_categories()
         category = find_object(
             option_parser,
             obj_type,
             categories,
+#            args.spec,
             spec,
             ["Category Name"]
         )
+#        update_obj(option_parser, args, category, args.keyval, cc_browser)
         update_obj(option_parser, options, category, args[3:], cc_browser)
 
+#    elif args.obj_type == "personalization":
     elif obj_type == "personalization":
         personalizations = cc_browser.get_personalizations()
         personalization = find_object(
             option_parser,
             obj_type,
             personalizations,
+#            args.spec,
             spec,
             ["Question|Answer"]
         )
+#        update_obj(
+#            option_parser,
+#            args,
+#            personalization,
+#            args.keyval,
+#            cc_browser
+#        )
         update_obj(
             option_parser,
             options,
@@ -355,6 +378,43 @@ def action_update(option_parser, options, args, cc_browser):
             args[3:],
             cc_browser
         )
+
+#def add_format_args(arg_parser):
+#    """Add formatting options to arg_parser."""
+#    arg_parser.add_argument(
+#        "--format",
+#        choices=["csv", "table"],
+#        default="table",
+#        help="output format [csv, table] (default=%(default)s)"
+#    )
+#    arg_parser.add_argument(
+#        "--delimiter",
+#        dest="delimiter",
+#        metavar="DELIM",
+#        default="|",
+#        help="output CSV delimiter (default=%(default)s)"
+#    )
+#
+#
+#def add_obj_type_arg(arg_parser):
+#    """Add object type argument to arg_parser."""
+#    # TODO: allow abbreviation
+#    # Any object that supports the in operator can be passed as the
+#    # choices value, so a custom container is supported.
+#    #if "product".startswith(arg) and len(arg) > 1:
+#    #    return "product"
+#    #elif "category".startswith(arg):
+#    #    return "category"
+#    #elif "personalization".startswith(arg) and len(arg) > 1:
+#    #    return "personalization"
+#    #else:
+#    #    arg_parser.error("invalid object type '%s'" % arg)
+#    arg_parser.add_argument(
+#        "obj_type",
+#        action="store_const",
+#        choices=["product", "category", "personalization"],
+#        help="object type"
+#    )
 
 
 def main():
@@ -364,6 +424,9 @@ def main():
         "cctools.cfg"
     )
 
+#    arg_parser = argparse.ArgumentParser(
+#        description="Command line tool for CoreCommerce access."
+#    )
     option_parser = optparse.OptionParser(
         usage="usage: %prog [options] action\n" +
         "  Actions:\n" +
@@ -374,11 +437,12 @@ def main():
         "    update { product | category | personalization } SPEC KEY=VAL ...\n"
         "      Update values of an object."
     )
+#    arg_parser.add_argument(
     option_parser.add_option(
         "--config",
         metavar="FILE",
         default=default_config,
-        help="configuration filename (default=%default)"
+        help="configuration filename (default=%(default)s)"
     )
     option_parser.add_option(
         "--refresh-cache",
@@ -390,7 +454,7 @@ def main():
         "--cache-ttl",
         metavar="SEC",
         default=3600,
-        help="cache TTL (default=%default)"
+        help="cache TTL (default=%(default)i)"
     )
     option_parser.add_option(
         "--format",
@@ -411,7 +475,12 @@ def main():
         default=False,
         help="display progress messages"
     )
+#    subparsers = arg_parser.add_subparsers()
 
+#    parser_list = subparsers.add_parser("list", help="List objects.")
+#    parser_list.set_defaults(func=action_list)
+#    add_format_args(parser_list)
+#    add_obj_type_arg(parser_list)
     list_group = optparse.OptionGroup(
         option_parser,
         "list options",
@@ -424,6 +493,13 @@ def main():
         metavar="FLD",
         help="additional field to report"
     )
+#    parser_list_fields = subparsers.add_parser(
+#        "list_fields",
+#        "List object fields."
+#    )
+#    parser_list_fields.set_defaults(func=action_list_fields)
+#    add_format_args(parser_list_fields)
+#    add_obj_type_arg(parser_list_fields)
     list_group.add_option(
         "--del-field",
         action="append",
@@ -439,8 +515,32 @@ def main():
         "List fields."
     )
     option_parser.add_option_group(list_fields_group)
+#    #elif len(args) < 3:
+#    #    option_parser.error("SPEC not specified")
+#    #if len(args) < 4:
+#    #    key = None
+#    #else:
+#    #    key = args[3]
+#    parser_show = subparsers.add_parser(
+#        "show",
+#        help="List key, values of an object."
+#    )
+#    parser_show.set_defaults(func=action_show)
+#    add_obj_type_arg(parser_show)
+#
+#    #elif len(args) < 3:
+#    #    option_parser.error("SPEC not specified")
+#    #elif len(args) < 4:
+#    #    option_parser.error("KEY=VALUE not specified")
+#    parser_update = subparsers.add_parser(
+#        "update",
+#        help="Update values of an object."
+#    )
+#    parser_update.set_defaults(func=action_update)
+#    add_obj_type_arg(parser_update)
 
     # Parse command line arguments.
+#    args = arg_parser.parse_args()
     (options, args) = option_parser.parse_args()
 
     # Read config file.
@@ -454,10 +554,12 @@ def main():
         config.get("website", "username"),
         config.get("website", "password"),
         cache_ttl=0 if options.refresh_cache else options.cache_ttl,
-        verbose=options.verbose,
-        #proxy="localhost:8080"  # allow MITM analysis
+        verbose=options.verbose
+        #,proxy="localhost:8080"  # allow MITM analysis
     )
 
+    # Perform the action.
+#    args.func(arg_parser, args, cc_browser)
     if len(args) < 1:
         option_parser.error("action not specified")
     action = args[0]
@@ -473,6 +575,7 @@ def main():
         option_parser.error("invalid action '%s'" % action)
 
     return 0
+
 
 if __name__ == "__main__":
     main()

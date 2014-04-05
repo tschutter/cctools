@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 """
 Generate an inventory report.
@@ -194,7 +194,7 @@ def main():
                     )
 
     #for sku, level, name in inventory:
-    #    print "%-9s %4s %-45s" % (sku, level, name)
+    #    print("%-9s %4s %-45s" % (sku, level, name))
 
     if options.verbose:
         sys.stderr.write("Generating %s\n" % options.xlsx_filename)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 """
 Generates a price list from CoreCommerce data in PDF form.  Prices
@@ -148,25 +148,16 @@ def generate_pdf(
     # Remove products that are not requested.
     if options.categories:
         cc_browser.set_category_sort_order(options.categories)
-        products = filter(
-            lambda x: x["Category"] in options.categories,
-            products
-        )
+        products = [x for x in products if x["Category"] in options.categories]
     elif options.exclude_categories:
-        products = filter(
-            lambda x: x["Category"] not in options.exclude_categories,
-            products
-        )
+        products = [x for x in products if x["Category"] not in options.exclude_categories]
 
     # Remove excluded SKUs.
     if options.exclude_skus:
-        products = filter(
-            lambda x: str(x["SKU"]) not in options.exclude_skus,
-            products
-        )
+        products = [x for x in products if str(x["SKU"]) not in options.exclude_skus]
 
     # Removed discontinued products.
-    products = filter(lambda x: x["Discontinued Item"] != "Y", products)
+    products = [x for x in products if x["Discontinued Item"] != "Y"]
 
     # Sort products by category, product_name.
     products = sorted(products, key=cc_browser.sort_key_by_category_and_name)

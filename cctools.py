@@ -1,9 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 """
 Web scraper interface to CoreCommerce.
 """
 
+from __future__ import print_function
 import csv
 import json
 import mechanize  # sudo apt-get install python-mechanize
@@ -47,7 +48,7 @@ class CCBrowser(object):
             username = "UNKNOWN"
         self._cache_dir = "/tmp/cctools-cache-" + username
         if not os.path.exists(self._cache_dir):
-            os.mkdir(self._cache_dir, 0700)
+            os.mkdir(self._cache_dir, 0o700)
         self._browser = mechanize.Browser()
         if proxy != None:
             self._browser.set_proxies({"https": proxy})
@@ -218,9 +219,11 @@ class CCBrowser(object):
         category_list = self._browser.form.find_control("category")
         if False:  # debug
             for item in category_list.items:
-                print " name=%s values=%s" % (
-                    item.name,
-                    str([label.text for label in item.get_labels()])
+                print(
+                    " name=%s values=%s" % (
+                        item.name,
+                        str([label.text for label in item.get_labels()])
+                    )
                 )
         category_list.value = [""]  # name where values = ["All Categories"]
 
@@ -228,8 +231,8 @@ class CCBrowser(object):
         resp = self._browser.submit()
         if False:  # debug
             # Examine the source of the doExport method.
-            print "Response from %s:\n" % url
-            print resp.read().replace("\r", "")
+            print("Response from %s:\n" % url)
+            print(resp.read().replace("\r", ""))
 
         # Call the doExport function.
         self._do_export(url, filename)
@@ -313,8 +316,8 @@ class CCBrowser(object):
             self._admin_url + "?m=ajax_import&instance=product_import"
         )
         for form in self._browser.forms():
-            print "Form name:", form.name
-            print form
+            print("Form name:", form.name)
+            print(form)
 
         # Select first and only form on page.
         self._browser.select_form(nr=0)
@@ -328,7 +331,12 @@ class CCBrowser(object):
         with open("/tmp/cctools.csv", "wt") as tfile:
             tfile.write("SKU,%s\n%s,%s\n" % (key, sku, value))
         tfile.close()
-        self._browser.form.add_file(open("/tmp/cctools.csv"), 'text/csv', "/tmp/cctools.csv", name='importFile')
+        self._browser.form.add_file(
+            open("/tmp/cctools.csv"),
+            "text/csv",
+            "/tmp/cctools.csv",
+            name="importFile"
+        )
         #self._browser["importFile"] = "SKU,%s\n%s,%s\n" % (key, sku, value)
         self._browser["updateType"] = "update"
 
@@ -351,8 +359,8 @@ class CCBrowser(object):
             self._admin_url + "?m=ajax_import_save&instance=product_import"
         )
         for form in self._browser.forms():
-            print "Form name:", form.name
-            print form
+            print("Form name:", form.name)
+            print(form)
 
         # Select first and only form on page.
         self._browser.select_form(nr=0)

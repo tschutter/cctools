@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 """Detects problems in CoreCommerce product data.
 
@@ -34,6 +34,7 @@ The [lint_personalization] section is similar and is used for
 personalization value checks.
 """
 
+from __future__ import print_function
 import ConfigParser
 import cctools
 import optparse
@@ -76,11 +77,11 @@ def check_skus(products):
         sku = product["SKU"]
         if sku != "":
             if sku in skus:
-                print "%s '%s': SKU already used by '%s'" % (
+                print("%s '%s': SKU already used by '%s'" % (
                     "Product",
                     display_name,
                     skus[sku]
-                )
+                ))
             else:
                 skus[sku] = display_name
 
@@ -101,17 +102,17 @@ def check_item(item_checks, item_type_name, items, item, item_name):
             ):
                 continue
         else:
-            print "ERROR: Unknown check syntax '%s'" % check
+            print("ERROR: Unknown check syntax '%s'" % check)
             sys.exit(1)
         pattern = "^" + check_parts[0] + "$"  # entire value must match
         if not re.match(pattern, item[key]):
-            print "%s '%s': Invalid '%s' of '%s' (does not match %s)" % (
+            print("%s '%s': Invalid '%s' of '%s' (does not match %s)" % (
                 item_type_name,
                 item_name,
                 key,
                 item[key],
                 pattern
-            )
+            ))
 
 
 def main():

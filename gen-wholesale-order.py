@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 """
 Generates a wholesale order form in spreadsheet form.
@@ -139,10 +139,7 @@ def add_products(options, worksheet, row, cc_browser, products):
 
     # Remove excluded SKUs.
     if options.exclude_skus:
-        products = filter(
-            lambda x: str(x["SKU"]) not in options.exclude_skus,
-            products
-        )
+        products = [x for x in products if str(x["SKU"]) not in options.exclude_skus]
 
     # Sort products by category, product_name.
     products = sorted(products, key=cc_browser.sort_key_by_category_and_name)

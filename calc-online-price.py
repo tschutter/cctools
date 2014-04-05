@@ -1,9 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 """
 Calculates an online price (pre-tax) based upon a tax-included price.
 """
 
+from __future__ import print_function
 import math
 import optparse
 
@@ -12,7 +13,6 @@ def calc_pre_tax_price(tax_included_price, price_multiplier):
     pre_tax_price = tax_included_price / price_multiplier
     pre_tax_price = math.floor(pre_tax_price * 10.0 + 0.5) / 10.0 - 0.01
     return "{:,.2f}".format(pre_tax_price)
-
 
 def main():
     """main"""
@@ -42,7 +42,7 @@ def main():
     # Determine price multiplier.
     price_multiplier = 1.0 + options.tax_percent / 100.0
 
-    print calc_pre_tax_price(tax_included_price, price_multiplier)
+    print(calc_pre_tax_price(tax_included_price, price_multiplier))
 
     return 0
 
