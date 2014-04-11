@@ -40,13 +40,7 @@ class CCBrowser(object):
         self._clean = clean
         self._verbose = verbose
         self._cache_ttl = float(cache_ttl)
-        if "USER" in os.environ:
-            username = os.environ["USER"]
-        elif "USERNAME" in os.environ:
-            username = os.environ["USERNAME"]
-        else:
-            username = "UNKNOWN"
-        self._cache_dir = "/tmp/cctools-cache-" + username
+        self._cache_dir = os.environ["HOME"] + "/.cache/cctools"
         if not os.path.exists(self._cache_dir):
             os.mkdir(self._cache_dir, 0o700)
         self._browser = mechanize.Browser()
