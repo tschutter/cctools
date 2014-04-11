@@ -78,6 +78,49 @@ def add_title(options, config, worksheet):
 
     return row
 
+def add_ship_to(worksheet, row):
+    """Add Ship To block."""
+    start_col = 0
+    end_col = 1
+    worksheet.merge_cells(
+        start_row=row,
+        start_column=start_col,
+        end_row=row,
+        end_column=end_col
+    )
+    set_cell(
+        worksheet,
+        row,
+        start_col,
+        "Ship To:",
+        bold=True,
+        alignment_horizontal=ALIGNMENT_HORIZONTAL_LEFT
+    )
+    row += 1
+
+    nrows = 3
+    for i in range(0, nrows):
+        worksheet.merge_cells(
+            start_row=row,
+            start_column=start_col,
+            end_row=row,
+            end_column=end_col
+        )
+        for col in range(start_col, end_col + 1):
+            style = worksheet.cell(row=row, column=col).style
+            borders = style.borders
+            if i == 0:
+                borders.top.border_style = openpyxl.style.Border.BORDER_THICK
+            if i == nrows - 1:
+                borders.bottom.border_style = openpyxl.style.Border.BORDER_THICK
+            if col == start_col:
+                borders.left.border_style = openpyxl.style.Border.BORDER_THICK
+            if col == end_col:
+                borders.right.border_style = openpyxl.style.Border.BORDER_THICK
+        row += 1
+
+    return row
+
 def set_label_dollar_value(
     worksheet,
     row,
@@ -99,27 +142,6 @@ def set_label_dollar_value(
     value_style = set_cell(worksheet, row, col_total, value).style
     value_style.number_format.format_code = NUMBER_FORMAT_USD
     return(label_style, value_style)
-
-def add_ship_to(worksheet, row):
-    """Add Ship To block."""
-    nrows = 4
-    for r in range(0, nrows):
-        worksheet.merge_cells(
-            start_row=row + r,
-            start_column=0,
-            end_row=row + r,
-            end_column=1
-        )
-
-    set_cell(
-        worksheet,
-        row,
-        0,
-        "Ship To:",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_LEFT
-    )
-    return row + nrows
 
 def add_products(options, worksheet, row, cc_browser, products):
     """Add row for each product."""
