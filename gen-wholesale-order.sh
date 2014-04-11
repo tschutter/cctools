@@ -1,13 +1,37 @@
 #!/bin/sh
-#
-# Generate and display YYYY-MM-DD-WholesalePrices.xlsx
-#
+
+usage() {
+    echo "Generate and display YYYY-MM-DD-WholesalePrices.xlsx" >&2
+    echo "" >&2
+    echo "USAGE:" >&2
+    echo "  $0 [options]" >&2
+    echo "" >&2
+    echo "OPTIONS:" >&2
+    echo "  --dir=DIR = specify output directory" >&2
+}
+
+OUTPUT_DIR=.
+for ARG in "$@"; do
+    case ${ARG} in
+        --help)
+            usage
+            exit 1
+            ;;
+        --dir=*)
+            OUTPUT_DIR="${ARG#*=}"
+            ;;
+        *)
+            usage
+            exit 1
+            ;;
+    esac
+done
 
 SCRIPT=`readlink --canonicalize "$0"`
 SCRIPTDIR=`dirname "${SCRIPT}"`
 
 # Determine the output filename.
-FILENAME="`date +%Y-%m-%d`-WholesaleOrder.xlsx"
+FILENAME="${OUTPUT_DIR}/`date +%Y-%m-%d`-WholesaleOrder.xlsx"
 rm -f ${FILENAME}
 
 # Generate the order form.
