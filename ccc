@@ -442,7 +442,8 @@ def main():
         "--config",
         metavar="FILE",
         default=default_config,
-        help="configuration filename (default=%(default)s)"
+#        help="configuration filename (default=%(default)s)"
+        help="configuration filename (default=%default)"
     )
     option_parser.add_option(
         "--refresh-cache",
@@ -454,7 +455,7 @@ def main():
         "--cache-ttl",
         metavar="SEC",
         default=3600,
-        help="cache TTL (default=%(default)i)"
+        help="cache TTL (default=%default)"
     )
     option_parser.add_option(
         "--format",
