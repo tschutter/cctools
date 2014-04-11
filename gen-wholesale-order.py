@@ -20,6 +20,11 @@ ALIGNMENT_HORIZONTAL_RIGHT = openpyxl.style.Alignment.HORIZONTAL_RIGHT
 ALIGNMENT_VERTICAL_TOP = openpyxl.style.Alignment.VERTICAL_TOP
 NUMBER_FORMAT_USD = openpyxl.style.NumberFormat.FORMAT_CURRENCY_USD_SIMPLE
 
+def has_merge_cells(worksheet):
+    """Determine if Worksheet.merge_cells method exists."""
+    # merge_cells not supported by openpyxl-1.5.6 (Ubuntu 12.04)
+    return hasattr(worksheet, "merge_cells")
+
 def set_cell(
     worksheet,
     row,
@@ -57,8 +62,13 @@ def add_title(options, config, worksheet):
     doc_title = config.get("wholesale_order", "title")
     style = set_cell(worksheet, row, 0, doc_title, bold=True).style
     style.font.size = 20
-    # merge_cells not supported by openpyxl-1.5.6 (Ubuntu 12.04)
-    #worksheet.merge_cells(start_row=0, start_column=0, end_row=0, end_column=2)
+    if has_merge_cells(worksheet):
+        worksheet.merge_cells(
+            start_row=0,
+            start_column=0,
+            end_row=0,
+            end_column=1
+        )
     worksheet.row_dimensions[1].height = 25
     row += 1
 
@@ -82,12 +92,13 @@ def add_ship_to(worksheet, row):
     """Add Ship To block."""
     start_col = 0
     end_col = 1
-    worksheet.merge_cells(
-        start_row=row,
-        start_column=start_col,
-        end_row=row,
-        end_column=end_col
-    )
+    if has_merge_cells(worksheet):
+        worksheet.merge_cells(
+            start_row=row,
+            start_column=start_col,
+            end_row=row,
+            end_column=end_col
+        )
     set_cell(
         worksheet,
         row,
@@ -100,23 +111,26 @@ def add_ship_to(worksheet, row):
 
     nrows = 3
     for i in range(0, nrows):
-        worksheet.merge_cells(
-            start_row=row,
-            start_column=start_col,
-            end_row=row,
-            end_column=end_col
-        )
+        style = worksheet.cell(row=row, column=start_col).style
+        style.alignment.horizontal = ALIGNMENT_HORIZONTAL_LEFT
+        if has_merge_cells(worksheet):
+            worksheet.merge_cells(
+                start_row=row,
+                start_column=start_col,
+                end_row=row,
+                end_column=end_col
+            )
         for col in range(start_col, end_col + 1):
             style = worksheet.cell(row=row, column=col).style
             borders = style.borders
             if i == 0:
-                borders.top.border_style = openpyxl.style.Border.BORDER_THICK
+                borders.top.border_style = openpyxl.style.Border.BORDER_THIN
             if i == nrows - 1:
-                borders.bottom.border_style = openpyxl.style.Border.BORDER_THICK
+                borders.bottom.border_style = openpyxl.style.Border.BORDER_THIN
             if col == start_col:
-                borders.left.border_style = openpyxl.style.Border.BORDER_THICK
+                borders.left.border_style = openpyxl.style.Border.BORDER_THIN
             if col == end_col:
-                borders.right.border_style = openpyxl.style.Border.BORDER_THICK
+                borders.right.border_style = openpyxl.style.Border.BORDER_THIN
         row += 1
 
     return row
@@ -131,14 +145,19 @@ def set_label_dollar_value(
     value
 ):
     """Add label: value."""
-    worksheet.merge_cells(
-        start_row=row,
-        start_column=col_label_start,
-        end_row=row,
-        end_column=col_label_end
-    )
-    label_style = set_cell(worksheet, row, col_label_start, label).style
+    if has_merge_cells(worksheet):
+        worksheet.merge_cells(
+            start_row=row,
+            start_column=col_label_start,
+            end_row=row,
+            end_column=col_label_end
+        )
+        col_label = col_label_start
+    else:
+        col_label = col_label_end
+    label_style = set_cell(worksheet, row, col_label, label).style
     label_style.alignment.horizontal = ALIGNMENT_HORIZONTAL_RIGHT
+
     value_style = set_cell(worksheet, row, col_total, value).style
     value_style.number_format.format_code = NUMBER_FORMAT_USD
     return(label_style, value_style)
