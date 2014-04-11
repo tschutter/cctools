@@ -10,7 +10,8 @@ usage() {
     echo "  --dir=DIR = specify output directory" >&2
 }
 
-OUTPUT_DIR=.
+ARGS=""
+OUTPUT_DIR=""
 for ARG in "$@"; do
     case ${ARG} in
         --help)
@@ -21,8 +22,7 @@ for ARG in "$@"; do
             OUTPUT_DIR="${ARG#*=}"
             ;;
         *)
-            usage
-            exit 1
+            ARGS="${ARGS} ${ARG}"
             ;;
     esac
 done
@@ -31,7 +31,10 @@ SCRIPT=`readlink --canonicalize "$0"`
 SCRIPTDIR=`dirname "${SCRIPT}"`
 
 # Determine the output filename.
-FILENAME="${OUTPUT_DIR}/`date +%Y-%m-%d`-WholesaleOrder.xlsx"
+FILENAME="`date +%Y-%m-%d`-WholesaleOrder.xlsx"
+if [ "${OUTPUT_DIR}" ]; then
+    FILENAME="${OUTPUT_DIR}/${FILENAME}"
+fi
 rm -f ${FILENAME}
 
 # Generate the order form.
@@ -40,7 +43,7 @@ rm -f ${FILENAME}
     --outfile="${FILENAME}"\
     --exclude-sku=30001\
     --verbose\
-    "$@"
+    ${ARGS}
 
 # Display the order form if it was successfully created.
 if [ -f "${FILENAME}" ]; then
