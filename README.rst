@@ -4,6 +4,10 @@ cctools
 cctools is a set of utilities that work with CoreCommerce product
 data.
 
+calc-online-price.py
+    Calculates an online price (pre-tax) based upon a tax-included
+    price.
+
 ccc
     Core Commerce Command line tool.  Interact with CoreCommerce from
     the command line.  List categories, products, and
@@ -12,8 +16,14 @@ ccc
 cclint.py
     Detects problems in CoreCommerce product data.
 
+gen-art-mart-checkin.py
+    Generates an Art Mart Inventory Sheet.
+
 gen-inventory.py
     Generates an inventory report in spreadsheet form.
+
+gen-po-invoice.py
+    Generates a Purchase Order / Commercial Invoice in XLSX form.
 
 gen-price-list.py
     Generates a price list from CoreCommerce data in PDF form.  Prices
@@ -22,11 +32,8 @@ gen-price-list.py
     to avoid the handling of change.  It also makes accounting of cash
     and checks easier because you can deal with round numbers.
 
-gen-po-invoice.py
-    Generates a Purchase Order / Commercial Invoice in XLSX form.
-
-gen-art-mart-checkin.py
-    Generates an Art Mart Inventory Sheet.
+gen-wholesale-order.py
+    Generates a wholesale order form in spreadsheet form.
 
 All of these tools use a common cctools.cfg configuration file.  The
 configuration file uses `INI syntax
