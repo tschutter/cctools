@@ -6,15 +6,16 @@ Generates a wholesale order form in spreadsheet form.
 
 import ConfigParser
 import cctools
+import datetime
 import itertools
 import math
 import openpyxl  # sudo apt-get install python-openpyxl
 import optparse
 import os
 import sys
-import datetime
 
 # Cell style constants.
+ALIGNMENT_HORIZONTAL_LEFT = openpyxl.style.Alignment.HORIZONTAL_LEFT
 ALIGNMENT_HORIZONTAL_RIGHT = openpyxl.style.Alignment.HORIZONTAL_RIGHT
 ALIGNMENT_VERTICAL_TOP = openpyxl.style.Alignment.VERTICAL_TOP
 NUMBER_FORMAT_USD = openpyxl.style.NumberFormat.FORMAT_CURRENCY_USD_SIMPLE
@@ -76,6 +77,26 @@ def add_title(options, config, worksheet):
     row += 1
 
     return row
+
+def add_ship_to(worksheet, row):
+    """Add Ship To block."""
+    nrows = 4
+    for r in range(0, nrows):
+        worksheet.merge_cells(
+            start_row=row + r,
+            start_column=0,
+            end_row=row + r,
+            end_column=1
+        )
+    set_cell(
+        worksheet,
+        row,
+        0,
+        "Ship To:",
+        bold=True,
+        alignment_horizontal=ALIGNMENT_HORIZONTAL_LEFT
+    )
+    return row + nrows
 
 def add_products(options, worksheet, row, cc_browser, products):
     """Add row for each product."""
@@ -220,6 +241,12 @@ def add_order_form(options, config, cc_browser, products, worksheet):
 
     # Add title.
     row = add_title(options, config, worksheet)
+
+    # Blank row.
+    row += 1
+
+    # Ship To block.
+    row = add_ship_to(worksheet, row)
 
     # Blank row.
     row += 1
