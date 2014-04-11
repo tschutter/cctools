@@ -61,7 +61,9 @@ class CCBrowser(object):
 
         # Notify user of time consuming step.
         if self._verbose:
-            sys.stderr.write("Logging into %s\n" % self._host)
+            sys.stderr.write(
+                "Logging into {} as {}\n".format(self._host, self._username)
+            )
 
         # Open the login page.
         self._browser.open(self._admin_url)
@@ -118,7 +120,7 @@ class CCBrowser(object):
         ajax_controller_url = self._base_url + "/controllers/ajaxController.php"
         current = 0
         while True:
-            url = "%s?object=ExportAjax&function=processExportCycle&current=%i" % (
+            url = "{}?object=ExportAjax&function=processExportCycle&current={}".format(
                 ajax_controller_url,
                 current
             )
@@ -143,9 +145,9 @@ class CCBrowser(object):
             sys.stderr.write("Downloading personalizations\n")
 
         # Load export page.
-        url = "%s?%s" % (
+        url = "{}?{}{}".format(
             self._admin_url,
-            "m=ajax_export" +
+            "m=ajax_export",
             "&instance=personalization_products&checkAccess=products"
         )
         self._browser.open(url)
@@ -214,7 +216,7 @@ class CCBrowser(object):
         if False:  # debug
             for item in category_list.items:
                 print(
-                    " name=%s values=%s" % (
+                    " name={} values={}".format(
                         item.name,
                         str([label.text for label in item.get_labels()])
                     )
@@ -225,7 +227,7 @@ class CCBrowser(object):
         resp = self._browser.submit()
         if False:  # debug
             # Examine the source of the doExport method.
-            print("Response from %s:\n" % url)
+            print("Response from {}:\n".format(url))
             print(resp.read().replace("\r", ""))
 
         # Call the doExport function.
@@ -298,7 +300,7 @@ class CCBrowser(object):
         # Notify user of time consuming step.
         if self._verbose:
             sys.stderr.write(
-                "Updating product SKU=%s, setting %s to %s\n" % (
+                "Updating product SKU={}, setting {} to {}\n".format(
                     sku,
                     key,
                     value
@@ -323,7 +325,7 @@ class CCBrowser(object):
         #self._browser["file"] = "cctools.csv"
         #self._browser["useFile"] = ["Y",]
         with open("/tmp/cctools.csv", "wt") as tfile:
-            tfile.write("SKU,%s\n%s,%s\n" % (key, sku, value))
+            tfile.write("SKU,{}\n{},{}\n".format(key, sku, value))
         tfile.close()
         self._browser.form.add_file(
             open("/tmp/cctools.csv"),
@@ -331,7 +333,7 @@ class CCBrowser(object):
             "/tmp/cctools.csv",
             name="importFile"
         )
-        #self._browser["importFile"] = "SKU,%s\n%s,%s\n" % (key, sku, value)
+        #self._browser["importFile"] = "SKU,{}\n{},{}\n".format(key, sku, value)
         self._browser["updateType"] = "update"
 
         # Submit the form (press the "????" button).
