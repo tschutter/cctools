@@ -78,6 +78,28 @@ def add_title(options, config, worksheet):
 
     return row
 
+def set_label_dollar_value(
+    worksheet,
+    row,
+    col_label_start,
+    col_label_end,
+    col_total,
+    label,
+    value
+):
+    """Add label: value."""
+    worksheet.merge_cells(
+        start_row=row,
+        start_column=col_label_start,
+        end_row=row,
+        end_column=col_label_end
+    )
+    label_style = set_cell(worksheet, row, col_label_start, label).style
+    label_style.alignment.horizontal = ALIGNMENT_HORIZONTAL_RIGHT
+    value_style = set_cell(worksheet, row, col_total, value).style
+    value_style.number_format.format_code = NUMBER_FORMAT_USD
+    return(label_style, value_style)
+
 def add_ship_to(worksheet, row):
     """Add Ship To block."""
     nrows = 4
@@ -88,6 +110,7 @@ def add_ship_to(worksheet, row):
             end_row=row + r,
             end_column=1
         )
+
     set_cell(
         worksheet,
         row,
@@ -213,24 +236,70 @@ def add_products(options, worksheet, row, cc_browser, products):
     # Blank row.
     row += 1
 
-    # Total quantity.
-    total_qty_formula = "=SUM(%s%i:%s%i)" % (
-        col_letter(col_qty),
-        row_number(first_product_row),
-        col_letter(col_qty),
-        row_number(last_product_row)
-    )
-    set_cell(worksheet, row, col_qty, total_qty_formula)
+    col_label_start = col_total - 2
+    col_label_end = col_total - 1
 
-    # Total amount.
-    total_amount_formula = "=SUM(%s%i:%s%i)" % (
+    # Subtotal.
+    subtotal_formula = "=SUM(%s%i:%s%i)" % (
         col_letter(col_total),
         row_number(first_product_row),
         col_letter(col_total),
         row_number(last_product_row)
     )
-    style = set_cell(worksheet, row, col_total, total_amount_formula).style
-    style.number_format.format_code = NUMBER_FORMAT_USD
+    set_label_dollar_value(
+        worksheet,
+        row,
+        col_label_start,
+        col_label_end,
+        col_total,
+        "Subtotal:",
+        subtotal_formula
+    )
+    subtotal_row = row
+    row += 1
+
+    # Shipping.
+    set_label_dollar_value(
+        worksheet,
+        row,
+        col_label_start,
+        col_label_end,
+        col_total,
+        "Shipping:",
+        0.0
+    )
+    row += 1
+
+    # Adjustment.
+    set_label_dollar_value(
+        worksheet,
+        row,
+        col_label_start,
+        col_label_end,
+        col_total,
+        "Adjustment:",
+        0.0
+    )
+    row += 1
+
+    # Total.
+    total_formula = "=SUM(%s%i:%s%i)" % (
+        col_letter(col_total),
+        row_number(subtotal_row),
+        col_letter(col_total),
+        row_number(row - 1)
+    )
+    (label_style, value_style) = set_label_dollar_value(
+        worksheet,
+        row,
+        col_label_start,
+        col_label_end,
+        col_total,
+        "Total:",
+        total_formula
+    )
+    label_style.font.bold = True
+    value_style.font.bold = True
 
 
 def add_order_form(options, config, cc_browser, products, worksheet):
