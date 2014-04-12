@@ -5,8 +5,8 @@ Calculates an online price (pre-tax) based upon a tax-included price.
 """
 
 from __future__ import print_function
+import argparse
 import math
-import optparse
 
 def calc_pre_tax_price(tax_included_price, price_multiplier):
     """Calculate the pre-tax price."""
@@ -16,33 +16,32 @@ def calc_pre_tax_price(tax_included_price, price_multiplier):
 
 def main():
     """main"""
-    option_parser = optparse.OptionParser(
-        usage="usage: %prog [options] tax-included-price\n" +
-        "  Calculate an pre-tax price based upon a tax-included price."
+    arg_parser = argparse.ArgumentParser(
+        description="Calculate a pre-tax price based upon a tax-included price."
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--tax",
-        action="store",
-        type="float",
+        type=float,
         dest="tax_percent",
         metavar="PCT",
         default=8.4,
-        help="tax rate in percent (default=%default)"
+        help="tax rate in percent (default=%(default).2f)"
+    )
+    arg_parser.add_argument(
+        "tax_included_price",
+        metavar="PRICE",
+        type=float,
+        help="price including tax"
     )
 
     # Parse command line arguments.
-    (options, args) = option_parser.parse_args()
-    if len(args) == 0:
-        option_parser.error("price not specified")
-    elif len(args) > 1:
-        option_parser.error("invalid argument")
-    else:
-        tax_included_price = float(args[0])
+    args = arg_parser.parse_args()
 
     # Determine price multiplier.
-    price_multiplier = 1.0 + options.tax_percent / 100.0
+    price_multiplier = 1.0 + args.tax_percent / 100.0
 
-    print(calc_pre_tax_price(tax_included_price, price_multiplier))
+    # Calculate and print the pre-tax price.
+    print(calc_pre_tax_price(args.tax_included_price, price_multiplier))
 
     return 0
 

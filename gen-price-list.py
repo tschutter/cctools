@@ -11,11 +11,11 @@ TODO: page orientation
 """
 
 import ConfigParser
+import argparse
 import cctools
 import datetime
 import itertools
 import math
-import optparse
 import os
 import reportlab.lib  # sudo apt-get install python-reportlab
 import reportlab.platypus
@@ -28,14 +28,14 @@ INCH = reportlab.lib.units.inch
 
 # Currency related constants (pre_symbol, post_symbol, rounder).
 CURRENCY_INFO = {
-    "UGX": ("", " USh", 1000.0),
-    "USD": ("$", "", 1.0)
+    "ugx": ("", " USh", 1000.0),
+    "usd": ("$", "", 1.0)
 }
 
-def calc_price_inc_tax(options, price, price_multiplier):
+def calc_price_inc_tax(args, price, price_multiplier):
     """Calculate a price including tax."""
     price_inc_tax = float(price) * price_multiplier
-    pre_symbol, post_symbol, rounder = CURRENCY_INFO[options.currency]
+    pre_symbol, post_symbol, rounder = CURRENCY_INFO[args.currency]
     whole_price_inc_tax = max(
         rounder,
         math.floor((price_inc_tax + 0.5) / rounder) * rounder
@@ -98,7 +98,7 @@ def create_col_frames(doc, ncols):
 
 
 def generate_pdf(
-    options,
+    args,
     config,
     cc_browser,
     products,
@@ -108,14 +108,14 @@ def generate_pdf(
     # Construct a document.
     doc_title = config.get("price_list", "title")
     doc = reportlab.platypus.BaseDocTemplate(
-        options.pdf_file,
+        args.pdf_file,
         pagesize=reportlab.lib.pagesizes.letter,
         title=doc_title,
         #showBoundary=True  # debug
     )
 
     # Construct a frame for each column.
-    frames = create_col_frames(doc, options.ncols)
+    frames = create_col_frames(doc, args.ncols)
 
     # Construct a template and add it to the document.
     doc.my_title = doc_title
@@ -146,15 +146,15 @@ def generate_pdf(
     story = []
 
     # Remove products that are not requested.
-    if options.categories:
-        cc_browser.set_category_sort_order(options.categories)
-        products = [x for x in products if x["Category"] in options.categories]
-    elif options.exclude_categories:
-        products = [x for x in products if x["Category"] not in options.exclude_categories]
+    if args.categories:
+        cc_browser.set_category_sort_order(args.categories)
+        products = [x for x in products if x["Category"] in args.categories]
+    elif args.exclude_categories:
+        products = [x for x in products if x["Category"] not in args.exclude_categories]
 
     # Remove excluded SKUs.
-    if options.exclude_skus:
-        products = [x for x in products if str(x["SKU"]) not in options.exclude_skus]
+    if args.exclude_skus:
+        products = [x for x in products if str(x["SKU"]) not in args.exclude_skus]
 
     # Removed discontinued products.
     products = [x for x in products if x["Discontinued Item"] != "Y"]
@@ -184,19 +184,19 @@ def generate_pdf(
             category = product["Category"]
             product_name = cctools.plain_text_to_html(product["Product Name"])
             price = calc_price_inc_tax(
-                options,
+                args,
                 product["Price"],
                 price_multiplier
             )
-            if options.display_sku:
+            if args.display_sku:
                 row = ("%s (%s)" % (product_name, product["SKU"]), price)
             else:
                 row = (product_name, price)
             table_data.append(row)
         if len(table_data) == 0:
             continue
-        if options.greybar_interval > 1:
-            for row in range(0, len(table_data), options.greybar_interval):
+        if args.greybar_interval > 1:
+            for row in range(0, len(table_data), args.greybar_interval):
                 styles.append(("BACKGROUND", (0, row), (1, row), greybar_color))
         table = reportlab.platypus.Table(
             data=table_data,
@@ -224,90 +224,82 @@ def main():
         "cctools.cfg"
     )
 
-    option_parser = optparse.OptionParser(
-        usage="usage: %prog [options]\n" +
-        "  Generates a price list from CoreCommerce data in PDF form.\n" +
-        "  Items that are discontinued are not included."
+    arg_parser = argparse.ArgumentParser(
+        description="Generates a price list from CoreCommerce data in PDF form."
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--config",
-        action="store",
         metavar="FILE",
         default=default_config,
-        help="configuration filename (default=%default)"
+        help="configuration filename (default=%(default)s)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--category",
         action="append",
         dest="categories",
         metavar="CAT",
         help="include category in output"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--exclude-category",
         action="append",
         dest="exclude_categories",
         metavar="CAT",
         help="exclude category from output"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--exclude-sku",
         action="append",
         dest="exclude_skus",
         metavar="SKU",
         help="exclude SKU from output"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--pdf-file",
-        action="store",
         dest="pdf_file",
         metavar="PDF_FILE",
         default="PriceListRetailTaxInc.pdf",
-        help="output PDF filename (default=%default)"
+        help="output PDF filename (default=%(default)s)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--display-sku",
         action="store_true",
         dest="display_sku",
         default=False,
         help="display SKU with product name"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--ncols",
-        action="store",
-        type="int",
+        type=int,
         dest="ncols",
         metavar="N",
         default=2,
-        help="number of report columns (default=%default)"
+        help="number of report columns (default=%(default)i)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--greybar-interval",
-        action="store",
-        type="int",
+        type=int,
         dest="greybar_interval",
         metavar="N",
         default=2,
-        help="greybar interval (default=%default)"
+        help="greybar interval (default=%(default)i)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--tax",
-        action="store",
-        type="float",
+        type=float,
         dest="tax_percent",
         metavar="PCT",
         default=8.4,
-        help="tax rate in percent (default=%default)"
+        help="tax rate in percent (default=%(default).2f)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--currency",
-        action="store",
         dest="currency",
-        metavar="USD|UGX",
-        default="USD",
-        help="currency (default=%default)"
+        choices=["usd", "ugx"],
+        default="usd",
+        help="currency (default=%(default)s)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--verbose",
         action="store_true",
         default=False,
@@ -315,19 +307,17 @@ def main():
     )
 
     # Parse command line arguments.
-    (options, args) = option_parser.parse_args()
-    if len(args) != 0:
-        option_parser.error("invalid argument")
-    if options.categories and options.exclude_categories:
-        option_parser.error("--category and --exclude-category specified")
+    args = arg_parser.parse_args()
+    if args.categories and args.exclude_categories:
+        arg_parser.error("--category and --exclude-category specified")
 
     # Read config file.
     config = ConfigParser.RawConfigParser()
-    config.readfp(open(options.config))
+    config.readfp(open(args.config))
 
     # Determine price multiplier.
-    price_multiplier = 1.0 + options.tax_percent / 100.0
-    if options.currency == "UGX":
+    price_multiplier = 1.0 + args.tax_percent / 100.0
+    if args.currency == "ugx":
         price_multiplier *= float(config.get("price_list", "ugx_exchange"))
 
     # Create a connection to CoreCommerce.
@@ -336,7 +326,7 @@ def main():
         config.get("website", "site"),
         config.get("website", "username"),
         config.get("website", "password"),
-        verbose=options.verbose
+        verbose=args.verbose
     )
 
     # Fetch products list.
@@ -357,17 +347,17 @@ def main():
             pass
 
     # Generate PDF file.
-    if options.verbose:
-        sys.stderr.write("Generating %s\n" % os.path.abspath(options.pdf_file))
+    if args.verbose:
+        sys.stderr.write("Generating %s\n" % os.path.abspath(args.pdf_file))
     generate_pdf(
-        options,
+        args,
         config,
         cc_browser,
         products,
         price_multiplier
     )
 
-    if options.verbose:
+    if args.verbose:
         sys.stderr.write("Generation complete\n")
     return 0
 

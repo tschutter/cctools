@@ -36,8 +36,8 @@ personalization value checks.
 
 from __future__ import print_function
 import ConfigParser
+import argparse
 import cctools
-import optparse
 import os
 import re
 import sys
@@ -122,39 +122,38 @@ def main():
         "cctools.cfg"
     )
 
-    option_parser = optparse.OptionParser(
-        usage="usage: %prog [options]\n" +
-        "  Detects problems in data exported from CoreCommerce."
+    arg_parser = argparse.ArgumentParser(
+        description="Detects problems in data exported from CoreCommerce."
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--config",
         action="store",
         metavar="FILE",
         default=defaultConfig,
-        help="configuration filename (default=%default)"
+        help="configuration filename (default=%(default)s)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--no-clean",
         action="store_false",
         dest="clean",
         default=True,
         help="do not clean data before checking"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--refresh-cache",
         action="store_true",
         default=False,
         help="refresh cache from website"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--cache-ttl",
         action="store",
         type=int,
         metavar="SEC",
         default=3600,
-        help="cache TTL in seconds (default=%default)"
+        help="cache TTL in seconds (default=%(default)i)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--verbose",
         action="store_true",
         default=False,
@@ -162,14 +161,12 @@ def main():
     )
 
     # Parse command line arguments.
-    (options, args) = option_parser.parse_args()
-    if len(args) != 0:
-        option_parser.error("invalid argument")
+    args = arg_parser.parse_args()
 
     # Read config file.
     config = ConfigParser.RawConfigParser()
     config.optionxform = str  # preserve case of option names
-    config.readfp(open(options.config))
+    config.readfp(open(args.config))
     category_checks = parse_checks(config, "lint_category")
     product_checks = parse_checks(config, "lint_product")
     personalization_checks = parse_checks(config, "lint_personalization")
@@ -180,9 +177,9 @@ def main():
         config.get("website", "site"),
         config.get("website", "username"),
         config.get("website", "password"),
-        verbose=options.verbose,
-        clean=options.clean,
-        cache_ttl=0 if options.refresh_cache else options.cache_ttl
+        verbose=args.verbose,
+        clean=args.clean,
+        cache_ttl=0 if args.refresh_cache else args.cache_ttl
     )
 
     # Check category list.
@@ -221,7 +218,7 @@ def main():
             personalization_display_name(personalization)
         )
 
-    if options.verbose:
+    if args.verbose:
         sys.stderr.write("Checks complete\n")
     return 0
 

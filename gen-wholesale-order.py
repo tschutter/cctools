@@ -5,12 +5,12 @@ Generates a wholesale order form in spreadsheet form.
 """
 
 import ConfigParser
+import argparse
 import cctools
 import datetime
 import itertools
 import math
 import openpyxl  # sudo apt-get install python-openpyxl
-import optparse
 import os
 import sys
 
@@ -56,7 +56,7 @@ def row_number(row):
     return row + 1
 
 
-def add_title(options, config, worksheet):
+def add_title(args, config, worksheet):
     """Add worksheet title."""
     row = 0
     doc_title = config.get("wholesale_order", "title")
@@ -77,12 +77,12 @@ def add_title(options, config, worksheet):
     set_cell(worksheet, row, 0, cell_text)
     row += 1
 
-    valid_date = now + datetime.timedelta(days = int(options.valid_ndays))
+    valid_date = now + datetime.timedelta(days = args.valid_ndays)
     cell_text = valid_date.strftime("Valid until: %Y-%m-%d")
     set_cell(worksheet, row, 0, cell_text)
     row += 1
 
-    cell_text = "Prices are {:.0%} of retail".format(options.wholesale_fraction)
+    cell_text = "Prices are {:.0%} of retail".format(args.wholesale_fraction)
     set_cell(worksheet, row, 0, cell_text)
     row += 1
 
@@ -162,7 +162,7 @@ def set_label_dollar_value(
     value_style.number_format.format_code = NUMBER_FORMAT_USD
     return(label_style, value_style)
 
-def add_products(options, worksheet, row, cc_browser, products):
+def add_products(args, worksheet, row, cc_browser, products):
     """Add row for each product."""
     col_category = 0
     col_description = 1
@@ -223,8 +223,8 @@ def add_products(options, worksheet, row, cc_browser, products):
     row += 1
 
     # Remove excluded SKUs.
-    if options.exclude_skus:
-        products = [x for x in products if str(x["SKU"]) not in options.exclude_skus]
+    if args.exclude_skus:
+        products = [x for x in products if str(x["SKU"]) not in args.exclude_skus]
 
     # Sort products by category, product_name.
     products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
@@ -247,7 +247,7 @@ def add_products(options, worksheet, row, cc_browser, products):
             set_cell(worksheet, row, col_description, description)
             online_price = product["Price"]
             rounded_price = math.floor(float(online_price) + 0.5)
-            wholesale_price = rounded_price * options.wholesale_fraction
+            wholesale_price = rounded_price * args.wholesale_fraction
             style = set_cell(worksheet, row, col_price, wholesale_price).style
             style.number_format.format_code = NUMBER_FORMAT_USD
             total_formula = "=IF(%s%i=\"\", \"\", %s%i * %s%i)" % (
@@ -343,14 +343,14 @@ def add_products(options, worksheet, row, cc_browser, products):
     value_style.font.bold = True
 
 
-def add_order_form(options, config, cc_browser, products, worksheet):
+def add_order_form(args, config, cc_browser, products, worksheet):
     """Create the Wholesale Order Form worksheet."""
 
     # Prepare worksheet.
     worksheet.title = "Wholesale Order Form"
 
     # Add title.
-    row = add_title(options, config, worksheet)
+    row = add_title(args, config, worksheet)
 
     # Blank row.
     row += 1
@@ -363,7 +363,7 @@ def add_order_form(options, config, cc_browser, products, worksheet):
 
     # Add products.
     add_products(
-        options,
+        args,
         worksheet,
         row,
         cc_browser,
@@ -371,7 +371,7 @@ def add_order_form(options, config, cc_browser, products, worksheet):
     )
 
 
-def generate_xlsx(options, config, cc_browser, products):
+def generate_xlsx(args, config, cc_browser, products):
     """Generate the XLS file."""
 
     # Construct a document.
@@ -379,7 +379,7 @@ def generate_xlsx(options, config, cc_browser, products):
 
     # Create PO-Invoice worksheet.
     add_order_form(
-        options,
+        args,
         config,
         cc_browser,
         products,
@@ -387,7 +387,7 @@ def generate_xlsx(options, config, cc_browser, products):
     )
 
     # Write to file.
-    workbook.save(options.xlsx_filename)
+    workbook.save(args.xlsx_filename)
 
 
 def main():
@@ -399,46 +399,46 @@ def main():
     now = datetime.datetime.now()
     default_xlsx_filename = now.strftime("%Y-%m-%d-WholesaleOrderForm.xlsx")
 
-    option_parser = optparse.OptionParser(
-        usage="usage: %prog [options]\n" +
-        "  Generates a wholesale order form."
+    arg_parser = argparse.ArgumentParser(
+        description="Generates a wholesale order form."
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--config",
         action="store",
         dest="config",
         metavar="FILE",
         default=default_config,
-        help="configuration filename (default=%default)"
+        help="configuration filename (default=%(default)s)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--wholesale-fraction",
         metavar="FRAC",
         default=0.5,
-        help="wholesale price fraction (default=%default)"
+        help="wholesale price fraction (default=%(default).2f)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--valid-ndays",
         metavar="N",
+        type=int,
         default=30,
-        help="number of days prices are valid (default=%default)"
+        help="number of days prices are valid (default=%(default)i)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--outfile",
         action="store",
         dest="xlsx_filename",
         metavar="FILE",
         default=default_xlsx_filename,
-        help="output XLSX filename (default=%default)"
+        help="output XLSX filename (default=%(default)s)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--exclude-sku",
         action="append",
         dest="exclude_skus",
         metavar="SKU",
         help="exclude SKU from output"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--verbose",
         action="store_true",
         default=False,
@@ -446,13 +446,11 @@ def main():
     )
 
     # Parse command line arguments.
-    (options, args) = option_parser.parse_args()
-    if len(args) != 0:
-        option_parser.error("invalid argument")
+    args = arg_parser.parse_args()
 
     # Read config file.
     config = ConfigParser.RawConfigParser()
-    config.readfp(open(options.config))
+    config.readfp(open(args.config))
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
@@ -460,18 +458,18 @@ def main():
         config.get("website", "site"),
         config.get("website", "username"),
         config.get("website", "password"),
-        verbose=options.verbose
+        verbose=args.verbose
     )
 
     # Fetch products list.
     products = cc_browser.get_products()
 
     # Generate spreadsheet.
-    if options.verbose:
-        sys.stderr.write("Generating %s\n" % options.xlsx_filename)
-    generate_xlsx(options, config, cc_browser, products)
+    if args.verbose:
+        sys.stderr.write("Generating %s\n" % args.xlsx_filename)
+    generate_xlsx(args, config, cc_browser, products)
 
-    if options.verbose:
+    if args.verbose:
         sys.stderr.write("Generation complete\n")
     return 0
 

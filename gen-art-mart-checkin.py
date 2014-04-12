@@ -5,11 +5,11 @@ Generates an Art Mart Inventory Sheet.
 """
 
 import ConfigParser
+import argparse
 import cctools
 import csv
 import datetime
 import math
-import optparse
 import os
 import reportlab.lib  # sudo apt-get install python-reportlab
 import reportlab.platypus
@@ -281,49 +281,45 @@ def main():
         "cctools.cfg"
     )
 
-    option_parser = optparse.OptionParser(
-        usage="usage: %prog [options]\n" +
-        "  Generates an Art Mart Inventory Sheet in PDF form."
+    today = datetime.date.today()
+    default_pdf_filename = "%4d-%02d-%02d-ArtMartCheckInOut.pdf" % (
+        today.year,
+        today.month,
+        today.day
     )
-    option_parser.add_option(
+
+    arg_parser = argparse.ArgumentParser(
+        description="Generates an Art Mart Inventory Sheet in PDF form."
+    )
+    arg_parser.add_argument(
         "--config",
-        action="store",
         dest="config",
         metavar="FILE",
         default=defaultConfig,
-        help="configuration filename (default=%default)"
+        help="configuration filename (default=%(default)s)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--quantfile",
-        action="store",
         dest="quant_filename",
         metavar="CSV_FILE",
         default="ArtMartQuantities.csv",
-        help="input product quantities filename (default=%default)"
+        help="input product quantities filename (default=%(default)s)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--outfile",
-        action="store",
         dest="pdf_filename",
         metavar="PDF_FILE",
-        default="ArtMartCheckInOut.pdf",
-        help="output PDF filename (default=%default)"
+        default=default_pdf_filename,
+        help="output PDF filename (default=%(default)s)"
     )
-    option_parser.add_option(
-        "--no-datestamp",
-        action="store_false",
-        dest="datestamp",
-        default=True,
-        help="do not insert datestamp in output PDF filename"
-    )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--write-quant",
         action="store_true",
         dest="write_quant",
         default=False,
         help="write template quantity file instead of PDF"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--verbose",
         action="store_true",
         default=False,
@@ -331,13 +327,11 @@ def main():
     )
 
     # Parse command line arguments.
-    (options, args) = option_parser.parse_args()
-    if len(args) != 0:
-        option_parser.error("invalid argument")
+    args = arg_parser.parse_args()
 
     # Read config file.
     config = ConfigParser.RawConfigParser()
-    config.readfp(open(options.config))
+    config.readfp(open(args.config))
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
@@ -345,7 +339,7 @@ def main():
         config.get("website", "site"),
         config.get("website", "username"),
         config.get("website", "password"),
-        verbose=options.verbose
+        verbose=args.verbose
     )
 
     # Fetch products list.
@@ -357,27 +351,19 @@ def main():
         key=cc_browser.sort_key_by_category_and_name
     )
 
-    if options.write_quant:
-        if options.verbose:
-            sys.stderr.write("Generating %s\n" % options.quant_filename)
-        write_quantities(options.quant_filename, products)
+    if args.write_quant:
+        if args.verbose:
+            sys.stderr.write("Generating %s\n" % args.quant_filename)
+        write_quantities(args.quant_filename, products)
 
     else:
-        quantities = load_quantities(options.quant_filename)
-        pdf_filename = options.pdf_filename
-        if options.datestamp:
-            today = datetime.date.today()
-            pdf_filename = "%4d-%02d-%02d_%s" % (
-                today.year,
-                today.month,
-                today.day,
-                pdf_filename
-            )
-        if options.verbose:
+        quantities = load_quantities(args.quant_filename)
+        pdf_filename = args.pdf_filename
+        if args.verbose:
             sys.stderr.write("Generating %s\n" % pdf_filename)
         generate_pdf(products, quantities, pdf_filename)
 
-    if options.verbose:
+    if args.verbose:
         sys.stderr.write("Generation complete\n")
     return 0
 

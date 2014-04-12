@@ -5,10 +5,10 @@ Generate an inventory report.
 """
 
 import ConfigParser
+import argparse
 import cctools
 import datetime
 import openpyxl  # sudo apt-get install python-openpyxl
-import optparse
 import os
 import sys
 
@@ -33,7 +33,7 @@ def set_cell(
     return cell
 
 
-def generate_xlsx(options, config, cc_browser, inventory):
+def generate_xlsx(args, config, cc_browser, inventory):
     """Generate the XLS file."""
 
     # Construct a document.
@@ -76,7 +76,7 @@ def generate_xlsx(options, config, cc_browser, inventory):
         set_cell(worksheet, row, 4, main_photo)
 
     # Write to file.
-    workbook.save(options.xlsx_filename)
+    workbook.save(args.xlsx_filename)
 
 
 def main():
@@ -88,39 +88,30 @@ def main():
     now = datetime.datetime.now()
     default_xlsx_filename = now.strftime("%Y-%m-%d-OnlineInventory.xlsx")
 
-    option_parser = optparse.OptionParser(
-        usage="usage: %prog [options] action\n" +
-        "  Actions:\n" +
-        "    products - list products\n"
-        "    categories - list categories\n"
-        "    personalizations - list personalizations"
+    arg_parser = argparse.ArgumentParser(
+        description="Generates an inventory report."
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--config",
-        action="store",
         metavar="FILE",
         default=default_config,
-        help="configuration filename (default=%default)"
+        help="configuration filename (default=%(default)s)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--outfile",
-        action="store",
         dest="xlsx_filename",
         metavar="FILE",
         default=default_xlsx_filename,
-        help="output XLSX filename (default=%default)"
+        help="output XLSX filename (default=%(default)s)"
     )
-    sort_choices = ["SKU", "CAT/PROD"]
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--sort",
-        action="store",
         dest="sort",
-        metavar="COL",
-        choices=sort_choices,
-        default=sort_choices[0],
-        help="sort by %s" % ", ".join(sort_choices) + " (default=%default)"
+        choices=["SKU", "CAT/PROD"],
+        default="SKU",
+        help="sort order (default=%(default)s)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--verbose",
         action="store_true",
         default=False,
@@ -128,13 +119,11 @@ def main():
     )
 
     # Parse command line arguments.
-    (options, args) = option_parser.parse_args()
-    if len(args) != 0:
-        option_parser.error("invalid argument")
+    args = arg_parser.parse_args()
 
     # Read config file.
     config = ConfigParser.RawConfigParser()
-    config.readfp(open(options.config))
+    config.readfp(open(args.config))
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
@@ -142,14 +131,14 @@ def main():
         config.get("website", "site"),
         config.get("website", "username"),
         config.get("website", "password"),
-        verbose=options.verbose
+        verbose=args.verbose
     )
 
     # Get list of products.
     products = cc_browser.get_products()
 
     # Sort products.
-    if options.sort == "SKU":
+    if args.sort == "SKU":
         key = cc_browser.sort_key_by_sku
     else:
         key = cc_browser.sort_key_by_category_and_name
@@ -196,9 +185,9 @@ def main():
     #for sku, level, name in inventory:
     #    print("%-9s %4s %-45s" % (sku, level, name))
 
-    if options.verbose:
-        sys.stderr.write("Generating %s\n" % options.xlsx_filename)
-    generate_xlsx(options, config, cc_browser, inventory)
+    if args.verbose:
+        sys.stderr.write("Generating %s\n" % args.xlsx_filename)
+    generate_xlsx(args, config, cc_browser, inventory)
 
     return 0
 

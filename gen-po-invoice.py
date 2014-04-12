@@ -5,10 +5,10 @@ Generates a Purchase Order / Commercial Invoice.
 """
 
 import ConfigParser
+import argparse
 import cctools
 import itertools
 import openpyxl  # sudo apt-get install python-openpyxl
-import optparse
 import os
 import sys
 import datetime
@@ -58,7 +58,7 @@ def add_title(worksheet):
     worksheet.row_dimensions[1].height = 25
 
 
-def add_header(options, config, worksheet, row):
+def add_header(args, config, worksheet, row):
     """Add PO/Invoice header."""
     col_value_name = 2
     col_value = col_value_name + 1
@@ -72,7 +72,7 @@ def add_header(options, config, worksheet, row):
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
     )
     cell = worksheet.cell(row=row, column=col_value)
-    cell.set_value_explicit(options.number)  # Force type to be string.
+    cell.set_value_explicit(args.number)  # Force type to be string.
     row += 1
 
     set_cell(
@@ -205,7 +205,7 @@ def add_header(options, config, worksheet, row):
     return row
 
 
-def add_products(options, worksheet, row, cc_browser, products):
+def add_products(args, worksheet, row, cc_browser, products):
     """Add row for each product."""
     col_line_no = 0
     col_sku = 1
@@ -275,8 +275,8 @@ def add_products(options, worksheet, row, cc_browser, products):
     row += 1
 
     # Remove excluded SKUs.
-    if options.exclude_skus:
-        products = [x for x in products if str(x["SKU"]) not in options.exclude_skus]
+    if args.exclude_skus:
+        products = [x for x in products if str(x["SKU"]) not in args.exclude_skus]
 
     # Sort products by category, product_name.
     products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
@@ -458,7 +458,7 @@ def add_special_instructions(worksheet, row):
     )
 
 
-def add_invoice(options, config, cc_browser, products, worksheet):
+def add_invoice(args, config, cc_browser, products, worksheet):
     """Create the PO-Invoice worksheet."""
 
     # Prepare worksheet.
@@ -469,14 +469,14 @@ def add_invoice(options, config, cc_browser, products, worksheet):
 
     # Add header.
     row = 2
-    row = add_header(options, config, worksheet, row)
+    row = add_header(args, config, worksheet, row)
 
     # Blank row.
     row += 1
 
     # Add products.
     row, col_qty, col_total, first_product_row, last_product_row = add_products(
-        options,
+        args,
         worksheet,
         row,
         cc_browser,
@@ -528,20 +528,20 @@ def add_instructions(config, worksheet):
     worksheet.column_dimensions[col_letter(col_instruction)].width = 70
 
 
-def generate_xlsx(options, config, cc_browser, products):
+def generate_xlsx(args, config, cc_browser, products):
     """Generate the XLS file."""
 
     # Construct a document.
     workbook = openpyxl.workbook.Workbook()
 
     # Create PO-Invoice worksheet.
-    add_invoice(options, config, cc_browser, products, workbook.worksheets[0])
+    add_invoice(args, config, cc_browser, products, workbook.worksheets[0])
 
     # Create Instructions worksheet.
     add_instructions(config, workbook.create_sheet())
 
     # Write to file.
-    workbook.save(options.xlsx_filename)
+    workbook.save(args.xlsx_filename)
 
 
 def main():
@@ -554,42 +554,41 @@ def main():
     default_number = now.strftime("%y%m%d00")
     default_xlsx_filename = now.strftime("%Y-%m-%d-PurchaseOrder.xlsx")
 
-    option_parser = optparse.OptionParser(
-        usage="usage: %prog [options]\n" +
-        "  Generates a Purchase Order / Commercial Invoice."
+    arg_parser = argparse.ArgumentParser(
+        description="Generates a Purchase Order / Commercial Invoice."
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--config",
         action="store",
         dest="config",
         metavar="FILE",
         default=defaultConfig,
-        help="configuration filename (default=%default)"
+        help="configuration filename (default=%(default)s)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--number",
         action="store",
         dest="number",
         metavar="NUM",
         default=default_number,
-        help="PO/Invoice number (default=%default)"
+        help="PO/Invoice number (default=%(default)s)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--outfile",
         action="store",
         dest="xlsx_filename",
         metavar="FILE",
         default=default_xlsx_filename,
-        help="output XLSX filename (default=%default)"
+        help="output XLSX filename (default=%(default)s)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--exclude-sku",
         action="append",
         dest="exclude_skus",
         metavar="SKU",
         help="exclude SKU from output"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--verbose",
         action="store_true",
         default=False,
@@ -597,13 +596,11 @@ def main():
     )
 
     # Parse command line arguments.
-    (options, args) = option_parser.parse_args()
-    if len(args) != 0:
-        option_parser.error("invalid argument")
+    args = arg_parser.parse_args()
 
     # Read config file.
     config = ConfigParser.RawConfigParser()
-    config.readfp(open(options.config))
+    config.readfp(open(args.config))
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
@@ -611,20 +608,20 @@ def main():
         config.get("website", "site"),
         config.get("website", "username"),
         config.get("website", "password"),
-        verbose=options.verbose
+        verbose=args.verbose
     )
 
     # Fetch products list.
     products = cc_browser.get_products()
 
     # Generate spreadsheet.
-    if options.verbose:
+    if args.verbose:
         sys.stderr.write(
-            "Generating %s\n" % os.path.abspath(options.xlsx_filename)
+            "Generating %s\n" % os.path.abspath(args.xlsx_filename)
         )
-    generate_xlsx(options, config, cc_browser, products)
+    generate_xlsx(args, config, cc_browser, products)
 
-    if options.verbose:
+    if args.verbose:
         sys.stderr.write("Generation complete\n")
     return 0
 
