@@ -2,13 +2,18 @@
 
 """
 Command line tool for CoreCommerce access.
+
+TODO
+----
+* test list+fields
+* test show
+* test update
 """
 
 from __future__ import print_function
 import ConfigParser
-#import argparse
+import argparse
 import cctools
-import optparse
 import os
 import sys
 
@@ -26,9 +31,9 @@ HEADER_MAP = {
     "Answer Input Type": "AnsType"
 }
 
-def output_csv(options, records, fields, header_map=None):
+def output_csv(args, records, fields, header_map=None):
     """Output records in CSV format."""
-    delim = options.delimiter
+    delim = args.delimiter
 
     # Output header.
     if header_map == None:
@@ -88,23 +93,11 @@ def output_table(records, fields, header_map=None):
     output_table_divider(col_widths)
 
 
-def output_records(options, records, fields, header_map=None):
-    if options.format == "csv":
-        output_csv(options, records, fields, header_map)
-    elif options.format == "table":
+def output_records(args, records, fields, header_map=None):
+    if args.format == "csv":
+        output_csv(args, records, fields, header_map)
+    elif args.format == "table":
         output_table(records, fields, header_map)
-
-
-def parse_object_type(option_parser, arg):
-    """Determine the requested object type."""
-    if "product".startswith(arg) and len(arg) > 1:
-        return "product"
-    elif "category".startswith(arg):
-        return "category"
-    elif "personalization".startswith(arg) and len(arg) > 1:
-        return "personalization"
-    else:
-        option_parser.error("invalid object type '%s'" % arg)
 
 
 def reverse_lookup_header_map(header_map, value):
@@ -115,12 +108,12 @@ def reverse_lookup_header_map(header_map, value):
     return None
 
 
-def adjust_field_list(fields, option_parser, options, header_map):
+def adjust_field_list(fields, arg_parser, args, header_map):
     """Add and remove fields from field list."""
 
     # Remove fields specified by --del-field.
-    if options.del_fields:
-        for del_field in options.del_fields:
+    if args.del_fields:
+        for del_field in args.del_fields:
             if del_field == "*":
                 del fields[:]
             elif del_field in fields:
@@ -131,30 +124,24 @@ def adjust_field_list(fields, option_parser, options, header_map):
                 if del_field2 in fields:
                     fields.remove(del_field2)
                 else:
-                    option_parser.error(
+                    arg_parser.error(
                         "field '%s' to delete not found" % del_field
                     )
 
     # Add fields specified by --add-field.
-    if options.add_fields:
-        for add_field in options.add_fields:
+    if args.add_fields:
+        for add_field in args.add_fields:
             if add_field in fields:
-                option_parser.error(
+                arg_parser.error(
                     "field '%s' to add already in field list" % add_field
                 )
             else:
                 fields.append(add_field)
 
 
-def action_list(option_parser, options, args, cc_browser):
+def action_list(arg_parser, args, cc_browser):
     """List objects of a type."""
-#    if options.obj_type == "product":
-    if len(args) < 2:
-        option_parser.error("object type not specified")
-    elif len(args) > 2:
-        option_parser.error("invalid argument")
-    obj_type = parse_object_type(option_parser, args[1])
-    if obj_type == "product":
+    if args.obj_type == "product":
         products = cc_browser.get_products()
         products = sorted(products, key=lambda x: x["SKU"])
         fields = [
@@ -167,15 +154,15 @@ def action_list(option_parser, options, args, cc_browser):
             "Inventory Level",
             "Teaser"
         ]
-        adjust_field_list(fields, option_parser, options, HEADER_MAP)
-        output_records(options, products, fields, HEADER_MAP)
-    elif obj_type == "category":
+        adjust_field_list(fields, arg_parser, args, HEADER_MAP)
+        output_records(args, products, fields, HEADER_MAP)
+    elif args.obj_type == "category":
         categories = cc_browser.get_categories()
         categories = sorted(categories, key=lambda x: x["Sort"])
         fields = ["Category Id", "Category Name", "Sort"]
-        adjust_field_list(fields, option_parser, options, HEADER_MAP)
-        output_records(options, categories, fields, HEADER_MAP)
-    elif obj_type == "personalization":
+        adjust_field_list(fields, arg_parser, args, HEADER_MAP)
+        output_records(args, categories, fields, HEADER_MAP)
+    elif args.obj_type == "personalization":
         personalizations = cc_browser.get_personalizations()
         personalizations = sorted(
             personalizations,
@@ -194,49 +181,59 @@ def action_list(option_parser, options, args, cc_browser):
             "Answer Input Type",
             "Main Photo"
         ]
-        output_records(options, personalizations, fields, HEADER_MAP)
+        output_records(args, personalizations, fields, HEADER_MAP)
 
 
-def action_list_fields(option_parser, options, args, cc_browser):
+def action_list_fields(arg_parser, args, cc_browser):
     """List fields of a type."""
-    if len(args) < 2:
-        option_parser.error("object type not specified")
-    elif len(args) > 2:
-        option_parser.error("invalid argument")
-    obj_type = parse_object_type(option_parser, args[1])
-#    if args.obj_type == "product":
-    if obj_type == "product":
+    if args.obj_type == "product":
         products = cc_browser.get_products()
         field_names = sorted(products[0].keys())
-    elif obj_type == "category":
+    elif args.obj_type == "category":
         categories = cc_browser.get_categories()
         field_names = sorted(categories[0].keys())
-    elif obj_type == "personalization":
+    elif args.obj_type == "personalization":
         personalizations = cc_browser.get_personalizations()
         field_names = sorted(personalizations[0].keys())
     fields = ["Field Name"]
     records = list()
     for field_name in field_names:
         records.append({"Field Name": field_name})
-    output_records(options, records, fields)
+    output_records(args, records, fields)
 
 
-def find_object(option_parser, obj_type, objects, spec, keys):
+def find_object(arg_parser, args, cc_browser):
     """Return an object iff there is one object matched by spec."""
+    if args.obj_type == "product":
+        objects = cc_browser.get_products()
+        keys = ["SKU", "Product Name"]
+    elif args.obj_type == "category":
+        objects = cc_browser.get_categories()
+        keys = ["Category Name"]
+    elif args.obj_type == "personalization":
+        objects = cc_browser.get_personalizations()
+        keys = ["Question|Answer"]
+
     found_obj = None
     for obj in objects:
         for key in keys:
-            if obj[key].startswith(spec):
+            if obj[key].startswith(args.spec):
                 if found_obj:
-                    option_parser.error(
-                        "'%s' does not uniquely select one of the %s" % (
-                            spec,
-                            obj_type
+                    arg_parser.error(
+                        "'{}' does not uniquely select a {}".format(
+                            args.spec,
+                            args.obj_type
                         )
                     )
                 found_obj = obj
     if found_obj == None:
-        option_parser.error("No %s match '%s'" % (obj_type, spec))
+        arg_parser.error("No {} matches '{}' = '{}'".format(
+            args.obj_type,
+            "' or '".join(keys),
+            args.spec
+        )
+    )
+
     return found_obj
 
 
@@ -249,172 +246,67 @@ def print_obj(obj, key):
             print("%s: %s" % (key, value))
 
 
-def action_show(option_parser, options, args, cc_browser):
+def action_show(arg_parser, args, cc_browser):
     """Show attributes of a specific object."""
-    if len(args) < 2:
-        option_parser.error("object type not specified")
-    elif len(args) < 3:
-        option_parser.error("SPEC not specified")
-    elif len(args) > 4:
-        option_parser.error("invalid argument")
-    obj_type = parse_object_type(option_parser, args[1])
-    spec = args[2]
-    if len(args) < 4:
-        key = None
-    else:
-        key = args[3]
-#    if args.obj_type == "product":
-    if obj_type == "product":
-        products = cc_browser.get_products()
-        product = find_object(
-            option_parser,
-            obj_type,
-            products,
-            spec,
-            ["SKU", "Product Name"]
-        )
-#        print_obj(product, args.key)
-        print_obj(product, key)
-
-    elif obj_type == "category":
-        categories = cc_browser.get_categories()
-        category = find_object(
-            option_parser,
-            obj_type,
-            categories,
-            spec,
-            ["Category Name"]
-        )
-#        print_obj(category, args.key)
-        print_obj(category, key)
-
-    elif obj_type == "personalization":
-        personalizations = cc_browser.get_personalizations()
-        personalization = find_object(
-            option_parser,
-            obj_type,
-            personalizations,
-            spec,
-            ["Question|Answer"]
-        )
-#        print_obj(personalization, args.key)
-        print_obj(personalization, key)
+    object = find_object(arg_parser, args, cc_browser)
+    print_obj(object, args.key)
 
 
-def update_obj(option_parser, options, product, key_values, cc_browser):
+def action_update(arg_parser, args, cc_browser):
     """Update attributes of a specific object."""
-    for key_value in key_values:
-        split_key_value = key_value.split("=")
+    object = find_object(arg_parser, args, cc_browser)
+    for keyval in args.keyvals:
+        split_key_value = keyval.split("=")
         if len(split_key_value) != 2:
-            option_parser.error("Invalid KEY=VALUE '%s'" % key_value)
+            arg_parser.error("Invalid KEY=VALUE '%s'" % keyval)
         key = split_key_value[0]
         if not cc_browser.is_valid_product_update_key(key):
-            option_parser.error("Invalid KEY '%s'" % key)
+            arg_parser.error(
+                "Invalid key '{}'. Only {} can be modified".format(
+                    key,
+                    cc_browser.get_product_update_keys()
+                )
+            )
         value = split_key_value[1]
-        #print "%s %s %s->%s\n" % (product["SKU"], key, product[key], value)
-        cc_browser.update_product(product["SKU"], key, value)
+        #print("{} {} {}->{}".format(object["SKU"], key, object[key], value))
+        cc_browser.update_product(object["SKU"], key, value)
 
 
-def action_update(option_parser, options, args, cc_browser):
-    """Update attributes of a specific object."""
-    if len(args) < 2:
-        option_parser.error("object type not specified")
-    elif len(args) < 3:
-        option_parser.error("SPEC not specified")
-    elif len(args) < 4:
-        option_parser.error("KEY=VALUE not specified")
-    obj_type = parse_object_type(option_parser, args[1])
-    spec = args[2]
-#    if args.obj_type == "product":
-    if obj_type == "product":
-        products = cc_browser.get_products()
-        product = find_object(
-            option_parser,
-            obj_type,
-            products,
-#            args.spec,
-            spec,
-            ["SKU", "Product Name"]
-        )
-#        update_obj(option_parser, args, product, args.keyval, cc_browser)
-        update_obj(option_parser, options, product, args[3:], cc_browser)
+def add_format_args(arg_parser):
+    """Add formatting args to arg_parser."""
+    arg_parser.add_argument(
+        "--format",
+        choices=["csv", "table"],
+        default="table",
+        help="output format [csv, table] (default=%(default)s)"
+    )
+    arg_parser.add_argument(
+        "--delimiter",
+        dest="delimiter",
+        metavar="DELIM",
+        default="|",
+        help="output CSV delimiter (default=%(default)s)"
+    )
 
-#    elif args.obj_type == "category":
-    elif obj_type == "category":
-        categories = cc_browser.get_categories()
-        category = find_object(
-            option_parser,
-            obj_type,
-            categories,
-#            args.spec,
-            spec,
-            ["Category Name"]
-        )
-#        update_obj(option_parser, args, category, args.keyval, cc_browser)
-        update_obj(option_parser, options, category, args[3:], cc_browser)
 
-#    elif args.obj_type == "personalization":
-    elif obj_type == "personalization":
-        personalizations = cc_browser.get_personalizations()
-        personalization = find_object(
-            option_parser,
-            obj_type,
-            personalizations,
-#            args.spec,
-            spec,
-            ["Question|Answer"]
-        )
-#        update_obj(
-#            option_parser,
-#            args,
-#            personalization,
-#            args.keyval,
-#            cc_browser
-#        )
-        update_obj(
-            option_parser,
-            options,
-            personalization,
-            args[3:],
-            cc_browser
-        )
-
-#def add_format_args(arg_parser):
-#    """Add formatting options to arg_parser."""
-#    arg_parser.add_argument(
-#        "--format",
-#        choices=["csv", "table"],
-#        default="table",
-#        help="output format [csv, table] (default=%(default)s)"
-#    )
-#    arg_parser.add_argument(
-#        "--delimiter",
-#        dest="delimiter",
-#        metavar="DELIM",
-#        default="|",
-#        help="output CSV delimiter (default=%(default)s)"
-#    )
-#
-#
-#def add_obj_type_arg(arg_parser):
-#    """Add object type argument to arg_parser."""
-#    # TODO: allow abbreviation
-#    # Any object that supports the in operator can be passed as the
-#    # choices value, so a custom container is supported.
-#    #if "product".startswith(arg) and len(arg) > 1:
-#    #    return "product"
-#    #elif "category".startswith(arg):
-#    #    return "category"
-#    #elif "personalization".startswith(arg) and len(arg) > 1:
-#    #    return "personalization"
-#    #else:
-#    #    arg_parser.error("invalid object type '%s'" % arg)
-#    arg_parser.add_argument(
-#        "obj_type",
-#        action="store_const",
-#        choices=["product", "category", "personalization"],
-#        help="object type"
-#    )
+def add_obj_type_argument(arg_parser):
+    """Add object type argument to arg_parser."""
+    # TODO: allow abbreviation
+    # Any object that supports the in operator can be passed as the
+    # choices value, so a custom container is supported.
+    #if "product".startswith(arg) and len(arg) > 1:
+    #    return "product"
+    #elif "category".startswith(arg):
+    #    return "category"
+    #elif "personalization".startswith(arg) and len(arg) > 1:
+    #    return "personalization"
+    #else:
+    #    arg_parser.error("invalid object type '%s'" % arg)
+    arg_parser.add_argument(
+        "obj_type",
+        choices=["product", "category", "personalization"],
+        help="object type"
+    )
 
 
 def main():
@@ -424,129 +316,113 @@ def main():
         "cctools.cfg"
     )
 
-#    arg_parser = argparse.ArgumentParser(
-#        description="Command line tool for CoreCommerce access."
-#    )
-    option_parser = optparse.OptionParser(
-        usage="usage: %prog [options] action\n" +
-        "  Actions:\n" +
-        "    list { product | category | personalization }\n"
-        "      List objects in table form.\n"
-        "    show { product | category | personalization } SPEC [KEY]\n"
-        "      List key, values of an object.\n"
-        "    update { product | category | personalization } SPEC KEY=VAL ...\n"
-        "      Update values of an object."
+    arg_parser = argparse.ArgumentParser(
+        description="Command line tool for CoreCommerce access."
     )
-#    arg_parser.add_argument(
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--config",
         metavar="FILE",
         default=default_config,
-#        help="configuration filename (default=%(default)s)"
-        help="configuration filename (default=%default)"
+        help="configuration filename (default=%(default)s)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--refresh-cache",
         action="store_true",
         default=False,
         help="refresh cache from website"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--cache-ttl",
         metavar="SEC",
+        type=int,
         default=3600,
-        help="cache TTL (default=%default)"
+        help="cache TTL (default=%(default)i)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--format",
         choices=["csv", "table"],
         default="table",
-        help="output format [csv, table] (default=%default)"
+        help="output format [csv, table] (default=%(default)s)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--delimiter",
         dest="delimiter",
         metavar="DELIM",
         default="|",
-        help="output CSV delimiter (default=%default)"
+        help="output CSV delimiter (default=%(default)s)"
     )
-    option_parser.add_option(
+    arg_parser.add_argument(
         "--verbose",
         action="store_true",
         default=False,
         help="display progress messages"
     )
-#    subparsers = arg_parser.add_subparsers()
+    subparsers = arg_parser.add_subparsers(title="sub-commands")
 
-#    parser_list = subparsers.add_parser("list", help="List objects.")
-#    parser_list.set_defaults(func=action_list)
-#    add_format_args(parser_list)
-#    add_obj_type_arg(parser_list)
-    list_group = optparse.OptionGroup(
-        option_parser,
-        "list options",
-        "List objects."
-    )
-    list_group.add_option(
+    # Add list sub-command.
+    list_parser = subparsers.add_parser("list", help="List objects")
+    list_parser.set_defaults(func=action_list)
+    list_parser.add_argument(
         "--add-field",
         action="append",
         dest="add_fields",
         metavar="FLD",
         help="additional field to report"
     )
-#    parser_list_fields = subparsers.add_parser(
-#        "list_fields",
-#        "List object fields."
-#    )
-#    parser_list_fields.set_defaults(func=action_list_fields)
-#    add_format_args(parser_list_fields)
-#    add_obj_type_arg(parser_list_fields)
-    list_group.add_option(
+    list_parser.add_argument(
         "--del-field",
         action="append",
         dest="del_fields",
         metavar="FLD",
         help="remove field from report"
     )
-    option_parser.add_option_group(list_group)
+    add_format_args(list_parser)
+    add_obj_type_argument(list_parser)
 
-    list_fields_group = optparse.OptionGroup(
-        option_parser,
-        "list-fields options",
-        "List fields."
+    # Add list_fields sub-command.
+    list_fields_parser = subparsers.add_parser("list_fields", help="List object fields")
+    list_fields_parser.set_defaults(func=action_list_fields)
+    add_format_args(list_fields_parser)
+    add_obj_type_argument(list_fields_parser)
+
+    # Add show sub-command.
+    show_parser = subparsers.add_parser("show", help="List key, values of an object")
+    show_parser.set_defaults(func=action_show)
+    add_obj_type_argument(show_parser)
+    show_parser.add_argument(
+        "spec",
+        metavar="SPEC",
+        help="object selector"
     )
-    option_parser.add_option_group(list_fields_group)
-#    #elif len(args) < 3:
-#    #    option_parser.error("SPEC not specified")
-#    #if len(args) < 4:
-#    #    key = None
-#    #else:
-#    #    key = args[3]
-#    parser_show = subparsers.add_parser(
-#        "show",
-#        help="List key, values of an object."
-#    )
-#    parser_show.set_defaults(func=action_show)
-#    add_obj_type_arg(parser_show)
-#
-#    #elif len(args) < 3:
-#    #    option_parser.error("SPEC not specified")
-#    #elif len(args) < 4:
-#    #    option_parser.error("KEY=VALUE not specified")
-#    parser_update = subparsers.add_parser(
-#        "update",
-#        help="Update values of an object."
-#    )
-#    parser_update.set_defaults(func=action_update)
-#    add_obj_type_arg(parser_update)
+    show_parser.add_argument(
+        "key",
+        metavar="KEY",
+        nargs="?",
+        help="optional specific key to show"
+    )
+
+    # Add update sub-command.
+    update_parser = subparsers.add_parser("update", help="Update values of an object")
+    update_parser.set_defaults(func=action_update)
+    add_obj_type_argument(update_parser)
+    update_parser.add_argument(
+        "spec",
+        metavar="SPEC",
+        help="object selector"
+    )
+    update_parser.add_argument(
+        "keyvals",
+        metavar="KEY=VAL",
+        nargs="*",
+        help="key and new value"
+    )
 
     # Parse command line arguments.
-#    args = arg_parser.parse_args()
-    (options, args) = option_parser.parse_args()
+    args = arg_parser.parse_args()
 
     # Read config file.
     config = ConfigParser.RawConfigParser()
-    config.readfp(open(options.config))
+    config.readfp(open(args.config))
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
@@ -554,26 +430,13 @@ def main():
         config.get("website", "site"),
         config.get("website", "username"),
         config.get("website", "password"),
-        cache_ttl=0 if options.refresh_cache else options.cache_ttl,
-        verbose=options.verbose
+        cache_ttl=0 if args.refresh_cache else args.cache_ttl,
+        verbose=args.verbose
         #,proxy="localhost:8080"  # allow MITM analysis
     )
 
     # Perform the action.
-#    args.func(arg_parser, args, cc_browser)
-    if len(args) < 1:
-        option_parser.error("action not specified")
-    action = args[0]
-    if "list".startswith(action):
-        action_list(option_parser, options, args, cc_browser)
-    elif "list-fields".startswith(action):
-        action_list_fields(option_parser, options, args, cc_browser)
-    elif "show".startswith(action):
-        action_show(option_parser, options, args, cc_browser)
-    elif "update".startswith(action):
-        action_update(option_parser, options, args, cc_browser)
-    else:
-        option_parser.error("invalid action '%s'" % action)
+    args.func(arg_parser, args, cc_browser)
 
     return 0
 

@@ -291,6 +291,10 @@ class CCBrowser(object):
         """Return True if key is a valid product update key."""
         return key in self._PRODUCT_KEY_MAP
 
+    def get_product_update_keys(self):
+        """Return list of product keys where the value can be updated."""
+        return self._PRODUCT_KEY_MAP.keys()
+
     def update_product(self, sku, key, value):
         """Login to site."""
 
