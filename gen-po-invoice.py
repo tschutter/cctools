@@ -18,6 +18,11 @@ ALIGNMENT_HORIZONTAL_RIGHT = openpyxl.style.Alignment.HORIZONTAL_RIGHT
 ALIGNMENT_VERTICAL_TOP = openpyxl.style.Alignment.VERTICAL_TOP
 NUMBER_FORMAT_USD = openpyxl.style.NumberFormat.FORMAT_CURRENCY_USD_SIMPLE
 
+def has_merge_cells(worksheet):
+    """Determine if Worksheet.merge_cells method exists."""
+    # merge_cells not supported by openpyxl-1.5.6 (Ubuntu 12.04)
+    return hasattr(worksheet, "merge_cells")
+
 def set_cell(
     worksheet,
     row,
@@ -53,9 +58,52 @@ def add_title(worksheet):
     """Add worksheet title."""
     style = set_cell(worksheet, 0, 0, "Purchase Order", bold=True).style
     style.font.size = 20
-    # merge_cells not supported by openpyxl-1.5.6 (Ubuntu 12.04)
-    #worksheet.merge_cells(start_row=0, start_column=0, end_row=0, end_column=2)
+    if has_merge_cells(worksheet):
+        worksheet.merge_cells(
+            start_row=0,
+            start_column=0,
+            end_row=0,
+            end_column=2
+        )
     worksheet.row_dimensions[1].height = 25
+
+
+def set_label_value(
+    worksheet,
+    row,
+    col_label_start,
+    col_label_end,
+    col_value_start,
+    col_value_end,
+    label,
+    value
+):
+    """Add label: value."""
+    if has_merge_cells(worksheet) and col_label_start != col_label_end:
+        worksheet.merge_cells(
+            start_row=row,
+            start_column=col_label_start,
+            end_row=row,
+            end_column=col_label_end
+        )
+        col_label = col_label_start
+    else:
+        col_label = col_label_end
+    label_style = set_cell(worksheet, row, col_label, label, bold=True).style
+    label_style.alignment.horizontal = ALIGNMENT_HORIZONTAL_RIGHT
+
+    if has_merge_cells(worksheet) and col_value_start != col_value_end:
+        worksheet.merge_cells(
+            start_row=row,
+            start_column=col_value_start,
+            end_row=row,
+            end_column=col_value_end
+        )
+        col_value = col_value_start
+    else:
+        col_value = col_value_end
+    cell = worksheet.cell(row=row, column=col_value)
+    cell.set_value_explicit(value)  # Force type to be string.
 
 
 def add_header(args, config, worksheet, row):
@@ -63,141 +111,124 @@ def add_header(args, config, worksheet, row):
     col_value_name = 2
     col_value = col_value_name + 1
 
-    set_cell(
+    col_label_start = 2
+    col_label_end = 2
+    col_value_start = col_label_end + 1
+    col_value_end = col_value_start + 3
+
+    set_label_value(
         worksheet,
-        row,
-        col_value_name,
+        row - 1,
+        col_label_start,
+        col_label_end,
+        col_value_start,
+        col_value_end,
         "PO/Invoice #: ",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
+        args.number
     )
-    cell = worksheet.cell(row=row, column=col_value)
-    cell.set_value_explicit(args.number)  # Force type to be string.
     row += 1
 
-    set_cell(
-        worksheet,
-        row,
-        col_value_name,
-        "Date: ",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
-    )
     date_str = datetime.date.today().strftime("%B %d, %Y")
-    cell = worksheet.cell(row=row, column=col_value)
-    cell.set_value_explicit(date_str)  # Force type to be string.
+    set_label_value(
+        worksheet,
+        row - 1,
+        col_label_start,
+        col_label_end,
+        col_value_start,
+        col_value_end,
+        "Date: ",
+        date_str
+    )
     row += 1
 
-    set_cell(
+    set_label_value(
         worksheet,
-        row,
-        col_value_name,
+        row - 1,
+        col_label_start,
+        col_label_end,
+        col_value_start,
+        col_value_end,
         "Country of Origin: ",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
-    )
-    set_cell(
-        worksheet,
-        row,
-        col_value,
         config.get("invoice", "country_of_origin")
     )
     row += 1
 
-    set_cell(
+    set_label_value(
         worksheet,
-        row,
-        col_value_name,
+        row - 1,
+        col_label_start,
+        col_label_end,
+        col_value_start,
+        col_value_end,
         "Manufacturer ID: ",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
-    )
-    set_cell(
-        worksheet,
-        row,
-        col_value,
         config.get("invoice", "manufacturer_id")
     )
     row += 1
 
-    set_cell(
-        worksheet,
-        row,
-        col_value_name,
-        "Ultimate Consignee: ",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT,
-        alignment_vertical=ALIGNMENT_VERTICAL_TOP
-    )
+    first_row = True
     for key, value in config.items("invoice"):
         if key.startswith("consignee"):
-            set_cell(worksheet, row, col_value, value)
+            set_label_value(
+                worksheet,
+                row - 1,
+                col_label_start,
+                col_label_end,
+                col_value_start,
+                col_value_end,
+                "Ultimate Consignee: " if first_row else "",
+                value
+            )
+            first_row = False
             row += 1
 
     # Unit of measurement.
-    set_cell(
+    set_label_value(
         worksheet,
-        row,
-        col_value_name,
+        row - 1,
+        col_label_start,
+        col_label_end,
+        col_value_start,
+        col_value_end,
         "Unit of Measurement: ",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
-    )
-    set_cell(
-        worksheet,
-        row,
-        col_value,
         config.get("invoice", "unit_of_measurement")
     )
     row += 1
 
     # Terms of sale.
-    set_cell(
+    set_label_value(
         worksheet,
-        row,
-        col_value_name,
+        row - 1,
+        col_label_start,
+        col_label_end,
+        col_value_start,
+        col_value_end,
         "Currency: ",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
-    )
-    set_cell(
-        worksheet,
-        row,
-        col_value,
         config.get("invoice", "currency")
     )
     row += 1
 
     # Transport and delivery.
-    set_cell(
+    set_label_value(
         worksheet,
-        row,
-        col_value_name,
+        row - 1,
+        col_label_start,
+        col_label_end,
+        col_value_start,
+        col_value_end,
         "Transport and Delivery: ",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
-    )
-    set_cell(
-        worksheet,
-        row,
-        col_value,
         config.get("invoice", "transport_and_delivery")
     )
     row += 1
 
     # Terms of sale.
-    set_cell(
+    set_label_value(
         worksheet,
-        row,
-        col_value_name,
+        row - 1,
+        col_label_start,
+        col_label_end,
+        col_value_start,
+        col_value_end,
         "Terms of Sale: ",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
-    )
-    set_cell(
-        worksheet,
-        row,
-        col_value,
         config.get("invoice", "terms_of_sale")
     )
     row += 1
@@ -334,111 +365,119 @@ def add_products(args, worksheet, row, cc_browser, products):
     worksheet.column_dimensions[col_letter(col_htsus_no)].width = 12
     worksheet.column_dimensions[col_letter(col_instructions)].width = 30
 
-    return row, col_qty, col_total, first_product_row, last_product_row
+    return row, col_total, first_product_row, last_product_row
+
+
+def set_label_dollar_value(
+    worksheet,
+    row,
+    col_label_start,
+    col_label_end,
+    col_total,
+    label,
+    value
+):
+    """Add label: value."""
+    if has_merge_cells(worksheet):
+        worksheet.merge_cells(
+            start_row=row,
+            start_column=col_label_start,
+            end_row=row,
+            end_column=col_label_end
+        )
+        col_label = col_label_start
+    else:
+        col_label = col_label_end
+    label_style = set_cell(worksheet, row, col_label, label).style
+    label_style.alignment.horizontal = ALIGNMENT_HORIZONTAL_RIGHT
+
+    value_style = set_cell(worksheet, row, col_total, value).style
+    value_style.number_format.format_code = NUMBER_FORMAT_USD
+    return(label_style, value_style)
 
 
 def add_totals(
     worksheet,
     config,
     row,
-    col_qty,
     col_total,
     first_product_row,
     last_product_row
 ):
     """Add subtotals and totals."""
 
-    # Total quantity.
-    col_value_name = col_qty - 1
-    set_cell(
-        worksheet,
-        row,
-        col_value_name,
-        "Total Qty:",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
-    )
-    total_qty_formula = "=SUM(%s%i:%s%i)" % (
-        col_letter(col_qty),
-        row_number(first_product_row),
-        col_letter(col_qty),
-        row_number(last_product_row)
-    )
-    set_cell(worksheet, row, col_qty, total_qty_formula)
-    row += 2
+    col_label_start = col_total - 3
+    col_label_end = col_total - 1
 
     # Subtotal.
-    col_value_name = col_total - 1
-    sub_total_row = row
-    set_cell(
-        worksheet,
-        row,
-        col_value_name,
-        "Subtotal:",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
-    )
-    sub_total_formula = "=SUM(%s%i:%s%i)" % (
+    subtotal_formula = "=SUM(%s%i:%s%i)" % (
         col_letter(col_total),
         row_number(first_product_row),
         col_letter(col_total),
         row_number(last_product_row)
     )
-    style = set_cell(worksheet, row, col_total, sub_total_formula).style
-    style.number_format.format_code = NUMBER_FORMAT_USD
+    set_label_dollar_value(
+        worksheet,
+        row,
+        col_label_start,
+        col_label_end,
+        col_total,
+        "Subtotal:",
+        subtotal_formula
+    )
+    subtotal_row = row
     row += 1
 
     # Discount.
     percent_discount = config.getfloat("invoice", "percent_discount")
-    set_cell(
-        worksheet,
-        row,
-        col_value_name,
-        "%s%% Discount:" % percent_discount,
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
-    )
     discount_formula = "=%s%i * %f" % (
         col_letter(col_total),
-        row_number(sub_total_row),
+        row_number(subtotal_row),
         -percent_discount / 100.0
     )
-    style = set_cell(worksheet, row, col_total, discount_formula).style
-    style.number_format.format_code = NUMBER_FORMAT_USD
+    set_label_dollar_value(
+        worksheet,
+        row,
+        col_label_start,
+        col_label_end,
+        col_total,
+        "{}% Discount:".format(percent_discount),
+        discount_formula
+    )
     last_adjustment_row = row
     row += 1
 
     # Adjustments.
     for key, value in config.items("invoice"):
         if key.startswith("adjustment"):
-            set_cell(
+            set_label_dollar_value(
                 worksheet,
                 row,
-                col_value_name,
+                col_label_start,
+                col_label_end,
+                col_total,
                 value + ":",
-                bold=True,
-                alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
+                ""
             )
             last_adjustment_row = row
             row += 1
 
     # Total.
-    set_cell(
-        worksheet,
-        row,
-        col_value_name,
-        "Total:",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
-    )
     total_formula = "=SUM(%s%i:%s%i)" % (
         col_letter(col_total),
-        row_number(sub_total_row),
+        row_number(subtotal_row),
         col_letter(col_total),
         row_number(last_adjustment_row)
     )
-    style = set_cell(worksheet, row, col_total, total_formula).style
-    style.number_format.format_code = NUMBER_FORMAT_USD
+    set_label_dollar_value(
+        worksheet,
+        row,
+        col_label_start,
+        col_label_end,
+        col_total,
+        "Total:",
+        total_formula
+    )
     row += 1
 
     return(row)
@@ -475,7 +514,7 @@ def add_invoice(args, config, cc_browser, products, worksheet):
     row += 1
 
     # Add products.
-    row, col_qty, col_total, first_product_row, last_product_row = add_products(
+    row, col_total, first_product_row, last_product_row = add_products(
         args,
         worksheet,
         row,
@@ -491,7 +530,6 @@ def add_invoice(args, config, cc_browser, products, worksheet):
         worksheet,
         config,
         row,
-        col_qty,
         col_total,
         first_product_row,
         last_product_row
