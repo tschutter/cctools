@@ -31,6 +31,13 @@ HEADER_MAP = {
     "Answer Input Type": "AnsType"
 }
 
+class ArgumentError(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
+
 def output_csv(args, records, fields, header_map=None):
     """Output records in CSV format."""
     delim = args.delimiter
@@ -108,7 +115,7 @@ def reverse_lookup_header_map(header_map, value):
     return None
 
 
-def adjust_field_list(fields, arg_parser, args, header_map):
+def adjust_field_list(fields, args, header_map):
     """Add and remove fields from field list."""
 
     # Remove fields specified by --del-field.
@@ -124,22 +131,22 @@ def adjust_field_list(fields, arg_parser, args, header_map):
                 if del_field2 in fields:
                     fields.remove(del_field2)
                 else:
-                    arg_parser.error(
-                        "field '%s' to delete not found" % del_field
+                    raise ArgumentError(
+                        "field '{}' to delete not found".format(del_field)
                     )
 
     # Add fields specified by --add-field.
     if args.add_fields:
         for add_field in args.add_fields:
             if add_field in fields:
-                arg_parser.error(
-                    "field '%s' to add already in field list" % add_field
+                raise ArgumentError(
+                    "field '{}' to add already in field list".format(add_field)
                 )
             else:
                 fields.append(add_field)
 
 
-def action_list(arg_parser, args, cc_browser):
+def action_list(args, cc_browser):
     """List objects of a type."""
     if args.obj_type == "product":
         products = cc_browser.get_products()
@@ -154,13 +161,13 @@ def action_list(arg_parser, args, cc_browser):
             "Inventory Level",
             "Teaser"
         ]
-        adjust_field_list(fields, arg_parser, args, HEADER_MAP)
+        adjust_field_list(fields, args, HEADER_MAP)
         output_records(args, products, fields, HEADER_MAP)
     elif args.obj_type == "category":
         categories = cc_browser.get_categories()
         categories = sorted(categories, key=lambda x: x["Sort"])
         fields = ["Category Id", "Category Name", "Sort"]
-        adjust_field_list(fields, arg_parser, args, HEADER_MAP)
+        adjust_field_list(fields, args, HEADER_MAP)
         output_records(args, categories, fields, HEADER_MAP)
     elif args.obj_type == "personalization":
         personalizations = cc_browser.get_personalizations()
@@ -184,7 +191,7 @@ def action_list(arg_parser, args, cc_browser):
         output_records(args, personalizations, fields, HEADER_MAP)
 
 
-def action_list_fields(arg_parser, args, cc_browser):
+def action_list_fields(args, cc_browser):
     """List fields of a type."""
     if args.obj_type == "product":
         products = cc_browser.get_products()
@@ -202,7 +209,7 @@ def action_list_fields(arg_parser, args, cc_browser):
     output_records(args, records, fields)
 
 
-def find_object(arg_parser, args, cc_browser):
+def find_object(args, cc_browser):
     """Return an object iff there is one object matched by spec."""
     if args.obj_type == "product":
         objects = cc_browser.get_products()
@@ -219,7 +226,7 @@ def find_object(arg_parser, args, cc_browser):
         for key in keys:
             if obj[key].startswith(args.spec):
                 if found_obj:
-                    arg_parser.error(
+                    raise ArgumentError(
                         "'{}' does not uniquely select a {}".format(
                             args.spec,
                             args.obj_type
@@ -227,12 +234,13 @@ def find_object(arg_parser, args, cc_browser):
                     )
                 found_obj = obj
     if found_obj == None:
-        arg_parser.error("No {} matches '{}' = '{}'".format(
-            args.obj_type,
-            "' or '".join(keys),
-            args.spec
+        raise ArgumentError(
+            "No {} matches '{}' = '{}'".format(
+                args.obj_type,
+                "' or '".join(keys),
+                args.spec
+            )
         )
-    )
 
     return found_obj
 
@@ -243,25 +251,25 @@ def print_obj(obj, key):
         print(obj[key])
     else:
         for key, value in obj.items():
-            print("%s: %s" % (key, value))
+            print("{}: {}".format(key, value))
 
 
-def action_show(arg_parser, args, cc_browser):
+def action_show(args, cc_browser):
     """Show attributes of a specific object."""
-    object = find_object(arg_parser, args, cc_browser)
+    object = find_object(args, cc_browser)
     print_obj(object, args.key)
 
 
-def action_update(arg_parser, args, cc_browser):
+def action_update(args, cc_browser):
     """Update attributes of a specific object."""
-    object = find_object(arg_parser, args, cc_browser)
+    object = find_object(args, cc_browser)
     for keyval in args.keyvals:
         split_key_value = keyval.split("=")
         if len(split_key_value) != 2:
-            arg_parser.error("Invalid KEY=VALUE '%s'" % keyval)
+            raise ArgumentError("Invalid KEY=VALUE '{}'".format(keyval))
         key = split_key_value[0]
         if not cc_browser.is_valid_product_update_key(key):
-            arg_parser.error(
+            raise ArgumentError(
                 "Invalid key '{}'. Only {} can be modified".format(
                     key,
                     cc_browser.get_product_update_keys()
@@ -301,7 +309,7 @@ def add_obj_type_argument(arg_parser):
     #elif "personalization".startswith(arg) and len(arg) > 1:
     #    return "personalization"
     #else:
-    #    arg_parser.error("invalid object type '%s'" % arg)
+    #    raise ArgumentError("invalid object type '{}'".format(arg))
     arg_parser.add_argument(
         "obj_type",
         choices=["product", "category", "personalization"],
@@ -436,7 +444,10 @@ def main():
     )
 
     # Perform the action.
-    args.func(arg_parser, args, cc_browser)
+    try:
+        args.func(args, cc_browser)
+    except ArgumentError as ae:
+        arg_parser.error(ae)
 
     return 0
 
