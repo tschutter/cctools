@@ -163,13 +163,14 @@ def generate_pdf(
     products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
 
     # Group products by category.
+    body_fontsize = float(config.get("price_list", "body_fontsize"))
     for _, product_group in itertools.groupby(
         products,
         key=cc_browser.sort_key_by_category
     ):
         # TableStyle cell formatting commands.
         styles = [
-            ("FONTSIZE", (0, 0), (-1, -1), 12),
+            ("FONTSIZE", (0, 0), (-1, -1), body_fontsize),
             ("ALIGN", (0, 0), (0, -1), "LEFT"),
             ("ALIGN", (1, 0), (1, -1), "RIGHT"),
             ("FONT", (1, 0), (1, -1), "Courier-Bold"),
@@ -312,7 +313,9 @@ def main():
         arg_parser.error("--category and --exclude-category specified")
 
     # Read config file.
-    config = ConfigParser.RawConfigParser()
+    config = ConfigParser.SafeConfigParser({
+        "body_fontsize": "12"
+    })
     config.readfp(open(args.config))
 
     # Determine price multiplier.
