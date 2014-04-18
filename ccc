@@ -154,7 +154,10 @@ def action_list(args, cc_browser):
         products = cc_browser.get_products()
         if args.filter:
             reo = re.compile(args.filter, re.IGNORECASE)
-            products = [p for p in products if reo.search(p["SKU"])]
+            products = [
+                p for p in products
+                if reo.search(p["SKU"]) or reo.search(p["Product Name"])
+            ]
         products = sorted(products, key=lambda x: x["SKU"])
         fields = [
             "SKU",
@@ -286,6 +289,13 @@ def action_update(args, cc_browser):
         cc_browser.update_product(object["SKU"], key, value)
 
 
+def action_refresh(args, cc_browser):
+    """Refresh CoreCommerce object cache."""
+    cc_browser.get_products()
+    cc_browser.get_categories()
+    cc_browser.get_personalizations()
+
+
 def add_format_args(arg_parser):
     """Add formatting args to arg_parser."""
     arg_parser.add_argument(
@@ -338,12 +348,6 @@ def main():
         metavar="FILE",
         default=default_config,
         help="configuration filename (default=%(default)s)"
-    )
-    arg_parser.add_argument(
-        "--refresh-cache",
-        action="store_true",
-        default=False,
-        help="refresh cache from website"
     )
     arg_parser.add_argument(
         "--cache-ttl",
@@ -437,6 +441,10 @@ def main():
         help="key and new value"
     )
 
+    # Add refresh sub-command.
+    refresh_parser = subparsers.add_parser("refresh", help="Refresh cache")
+    refresh_parser.set_defaults(func=action_refresh)
+
     # Parse command line arguments.
     args = arg_parser.parse_args()
 
@@ -450,9 +458,9 @@ def main():
         config.get("website", "site"),
         config.get("website", "username"),
         config.get("website", "password"),
-        cache_ttl=0 if args.refresh_cache else args.cache_ttl,
+        cache_ttl = 0 if args.func == action_refresh else args.cache_ttl,
         verbose=args.verbose
-        #,proxy="localhost:8080"  # allow MITM analysis
+        #,proxy="localhost:8080"  # allow MITM debugging
     )
 
     # Perform the action.
