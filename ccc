@@ -15,6 +15,7 @@ import ConfigParser
 import argparse
 import cctools
 import os
+import re
 import sys
 
 HEADER_MAP = {
@@ -150,6 +151,9 @@ def action_list(args, cc_browser):
     """List objects of a type."""
     if args.obj_type == "product":
         products = cc_browser.get_products()
+        if args.filter:
+            reo = re.compile(args.filter, re.IGNORECASE)
+            products = [p for p in products if reo.search(p["SKU"])]
         products = sorted(products, key=lambda x: x["SKU"])
         fields = [
             "SKU",
@@ -383,6 +387,12 @@ def main():
         dest="del_fields",
         metavar="FLD",
         help="remove field from report"
+    )
+    list_parser.add_argument(
+        "--filter",
+        dest="filter",
+        metavar="RE",
+        help="filter items"
     )
     add_format_args(list_parser)
     add_obj_type_argument(list_parser)
