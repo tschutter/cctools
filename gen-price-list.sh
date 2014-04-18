@@ -45,19 +45,19 @@ rm -f ${FILENAME}
     --category="Baskets, Trivets & Bowls"\
     --category="Earrings"\
     --category="Miscellaneous"\
-    --exclude-sku=40025\
-    --exclude-sku=40027\
-    --exclude-sku=40043\
-    --exclude-sku=40052\
-    --exclude-sku=40064\
-    --exclude-sku=40068\
-    --exclude-sku=40073\
-    --exclude-sku=70074\
-    --exclude-sku=70075\
-    --exclude-sku=70076\
-    --exclude-sku=70077\
-    --exclude-sku=70078\
-    --exclude-sku=70079\
+#    --exclude-sku=40025\
+#    --exclude-sku=40027\
+#    --exclude-sku=40043\
+#    --exclude-sku=40052\
+#    --exclude-sku=40064\
+#    --exclude-sku=40068\
+#    --exclude-sku=40073\
+#    --exclude-sku=70074\
+#    --exclude-sku=70075\
+#    --exclude-sku=70076\
+#    --exclude-sku=70077\
+#    --exclude-sku=70078\
+#    --exclude-sku=70079\
     --pdf-file="${FILENAME}"\
     --verbose\
     ${ARGS}
@@ -66,6 +66,7 @@ rm -f ${FILENAME}
 if [ -f "${FILENAME}" ]; then
     # Enable monitor mode (job control).  If not set, evince will exit
     # when this shell exits.
+    echo "Opening ${FILENAME}"
     set -m
     evince "${FILENAME}" &
 else

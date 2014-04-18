@@ -44,6 +44,7 @@ rm -f "${FILENAME}"
 if [ -f "${FILENAME}" ]; then
     # Enable monitor mode (job control).  If not set, localc will exit
     # when this shell exits.
+    echo "Opening ${FILENAME}"
     set -m
     localc "${FILENAME}" &
 else
