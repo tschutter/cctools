@@ -20,6 +20,7 @@ import sys
 
 HEADER_MAP = {
     "Available": "Avail",
+    "Discontinued Item": "Discd",
     "Track Inventory": "TrkInv",
     "Inventory Level": "InvLvl",
     "Category Id": "CatId",
@@ -161,6 +162,7 @@ def action_list(args, cc_browser):
             "Cost",
             "Price",
             "Available",
+            "Discontinued Item",
             "Track Inventory",
             "Inventory Level",
             "Teaser"
