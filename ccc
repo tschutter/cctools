@@ -15,6 +15,12 @@ import os
 import re
 import sys
 
+# Specify abbreviations for object types.
+PRODUCT_ABBREVS = ["product", "prod"]
+CATEGORY_ABBREVS = ["category", "cat"]
+PERSONALIZATION_ABBREVS = ["personalization", "pers"]
+
+
 # In some output formats (such as table), it is helpful to have
 # abbreviated column headers.  This is true especially for boolean
 # values like "Available" and "Discontinued Item".
@@ -33,10 +39,13 @@ HEADER_MAP = {
     "Answer Input Type": "AnsType"
 }
 
-# Specify abbreviations for object types.
-PRODUCT_ABBREVS = ["product", "pro"]
-CATEGORY_ABBREVS = ["category", "cat"]
-PERSONALIZATION_ABBREVS = ["personalization", "per"]
+def canonicalize_field_name(field):
+    """Given a field name or abbreviation, return the field name."""
+    for key in HEADER_MAP:
+        if field == HEADER_MAP[key]:
+            return key
+    return field
+
 
 class ArgumentError(Exception):
     def __init__(self, value):
@@ -145,14 +154,6 @@ def output_records(args, records, fields, header_map=None):
         output_table(records, fields, header_map)
 
 
-def reverse_lookup_header_map(header_map, value):
-    """Return key from header_map that maps to value."""
-    for key in header_map:
-        if value == header_map[key]:
-            return key
-    return value
-
-
 def get_default_fields(args, config):
     # Look for default fields in config file.
     if config.has_section("ccc"):
@@ -212,41 +213,45 @@ def get_output_fields(args, config, objects):
 
     else:
         fields = [
-            reverse_lookup_header_map(HEADER_MAP, field)
+            canonicalize_field_name(field)
             for field in args.fields.split(",")
         ]
 
     return fields
 
 
-def action_list(args, config, cc_browser):
-    """List objects of a type."""
+def get_objects(args, cc_browser):
+    """Get and filter objects from the cc_browser."""
     if args.obj_type == "product":
-        products = cc_browser.get_products()
-        if args.filter:
-            reo = re.compile(args.filter, re.IGNORECASE)
-            products = [
-                p for p in products
-                if reo.search(p["SKU"]) or reo.search(p["Product Name"])
-            ]
-        fields = get_output_fields(args, config, products)
-        products = sorted(products, key=operator.itemgetter(*fields))
-        output_records(args, products, fields, HEADER_MAP)
+        objects = cc_browser.get_products()
 
     elif args.obj_type == "category":
-        categories = cc_browser.get_categories()
-        fields = get_output_fields(args, config, categories)
-        categories = sorted(categories, key=operator.itemgetter(*fields))
-        output_records(args, categories, fields, HEADER_MAP)
+        objects = cc_browser.get_categories()
 
     elif args.obj_type == "personalization":
-        personalizations = cc_browser.get_personalizations()
-        fields = get_output_fields(args, config, personalizations)
-        personalizations = sorted(
-            personalizations,
+        objects = cc_browser.get_personalizations()
+
+    if args.filter:
+        for filter in args.filter:
+            field, regex = filter.split("=")
+            field = canonicalize_field_name(field)
+            regex = re.compile(regex, re.IGNORECASE)
+            objects = [p for p in objects if regex.search(p[field])]
+
+    return objects
+
+
+def action_list(args, config, cc_browser):
+    """List objects of a type."""
+    objects = get_objects(args, cc_browser)
+    fields = get_output_fields(args, config, objects)
+    products = sorted(objects, key=operator.itemgetter(*fields))
+    if args.obj_type == "personalization":
+        objects = sorted(
+            objects,
             key=cc_browser.personalization_sort_key
         )
-        output_records(args, personalizations, fields, HEADER_MAP)
+    output_records(args, objects, fields, HEADER_MAP)
 
 
 def action_list_fields(args, config, cc_browser):
@@ -303,39 +308,30 @@ def find_object(args, cc_browser):
     return found_obj
 
 
-def print_obj(obj, key):
-    """Print obj[key] if key is defined, otherwise print entire dict."""
-    if key:
-        print(obj[key])
-    else:
-        for key, value in obj.items():
-            print("{}: {}".format(key, value))
-
-
-def action_show(args, config, cc_browser):
-    """Show attributes of a specific object."""
-    object = find_object(args, cc_browser)
-    print_obj(object, args.key)
-
-
 def action_update(args, config, cc_browser):
-    """Update attributes of a specific object."""
-    object = find_object(args, cc_browser)
-    for keyval in args.keyvals:
-        split_key_value = keyval.split("=")
-        if len(split_key_value) != 2:
-            raise ArgumentError("Invalid KEY=VALUE '{}'".format(keyval))
-        key = split_key_value[0]
-        if not cc_browser.is_valid_product_update_key(key):
-            raise ArgumentError(
-                "Invalid key '{}'. Only {} can be modified".format(
-                    key,
-                    cc_browser.get_product_update_keys()
+    """Update attributes of objects."""
+    objects = get_objects(args, cc_browser)
+    if len(objects) == 0:
+        raise ArgumentError("No matching {}".format(args.obj_type))
+    elif len(objects) > 1:
+        print("WARNING: About to modify {} objects.".format(len(objects)))
+
+    for object in objects:
+        for keyval in args.keyvals:
+            split_key_value = keyval.split("=")
+            if len(split_key_value) != 2:
+                raise ArgumentError("Invalid KEY=VALUE '{}'".format(keyval))
+            key = split_key_value[0]
+            if not cc_browser.is_valid_product_update_key(key):
+                raise ArgumentError(
+                    "Invalid key '{}'. Only {} can be modified".format(
+                        key,
+                        cc_browser.get_product_update_keys()
+                    )
                 )
-            )
-        value = split_key_value[1]
-        #print("{} {} {}->{}".format(object["SKU"], key, object[key], value))
-        cc_browser.update_product(object["SKU"], key, value)
+            value = split_key_value[1]
+            print("{} {} {}->{}".format(object["SKU"], key, object[key], value))
+            #cc_browser.update_product(object["SKU"], key, value)
 
 
 def action_refresh(args, config, cc_browser):
@@ -421,6 +417,8 @@ def main():
         help="list objects"
     )
     list_parser.set_defaults(func=action_list)
+    add_format_args(list_parser)
+    add_obj_type_argument(list_parser)
     list_parser.add_argument(
         "--fields",
         metavar="FIELD_LIST",
@@ -430,37 +428,16 @@ def main():
     list_parser.add_argument(
         "--filter",
         dest="filter",
-        metavar="RE",
-        help="filter items"
+        action="append",
+        metavar="FIELD=RE",
+        help="filter items based on regular expression"
     )
-    add_format_args(list_parser)
-    add_obj_type_argument(list_parser)
 
     # Add list_fields sub-command.
     list_fields_parser = subparsers.add_parser("list_fields", help="list object fields")
     list_fields_parser.set_defaults(func=action_list_fields)
     add_format_args(list_fields_parser)
     add_obj_type_argument(list_fields_parser)
-
-    # Add show sub-command.
-    show_parser = subparsers.add_parser(
-        "show",
-        #python3 aliases=["sh"],
-        help="list key, values of an object"
-    )
-    show_parser.set_defaults(func=action_show)
-    add_obj_type_argument(show_parser)
-    show_parser.add_argument(
-        "spec",
-        metavar="SPEC",
-        help="object selector"
-    )
-    show_parser.add_argument(
-        "key",
-        metavar="KEY",
-        nargs="?",
-        help="optional specific key to show"
-    )
 
     # Add update sub-command.
     update_parser = subparsers.add_parser(
@@ -471,14 +448,16 @@ def main():
     update_parser.set_defaults(func=action_update)
     add_obj_type_argument(update_parser)
     update_parser.add_argument(
-        "spec",
-        metavar="SPEC",
-        help="object selector"
+        "--filter",
+        dest="filter",
+        action="append",
+        metavar="FIELD=RE",
+        help="filter items based on regular expression"
     )
     update_parser.add_argument(
         "keyvals",
         metavar="KEY=VAL",
-        nargs="*",
+        nargs="+",
         help="key and new value"
     )
 
