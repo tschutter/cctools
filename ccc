@@ -291,8 +291,13 @@ def action_update(args, cc_browser):
 
 def action_refresh(args, cc_browser):
     """Refresh CoreCommerce object cache."""
+    print("Refreshing products")
     cc_browser.get_products()
+
+    print("Refreshing categories")
     cc_browser.get_categories()
+
+    print("Refreshing personalizations")
     cc_browser.get_personalizations()
 
 
