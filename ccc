@@ -19,6 +19,7 @@ import ConfigParser
 import argparse
 import cctools
 import json
+import operator
 import os
 import re
 import sys
@@ -157,25 +158,73 @@ def reverse_lookup_header_map(header_map, value):
     return value
 
 
-def get_output_fields(args, default_fields, objects):
+def get_default_fields(args, config):
+    # Look for default fields in config file.
+    if config.has_section("ccc"):
+        option = "default_{}_fields".format(args.obj_type)
+        for name, value in config.items("ccc"):
+            if name == option:
+                return [
+                    x.strip()
+                    for x in value.split(",")
+                ]
+
+    if args.obj_type == "product":
+        return [
+            "Category",
+            "Product Name",
+            "SKU",
+            "Cost",
+            "Price",
+            "Available",
+            "Discontinued Item",
+            "Track Inventory",
+            "Inventory Level",
+            "Teaser"
+        ]
+
+    elif args.obj_type == "category":
+        return ["Sort", "Category Name", "Thumbnail"]
+
+    elif args.obj_type == "personalization":
+        return [
+            "Product SKU",
+            "SKU",
+            "Product Name",
+            "Answer Input Type",
+            "Answer Sort Order",
+            "Question|Answer",
+            "Question Enabled",
+            "Required",
+            "Track Inventory",
+            "Inventory Level",
+            "Main Photo"
+        ]
+
+
+def get_output_fields(args, config, objects):
     """Return list of fields to output."""
     if args.fields == "all":
+        default_fields = get_default_fields(args, config)
         # All fields, but put the default fields in front.
         fields = default_fields + [
             field for field in sorted(objects[0].keys())
             if field not in default_fields
         ]
+
     elif args.fields == "default":
-        fields = default_fields
+        fields = get_default_fields(args, config)
+
     else:
         fields = [
             reverse_lookup_header_map(HEADER_MAP, field)
             for field in args.fields.split(",")
         ]
+
     return fields
 
 
-def action_list(args, cc_browser):
+def action_list(args, config, cc_browser):
     """List objects of a type."""
     if args.obj_type == "product":
         products = cc_browser.get_products()
@@ -185,61 +234,27 @@ def action_list(args, cc_browser):
                 p for p in products
                 if reo.search(p["SKU"]) or reo.search(p["Product Name"])
             ]
-        products = sorted(products, key=lambda x: x["SKU"])
-        fields = get_output_fields(
-            args,
-            [
-                "SKU",
-                "Product Name",
-                "Cost",
-                "Price",
-                "Available",
-                "Discontinued Item",
-                "Track Inventory",
-                "Inventory Level",
-                "Teaser"
-            ],
-            products
-        )
+        fields = get_output_fields(args, config, products)
+        products = sorted(products, key=operator.itemgetter(*fields))
         output_records(args, products, fields, HEADER_MAP)
 
     elif args.obj_type == "category":
         categories = cc_browser.get_categories()
-        categories = sorted(categories, key=lambda x: x["Sort"])
-        fields = get_output_fields(
-            args,
-            ["Category Id", "Category Name", "Sort", "Thumbnail"],
-            categories
-        )
+        fields = get_output_fields(args, config, categories)
+        categories = sorted(categories, key=operator.itemgetter(*fields))
         output_records(args, categories, fields, HEADER_MAP)
 
     elif args.obj_type == "personalization":
         personalizations = cc_browser.get_personalizations()
+        fields = get_output_fields(args, config, personalizations)
         personalizations = sorted(
             personalizations,
             key=cc_browser.personalization_sort_key
         )
-        fields = get_output_fields(
-            args,
-            [
-                "Product SKU",
-                "SKU",
-                "Product Name",
-                "Answer Input Type",
-                "Answer Sort Order",
-                "Question|Answer",
-                "Question Enabled",
-                "Required",
-                "Track Inventory",
-                "Inventory Level",
-                "Main Photo"
-            ],
-            personalizations
-        )
         output_records(args, personalizations, fields, HEADER_MAP)
 
 
-def action_list_fields(args, cc_browser):
+def action_list_fields(args, config, cc_browser):
     """List fields of a type."""
     if args.obj_type == "product":
         products = cc_browser.get_products()
@@ -301,13 +316,14 @@ def print_obj(obj, key):
         for key, value in obj.items():
             print("{}: {}".format(key, value))
 
-def action_show(args, cc_browser):
+
+def action_show(args, config, cc_browser):
     """Show attributes of a specific object."""
     object = find_object(args, cc_browser)
     print_obj(object, args.key)
 
 
-def action_update(args, cc_browser):
+def action_update(args, config, cc_browser):
     """Update attributes of a specific object."""
     object = find_object(args, cc_browser)
     for keyval in args.keyvals:
@@ -327,7 +343,7 @@ def action_update(args, cc_browser):
         cc_browser.update_product(object["SKU"], key, value)
 
 
-def action_refresh(args, cc_browser):
+def action_refresh(args, config, cc_browser):
     """Refresh CoreCommerce object cache."""
     if not args.obj_type or args.obj_type == "product":
         print("Refreshing products")
@@ -414,7 +430,7 @@ def main():
         "--fields",
         metavar="FIELD_LIST",
         default="default",
-        help="list of fields to output"
+        help="CSV list of fields to output, or 'all'"
     )
     list_parser.add_argument(
         "--filter",
@@ -501,7 +517,7 @@ def main():
 
     # Perform the action.
     try:
-        args.func(args, cc_browser)
+        args.func(args, config, cc_browser)
     except ArgumentError as ae:
         arg_parser.error(ae)
 
