@@ -1,4 +1,5 @@
 #!/usr/bin/env python2
+# -*- mode: Python -*-
 
 """
 Command line tool for CoreCommerce access.
@@ -26,7 +27,7 @@ HEADER_MAP = {
     "Inventory Level": "InvLvl",
     "Category Id": "CatId",
     "Product SKU": "PrdSKU",
-    "Required": "QuesReq",
+    "Required": "QReq",
     "Track Inventory": "TrkInv",
     "Question Enabled": "QEnab",
     "Answer Sort Order": "Sort",
@@ -53,9 +54,10 @@ def output_csv(args, records, fields, header_map=None):
     # Output records.
     for record in records:
         print(
-            delim.join(
-                [cctools.html_to_plain_text(record[field]) for field in fields]
-            )
+            delim.join([
+                cctools.html_to_plain_text(record.get(field, ""))
+                for field in fields
+            ])
         )
 
 
@@ -80,6 +82,7 @@ def output_table_row(row, col_widths, mapping=None):
 
 
 def output_table(records, fields, header_map=None):
+    """Output records in ASCII table format."""
     if header_map == None:
         header_map = dict()
 
@@ -89,7 +92,10 @@ def output_table(records, fields, header_map=None):
         col_widths.append(len(header_map.get(field, field)))
     for record in records:
         for col, field in enumerate(fields):
-            col_widths[col] = max(col_widths[col], len(str(record[field])))
+            col_widths[col] = max(
+                col_widths[col],
+                len(str(record.get(field, "")))
+            )
 
     # Pretty print the records to the output.
     output_table_divider(col_widths)
@@ -97,7 +103,10 @@ def output_table(records, fields, header_map=None):
     output_table_divider(col_widths)
     for row, record in enumerate(records):
         output_table_row(
-            [cctools.html_to_plain_text(record[field]) for field in fields],
+            [
+                cctools.html_to_plain_text(record.get(field, ""))
+                for field in fields
+            ],
             col_widths
         )
     output_table_divider(col_widths)
@@ -105,15 +114,24 @@ def output_table(records, fields, header_map=None):
 
 def output_json(args, records, fields, header_map=None):
     """Output records in JSON format."""
+    mapped_records = []
+    for record in records:
+        mapped_record = dict()
+        for (key, value) in record.items():
+            if key in fields:
+                mapped_record[key] = value
+        mapped_records.append(mapped_record)
+
     print(
         json.dumps(
-            records,
+            mapped_records,
             check_circular=False,
-            indent=4,
+            indent=2,
             separators=(',', ': '),
             sort_keys=True
         )
     )
+
 
 def output_records(args, records, fields, header_map=None):
     if args.format == "csv":
@@ -129,38 +147,21 @@ def reverse_lookup_header_map(header_map, value):
     for key in header_map:
         if value == header_map[key]:
             return key
-    return None
+    return value
 
 
-def adjust_field_list(fields, args, header_map):
-    """Add and remove fields from field list."""
-
-    # Remove fields specified by --del-field.
-    if args.del_fields:
-        for del_field in args.del_fields:
-            if del_field == "*":
-                del fields[:]
-            elif del_field in fields:
-                fields.remove(del_field)
-            else:
-                # Try the mapped form.
-                del_field2 = reverse_lookup_header_map(header_map, del_field)
-                if del_field2 in fields:
-                    fields.remove(del_field2)
-                else:
-                    raise ArgumentError(
-                        "field '{}' to delete not found".format(del_field)
-                    )
-
-    # Add fields specified by --add-field.
-    if args.add_fields:
-        for add_field in args.add_fields:
-            if add_field in fields:
-                raise ArgumentError(
-                    "field '{}' to add already in field list".format(add_field)
-                )
-            else:
-                fields.append(add_field)
+def get_output_fields(args, default_fields, objects):
+    """Return list of fields to output."""
+    if args.fields == "all":
+        fields = sorted(objects[0].keys())
+    elif args.fields == "default":
+        fields = default_fields
+    else:
+        fields = [
+            reverse_lookup_header_map(HEADER_MAP, field)
+            for field in args.fields.split(",")
+        ]
+    return fields
 
 
 def action_list(args, cc_browser):
@@ -174,44 +175,56 @@ def action_list(args, cc_browser):
                 if reo.search(p["SKU"]) or reo.search(p["Product Name"])
             ]
         products = sorted(products, key=lambda x: x["SKU"])
-        fields = [
-            "SKU",
-            "Product Name",
-            "Cost",
-            "Price",
-            "Available",
-            "Discontinued Item",
-            "Track Inventory",
-            "Inventory Level",
-            "Teaser"
-        ]
-        adjust_field_list(fields, args, HEADER_MAP)
+        fields = get_output_fields(
+            args,
+            [
+                "SKU",
+                "Product Name",
+                "Cost",
+                "Price",
+                "Available",
+                "Discontinued Item",
+                "Track Inventory",
+                "Inventory Level",
+                "Teaser"
+            ],
+            products
+        )
         output_records(args, products, fields, HEADER_MAP)
+
     elif args.obj_type == "category":
         categories = cc_browser.get_categories()
         categories = sorted(categories, key=lambda x: x["Sort"])
-        fields = ["Category Id", "Category Name", "Sort"]
-        adjust_field_list(fields, args, HEADER_MAP)
+        fields = get_output_fields(
+            args,
+            ["Category Id", "Category Name", "Sort", "Thumbnail"],
+            categories
+        )
         output_records(args, categories, fields, HEADER_MAP)
+
     elif args.obj_type == "personalization":
         personalizations = cc_browser.get_personalizations()
         personalizations = sorted(
             personalizations,
             key=cc_browser.personalization_sort_key
         )
-        fields = [
-            "Product SKU",
-            "SKU",
-            "Product Name",
-            "Question|Answer",
-            "Required",
-            "Track Inventory",
-            "Question Enabled",
-            "Answer Sort Order",
-            "Inventory Level",
-            "Answer Input Type",
-            "Main Photo"
-        ]
+        fields = get_output_fields(
+            args,
+            [
+                "Product SKU",
+                "SKU",
+                "Product Name",
+                "Answer Input Type",
+                "Answer Sort Order",
+                "Question|Answer",
+                "Question Enabled",
+                "Required",
+                "Track Inventory",
+                "Inventory Level",
+                "Main Photo"
+            ],
+            personalizations
+        )
         output_records(args, personalizations, fields, HEADER_MAP)
 
 
@@ -380,18 +393,10 @@ def main():
     list_parser = subparsers.add_parser("list", help="list objects")
     list_parser.set_defaults(func=action_list)
     list_parser.add_argument(
-        "--add-field",
-        action="append",
-        dest="add_fields",
-        metavar="FLD",
-        help="additional field to report"
-    )
-    list_parser.add_argument(
-        "--del-field",
-        action="append",
-        dest="del_fields",
-        metavar="FLD",
-        help="remove field from report"
+        "--fields",
+        metavar="FIELD_LIST",
+        default="default",
+        help="list of fields to output"
     )
     list_parser.add_argument(
         "--filter",
