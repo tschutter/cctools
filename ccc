@@ -355,26 +355,6 @@ def main():
         help="configuration filename (default=%(default)s)"
     )
     arg_parser.add_argument(
-        "--cache-ttl",
-        metavar="SEC",
-        type=int,
-        default=3600,
-        help="cache TTL (default=%(default)i)"
-    )
-    arg_parser.add_argument(
-        "--format",
-        choices=["csv", "table"],
-        default="table",
-        help="output format [csv, table] (default=%(default)s)"
-    )
-    arg_parser.add_argument(
-        "--delimiter",
-        dest="delimiter",
-        metavar="DELIM",
-        default="|",
-        help="output CSV delimiter (default=%(default)s)"
-    )
-    arg_parser.add_argument(
         "--verbose",
         action="store_true",
         default=False,
@@ -383,7 +363,7 @@ def main():
     subparsers = arg_parser.add_subparsers(title="sub-commands")
 
     # Add list sub-command.
-    list_parser = subparsers.add_parser("list", help="List objects")
+    list_parser = subparsers.add_parser("list", help="list objects")
     list_parser.set_defaults(func=action_list)
     list_parser.add_argument(
         "--add-field",
@@ -409,13 +389,13 @@ def main():
     add_obj_type_argument(list_parser)
 
     # Add list_fields sub-command.
-    list_fields_parser = subparsers.add_parser("list_fields", help="List object fields")
+    list_fields_parser = subparsers.add_parser("list_fields", help="list object fields")
     list_fields_parser.set_defaults(func=action_list_fields)
     add_format_args(list_fields_parser)
     add_obj_type_argument(list_fields_parser)
 
     # Add show sub-command.
-    show_parser = subparsers.add_parser("show", help="List key, values of an object")
+    show_parser = subparsers.add_parser("show", help="list key, values of an object")
     show_parser.set_defaults(func=action_show)
     add_obj_type_argument(show_parser)
     show_parser.add_argument(
@@ -431,7 +411,7 @@ def main():
     )
 
     # Add update sub-command.
-    update_parser = subparsers.add_parser("update", help="Update values of an object")
+    update_parser = subparsers.add_parser("update", help="update values of an object")
     update_parser.set_defaults(func=action_update)
     add_obj_type_argument(update_parser)
     update_parser.add_argument(
@@ -447,7 +427,7 @@ def main():
     )
 
     # Add refresh sub-command.
-    refresh_parser = subparsers.add_parser("refresh", help="Refresh cache")
+    refresh_parser = subparsers.add_parser("refresh", help="refresh cache")
     refresh_parser.set_defaults(func=action_refresh)
 
     # Parse command line arguments.
