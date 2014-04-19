@@ -47,7 +47,7 @@ login to CoreCommerce to download product and category lists::
     username: cctools
     password: super!secret
 
-I strongly suggest that you create a cctools limited user in
+It is strongly suggested that you create a cctools limited user in
 CoreCommerce that only has access to Products/Categories.
 
 Notes
