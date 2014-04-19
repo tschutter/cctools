@@ -145,21 +145,9 @@ def generate_pdf(
     col_widths = [table_width - price_width, price_width]
     story = []
 
-    # Remove products that are not requested.
+    # Sort products by category, product_name.
     if args.categories:
         cc_browser.set_category_sort_order(args.categories)
-        products = [x for x in products if x["Category"] in args.categories]
-    elif args.exclude_categories:
-        products = [x for x in products if x["Category"] not in args.exclude_categories]
-
-    # Remove excluded SKUs.
-    if args.exclude_skus:
-        products = [x for x in products if str(x["SKU"]) not in args.exclude_skus]
-
-    # Removed discontinued products.
-    products = [x for x in products if x["Discontinued Item"] != "Y"]
-
-    # Sort products by category, product_name.
     products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
 
     # Group products by category.
@@ -216,6 +204,42 @@ def generate_pdf(
             ])
         )
     doc.build(story)
+
+
+def get_products(args, cc_browser):
+    """Get product list from CoreCommerce and filter it."""
+
+    # Fetch products list.
+    products = cc_browser.get_products()
+
+    # Remove bad products.
+    products = [
+        p for p in products if
+        p["Category"] != "" and p["Product Name"] != ""
+    ]
+
+    # Remove products that are not available online and discontinued.
+    products = [
+        p for p in products if
+        p["Available"] == "Y" or p["Discontinued Item"] == "N"
+    ]
+
+    # Remove products that are not requested.
+    if args.categories:
+        cc_browser.set_category_sort_order(args.categories)
+        products = [p for p in products if p["Category"] in args.categories]
+    elif args.epclude_categories:
+        products = [
+            p for p in products if p["Category"] not in args.exclude_categories
+        ]
+
+    # Remove excluded SKUs.
+    if args.exclude_skus:
+        products = [
+            p for p in products if str(p["SKU"]) not in args.exclude_skus
+        ]
+
+    return products
 
 
 def main():
@@ -332,22 +356,8 @@ def main():
         verbose=args.verbose
     )
 
-    # Fetch products list.
-    products = cc_browser.get_products()
-
-    # Clean bad products.
-    orig_products = products[:]
-    products = list()
-    for product in orig_products:
-        try:
-            if (
-                product["Category"] != "" and
-                product["Product Name"] != "" and
-                float(product["Price"]) > 0.0
-            ):
-                products.append(product)
-        except ValueError:
-            pass
+    # Get product list.
+    products = get_products(args, cc_browser)
 
     # Generate PDF file.
     if args.verbose:
