@@ -6,9 +6,12 @@ Command line tool for CoreCommerce access.
 
 TODO
 ----
-* test list+fields
-* test show
-* test update
+* --filter needs work
+** better name
+** allow FIELD=REGEX?
+** apply to list
+*** does this mean show sub-command goes away?
+* fix update sub-command
 """
 
 from __future__ import print_function
@@ -34,6 +37,10 @@ HEADER_MAP = {
     "Inventory Level": "InvLvl",
     "Answer Input Type": "AnsType"
 }
+
+PRODUCT_ABBREVS = ["product", "pro"]
+CATEGORY_ABBREVS = ["category", "cat"]
+PERSONALIZATION_ABBREVS = ["personalization", "per"]
 
 class ArgumentError(Exception):
     def __init__(self, value):
@@ -318,14 +325,17 @@ def action_update(args, cc_browser):
 
 def action_refresh(args, cc_browser):
     """Refresh CoreCommerce object cache."""
-    print("Refreshing products")
-    cc_browser.get_products()
+    if not args.obj_type or args.obj_type == "product":
+        print("Refreshing products")
+        cc_browser.get_products()
 
-    print("Refreshing categories")
-    cc_browser.get_categories()
+    if not args.obj_type or args.obj_type == "category":
+        print("Refreshing categories")
+        cc_browser.get_categories()
 
-    print("Refreshing personalizations")
-    cc_browser.get_personalizations()
+    if not args.obj_type or args.obj_type == "personalization":
+        print("Refreshing personalizations")
+        cc_browser.get_personalizations()
 
 
 def add_format_args(arg_parser):
@@ -345,24 +355,24 @@ def add_format_args(arg_parser):
     )
 
 
-def add_obj_type_argument(arg_parser):
+def add_obj_type_argument(arg_parser, nargs=None):
     """Add object type argument to arg_parser."""
-    # TODO: allow abbreviation
-    # Any object that supports the in operator can be passed as the
-    # choices value, so a custom container is supported.
-    #if "product".startswith(arg) and len(arg) > 1:
-    #    return "product"
-    #elif "category".startswith(arg):
-    #    return "category"
-    #elif "personalization".startswith(arg) and len(arg) > 1:
-    #    return "personalization"
-    #else:
-    #    raise ArgumentError("invalid object type '{}'".format(arg))
     arg_parser.add_argument(
         "obj_type",
-        choices=["product", "category", "personalization"],
-        help="object type"
+        choices=PRODUCT_ABBREVS + CATEGORY_ABBREVS + PERSONALIZATION_ABBREVS,
+        nargs=nargs,
+        help="optional object type" if nargs == "?" else "object type"
     )
+
+
+def normalize_obj_type(args):
+    if args.obj_type:
+        if args.obj_type in PRODUCT_ABBREVS:
+            args.obj_type = "product"
+        elif args.obj_type in CATEGORY_ABBREVS:
+            args.obj_type = "category"
+        elif args.obj_type in PERSONALIZATION_ABBREVS:
+            args.obj_type = "personalization"
 
 
 def main():
@@ -390,7 +400,11 @@ def main():
     subparsers = arg_parser.add_subparsers(title="sub-commands")
 
     # Add list sub-command.
-    list_parser = subparsers.add_parser("list", help="list objects")
+    list_parser = subparsers.add_parser(
+        "list",
+        #python3 aliases=["li"],
+        help="list objects"
+    )
     list_parser.set_defaults(func=action_list)
     list_parser.add_argument(
         "--fields",
@@ -414,7 +428,11 @@ def main():
     add_obj_type_argument(list_fields_parser)
 
     # Add show sub-command.
-    show_parser = subparsers.add_parser("show", help="list key, values of an object")
+    show_parser = subparsers.add_parser(
+        "show",
+        #python3 aliases=["sh"],
+        help="list key, values of an object"
+    )
     show_parser.set_defaults(func=action_show)
     add_obj_type_argument(show_parser)
     show_parser.add_argument(
@@ -430,7 +448,11 @@ def main():
     )
 
     # Add update sub-command.
-    update_parser = subparsers.add_parser("update", help="update values of an object")
+    update_parser = subparsers.add_parser(
+        "update",
+        #python3 aliases=["up"],
+        help="update values of an object"
+    )
     update_parser.set_defaults(func=action_update)
     add_obj_type_argument(update_parser)
     update_parser.add_argument(
@@ -446,11 +468,17 @@ def main():
     )
 
     # Add refresh sub-command.
-    refresh_parser = subparsers.add_parser("refresh", help="refresh cache")
+    refresh_parser = subparsers.add_parser(
+        "refresh",
+        #python3 aliases=["re"],
+        help="refresh cache"
+    )
     refresh_parser.set_defaults(func=action_refresh)
+    add_obj_type_argument(refresh_parser, nargs="?")
 
     # Parse command line arguments.
     args = arg_parser.parse_args()
+    normalize_obj_type(args)
 
     # Read config file.
     config = ConfigParser.RawConfigParser()
