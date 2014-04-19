@@ -15,6 +15,9 @@ import os
 import re
 import sys
 
+# In some output formats (such as table), it is helpful to have
+# abbreviated column headers.  This is true especially for boolean
+# values like "Available" and "Discontinued Item".
 HEADER_MAP = {
     "Available": "Avail",
     "Discontinued Item": "Discd",
@@ -30,6 +33,7 @@ HEADER_MAP = {
     "Answer Input Type": "AnsType"
 }
 
+# Specify abbreviations for object types.
 PRODUCT_ABBREVS = ["product", "pro"]
 CATEGORY_ABBREVS = ["category", "cat"]
 PERSONALIZATION_ABBREVS = ["personalization", "per"]
