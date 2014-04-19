@@ -443,7 +443,7 @@ def main():
         config.get("website", "site"),
         config.get("website", "username"),
         config.get("website", "password"),
-        cache_ttl = 0 if args.func == action_refresh else args.cache_ttl,
+        cache_ttl = 0 if args.func == action_refresh else 3600,
         verbose=args.verbose
         #,proxy="localhost:8080"  # allow MITM debugging
     )
