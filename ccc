@@ -160,7 +160,11 @@ def reverse_lookup_header_map(header_map, value):
 def get_output_fields(args, default_fields, objects):
     """Return list of fields to output."""
     if args.fields == "all":
-        fields = sorted(objects[0].keys())
+        # All fields, but put the default fields in front.
+        fields = default_fields + [
+            field for field in sorted(objects[0].keys())
+            if field not in default_fields
+        ]
     elif args.fields == "default":
         fields = default_fields
     else:
