@@ -3,15 +3,6 @@
 
 """
 Command line tool for CoreCommerce access.
-
-TODO
-----
-* --filter needs work
-** better name
-** allow FIELD=REGEX?
-** apply to list
-*** does this mean show sub-command goes away?
-* fix update sub-command
 """
 
 from __future__ import print_function
