@@ -14,6 +14,7 @@ from __future__ import print_function
 import ConfigParser
 import argparse
 import cctools
+import json
 import os
 import re
 import sys
@@ -102,9 +103,23 @@ def output_table(records, fields, header_map=None):
     output_table_divider(col_widths)
 
 
+def output_json(args, records, fields, header_map=None):
+    """Output records in JSON format."""
+    print(
+        json.dumps(
+            records,
+            check_circular=False,
+            indent=4,
+            separators=(',', ': '),
+            sort_keys=True
+        )
+    )
+
 def output_records(args, records, fields, header_map=None):
     if args.format == "csv":
         output_csv(args, records, fields, header_map)
+    elif args.format == "json":
+        output_json(args, records, fields, header_map)
     elif args.format == "table":
         output_table(records, fields, header_map)
 
@@ -262,7 +277,6 @@ def print_obj(obj, key):
         for key, value in obj.items():
             print("{}: {}".format(key, value))
 
-
 def action_show(args, cc_browser):
     """Show attributes of a specific object."""
     object = find_object(args, cc_browser)
@@ -305,9 +319,9 @@ def add_format_args(arg_parser):
     """Add formatting args to arg_parser."""
     arg_parser.add_argument(
         "--format",
-        choices=["csv", "table"],
+        choices=["csv", "json", "table"],
         default="table",
-        help="output format [csv, table] (default=%(default)s)"
+        help="output format [csv, json, table] (default=%(default)s)"
     )
     arg_parser.add_argument(
         "--delimiter",
