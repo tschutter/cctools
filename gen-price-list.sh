@@ -38,26 +38,35 @@ fi
 rm -f ${FILENAME}
 
 # Generate the price list.
+# 40012 = Rosary
+# 40050 = Mary Basket
+# 40051 = Mary Basket Small
+# 40073 = Cheik Earrings
+# 40087 = Sonki Fabric Necklace
+# 70074 = Jarara Earrings
+# 70075 = Lapeta-Cheik Earrings
+# 70076 = Lapeta-Tino Earrings
+# 70077 = Tino Earrings
+# 70078 = Tino-Cheik Earrings
+# 70079 = Jarara-Cheik Earrings
 "${SCRIPTDIR}/gen-price-list.py"\
     --category="Necklaces"\
     --category="Bags & Purses"\
+    --category="Miscellaneous"\
     --category="Bracelets"\
     --category="Baskets, Trivets & Bowls"\
     --category="Earrings"\
-    --category="Miscellaneous"\
-#    --exclude-sku=40025\
-#    --exclude-sku=40027\
-#    --exclude-sku=40043\
-#    --exclude-sku=40052\
-#    --exclude-sku=40064\
-#    --exclude-sku=40068\
-#    --exclude-sku=40073\
-#    --exclude-sku=70074\
-#    --exclude-sku=70075\
-#    --exclude-sku=70076\
-#    --exclude-sku=70077\
-#    --exclude-sku=70078\
-#    --exclude-sku=70079\
+    --exclude-sku=40012\
+    --exclude-sku=40050\
+    --exclude-sku=40051\
+    --exclude-sku=40073\
+    --exclude-sku=40087\
+    --exclude-sku=70074\
+    --exclude-sku=70075\
+    --exclude-sku=70076\
+    --exclude-sku=70077\
+    --exclude-sku=70078\
+    --exclude-sku=70079\
     --pdf-file="${FILENAME}"\
     --verbose\
     ${ARGS}
