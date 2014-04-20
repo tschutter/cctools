@@ -245,7 +245,7 @@ def action_list(args, config, cc_browser):
     """List objects of a type."""
     objects = get_objects(args, cc_browser)
     fields = get_output_fields(args, config, objects)
-    products = sorted(objects, key=operator.itemgetter(*fields))
+    objects = sorted(objects, key=operator.itemgetter(*fields))
     if args.obj_type == "personalization":
         objects = sorted(
             objects,
@@ -355,7 +355,7 @@ def add_format_args(arg_parser):
         "--format",
         choices=["csv", "json", "table"],
         default="table",
-        help="output format [csv, json, table] (default=%(default)s)"
+        help="output format (default=%(default)s)"
     )
     arg_parser.add_argument(
         "--delimiter",
