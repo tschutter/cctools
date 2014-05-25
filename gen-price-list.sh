@@ -42,7 +42,6 @@ rm -f ${FILENAME}
 # 40050 = Mary Basket
 # 40051 = Mary Basket Small
 # 40073 = Cheik Earrings
-# 40087 = Sonki Fabric Necklace
 # 70074 = Jarara Earrings
 # 70075 = Lapeta-Cheik Earrings
 # 70076 = Lapeta-Tino Earrings
@@ -60,7 +59,6 @@ rm -f ${FILENAME}
     --exclude-sku=40050\
     --exclude-sku=40051\
     --exclude-sku=40073\
-    --exclude-sku=40087\
     --exclude-sku=70074\
     --exclude-sku=70075\
     --exclude-sku=70076\
