@@ -108,8 +108,6 @@ def set_label_value(
 
 def add_header(args, config, worksheet, row):
     """Add PO/Invoice header."""
-    col_value_name = 2
-    col_value = col_value_name + 1
 
     col_label_start = 2
     col_label_end = 2

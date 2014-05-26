@@ -13,7 +13,6 @@ import json
 import operator
 import os
 import re
-import sys
 
 # Specify abbreviations for object types.
 PRODUCT_ABBREVS = ["product", "prod"]
@@ -39,6 +38,7 @@ HEADER_MAP = {
     "Answer Input Type": "AnsType"
 }
 
+
 def canonicalize_field_name(field):
     """Given a field name or abbreviation, return the field name."""
     for key in HEADER_MAP:
@@ -50,6 +50,7 @@ def canonicalize_field_name(field):
 class ArgumentError(Exception):
     def __init__(self, value):
         self.value = value
+
     def __str__(self):
         return repr(self.value)
 
@@ -59,7 +60,7 @@ def output_csv(args, records, fields, header_map=None):
     delim = args.delimiter
 
     # Output header.
-    if header_map == None:
+    if header_map is None:
         header_map = dict()
     print(delim.join([header_map.get(field, field) for field in fields]))
 
@@ -83,7 +84,7 @@ def output_table_divider(col_widths):
 
 
 def output_table_row(row, col_widths, mapping=None):
-    if mapping == None:
+    if mapping is None:
         mapping = dict()
     print(
         "| " + " | ".join(
@@ -95,7 +96,7 @@ def output_table_row(row, col_widths, mapping=None):
 
 def output_table(records, fields, header_map=None):
     """Output records in ASCII table format."""
-    if header_map == None:
+    if header_map is None:
         header_map = dict()
 
     # Determine the column widths.
@@ -245,12 +246,13 @@ def action_list(args, config, cc_browser):
     """List objects of a type."""
     objects = get_objects(args, cc_browser)
     fields = get_output_fields(args, config, objects)
-    objects = sorted(objects, key=operator.itemgetter(*fields))
     if args.obj_type == "personalization":
         objects = sorted(
             objects,
             key=cc_browser.personalization_sort_key
         )
+    else:
+        objects = sorted(objects, key=operator.itemgetter(*fields))
     output_records(args, objects, fields, HEADER_MAP)
 
 
@@ -296,7 +298,7 @@ def find_object(args, cc_browser):
                         )
                     )
                 found_obj = obj
-    if found_obj == None:
+    if found_obj is None:
         raise ArgumentError(
             "No {} matches '{}' = '{}'".format(
                 args.obj_type,
@@ -330,8 +332,15 @@ def action_update(args, config, cc_browser):
                     )
                 )
             value = split_key_value[1]
-            print("{} {} {}->{}".format(object["SKU"], key, object[key], value))
-            #cc_browser.update_product(object["SKU"], key, value)
+            print(
+                "{} {} {}->{}".format(
+                    object["SKU"],
+                    key,
+                    object[key],
+                    value
+                )
+            )
+            # cc_browser.update_product(object["SKU"], key, value)
 
 
 def action_refresh(args, config, cc_browser):
@@ -413,7 +422,7 @@ def main():
     # Add list sub-command.
     list_parser = subparsers.add_parser(
         "list",
-        #python3 aliases=["li"],
+        # python3 aliases=["li"],
         help="list objects"
     )
     list_parser.set_defaults(func=action_list)
@@ -434,7 +443,10 @@ def main():
     )
 
     # Add list_fields sub-command.
-    list_fields_parser = subparsers.add_parser("list_fields", help="list object fields")
+    list_fields_parser = subparsers.add_parser(
+        "list_fields",
+        help="list object fields"
+    )
     list_fields_parser.set_defaults(func=action_list_fields)
     add_format_args(list_fields_parser)
     add_obj_type_argument(list_fields_parser)
@@ -442,7 +454,7 @@ def main():
     # Add update sub-command.
     update_parser = subparsers.add_parser(
         "update",
-        #python3 aliases=["up"],
+        # python3 aliases=["up"],
         help="update values of an object"
     )
     update_parser.set_defaults(func=action_update)
@@ -464,7 +476,7 @@ def main():
     # Add refresh sub-command.
     refresh_parser = subparsers.add_parser(
         "refresh",
-        #python3 aliases=["re"],
+        # python3 aliases=["re"],
         help="refresh cache"
     )
     refresh_parser.set_defaults(func=action_refresh)
@@ -484,9 +496,9 @@ def main():
         config.get("website", "site"),
         config.get("website", "username"),
         config.get("website", "password"),
-        cache_ttl = 0 if args.func == action_refresh else 3600,
+        cache_ttl=0 if args.func == action_refresh else 3600,
         verbose=args.verbose
-        #,proxy="localhost:8080"  # allow MITM debugging
+        # ,proxy="localhost:8080"  # allow MITM debugging
     )
 
     # Perform the action.
