@@ -20,28 +20,30 @@ ALIGNMENT_HORIZONTAL_RIGHT = openpyxl.style.Alignment.HORIZONTAL_RIGHT
 ALIGNMENT_VERTICAL_TOP = openpyxl.style.Alignment.VERTICAL_TOP
 NUMBER_FORMAT_USD = openpyxl.style.NumberFormat.FORMAT_CURRENCY_USD_SIMPLE
 
+
 def has_merge_cells(worksheet):
     """Determine if Worksheet.merge_cells method exists."""
     # merge_cells not supported by openpyxl-1.5.6 (Ubuntu 12.04)
     return hasattr(worksheet, "merge_cells")
+
 
 def set_cell(
     worksheet,
     row,
     col,
     value,
-    bold = None,
-    alignment_horizontal = None,
-    alignment_vertical = None
+    bold=None,
+    alignment_horizontal=None,
+    alignment_vertical=None
 ):
     """Set cell value and style."""
     cell = worksheet.cell(row=row, column=col)
     cell.value = value
-    if bold != None:
+    if bold is not None:
         cell.style.font.bold = bold
-    if alignment_horizontal != None:
+    if alignment_horizontal is not None:
         cell.style.alignment.horizontal = alignment_horizontal
-    if alignment_vertical != None:
+    if alignment_vertical is not None:
         cell.style.alignment.vertical = alignment_vertical
     return cell
 
@@ -77,7 +79,7 @@ def add_title(args, config, worksheet):
     set_cell(worksheet, row, 0, cell_text)
     row += 1
 
-    valid_date = now + datetime.timedelta(days = args.valid_ndays)
+    valid_date = now + datetime.timedelta(days=args.valid_ndays)
     cell_text = valid_date.strftime("Valid until: %Y-%m-%d")
     set_cell(worksheet, row, 0, cell_text)
     row += 1
@@ -87,6 +89,7 @@ def add_title(args, config, worksheet):
     row += 1
 
     return row
+
 
 def add_ship_to(worksheet, row):
     """Add Ship To block."""
@@ -135,6 +138,7 @@ def add_ship_to(worksheet, row):
 
     return row
 
+
 def set_label_dollar_value(
     worksheet,
     row,
@@ -161,6 +165,7 @@ def set_label_dollar_value(
     value_style = set_cell(worksheet, row, col_total, value).style
     value_style.number_format.format_code = NUMBER_FORMAT_USD
     return(label_style, value_style)
+
 
 def add_products(args, worksheet, row, cc_browser, products):
     """Add row for each product."""
@@ -224,7 +229,9 @@ def add_products(args, worksheet, row, cc_browser, products):
 
     # Remove excluded SKUs.
     if args.exclude_skus:
-        products = [x for x in products if str(x["SKU"]) not in args.exclude_skus]
+        products = [
+            x for x in products if str(x["SKU"]) not in args.exclude_skus
+        ]
 
     # Sort products by category, product_name.
     products = sorted(products, key=cc_browser.sort_key_by_category_and_name)

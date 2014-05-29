@@ -13,6 +13,7 @@ import os
 import sys
 import datetime
 
+
 def add_product_dict(args, config, cc_browser, products, worksheet):
     """Create the Product Dictionary worksheet."""
 
@@ -58,7 +59,13 @@ def generate_xlsx(args, config, cc_browser, products):
     workbook = openpyxl.workbook.Workbook()
 
     # Create Product Dictionary worksheet.
-    add_product_dict(args, config, cc_browser, products, workbook.worksheets[0])
+    add_product_dict(
+        args,
+        config,
+        cc_browser,
+        products,
+        workbook.worksheets[0]
+    )
 
     # Write to file.
     workbook.save(args.xlsx_filename)
@@ -71,7 +78,6 @@ def main():
         "cctools.cfg"
     )
     now = datetime.datetime.now()
-    default_number = now.strftime("%y%m%d00")
     default_xlsx_filename = now.strftime("%Y-%m-%d-PurchaseOrder.xlsx")
 
     arg_parser = argparse.ArgumentParser(

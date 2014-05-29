@@ -32,6 +32,7 @@ CURRENCY_INFO = {
     "usd": ("$", "", 1.0)
 }
 
+
 def calc_price_inc_tax(args, price, price_multiplier):
     """Calculate a price including tax."""
     price_inc_tax = float(price) * price_multiplier
@@ -111,7 +112,7 @@ def generate_pdf(
         args.pdf_file,
         pagesize=reportlab.lib.pagesizes.letter,
         title=doc_title,
-        #showBoundary=True  # debug
+        # showBoundary=True  # debug
     )
 
     # Construct a frame for each column.
@@ -166,7 +167,7 @@ def generate_pdf(
             ("RIGHTPADDING", (0, 0), (-1, -1), 3),
             ("TOPPADDING", (0, 0), (-1, -1), 0),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-            #("GRID", (0, 0), (-1, -1), 1.0, reportlab.lib.colors.black)
+            # ("GRID", (0, 0), (-1, -1), 1.0, reportlab.lib.colors.black)
         ]
         table_data = list()
         for product in product_group:
@@ -186,7 +187,9 @@ def generate_pdf(
             continue
         if args.greybar_interval > 1:
             for row in range(0, len(table_data), args.greybar_interval):
-                styles.append(("BACKGROUND", (0, row), (1, row), greybar_color))
+                styles.append(
+                    ("BACKGROUND", (0, row), (1, row), greybar_color)
+                )
         table = reportlab.platypus.Table(
             data=table_data,
             colWidths=col_widths,
@@ -250,7 +253,7 @@ def main():
     )
 
     arg_parser = argparse.ArgumentParser(
-        description="Generates a price list from CoreCommerce data in PDF form."
+        description="Generates a price list from CoreCommerce data."
     )
     arg_parser.add_argument(
         "--config",

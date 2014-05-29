@@ -12,23 +12,24 @@ import openpyxl  # sudo apt-get install python-openpyxl
 import os
 import sys
 
+
 def set_cell(
     worksheet,
     row,
     col,
     value,
-    bold = None,
-    alignment_horizontal = None,
-    alignment_vertical = None
+    bold=None,
+    alignment_horizontal=None,
+    alignment_vertical=None
 ):
     """Set cell value and style."""
     cell = worksheet.cell(row=row, column=col)
     cell.value = value
-    if bold != None:
+    if bold is not None:
         cell.style.font.bold = bold
-    if alignment_horizontal != None:
+    if alignment_horizontal is not None:
         cell.style.alignment.horizontal = alignment_horizontal
-    if alignment_vertical != None:
+    if alignment_vertical is not None:
         cell.style.alignment.vertical = alignment_vertical
     return cell
 
@@ -63,7 +64,9 @@ def generate_xlsx(args, config, cc_browser, inventory):
     worksheet.column_dimensions["E"].width = 11
 
     # Create data rows.
-    for itemid, (sku, level, name, enabled, main_photo) in enumerate(inventory):
+    for itemid, (sku, level, name, enabled, main_photo) in enumerate(
+        inventory
+    ):
         row = itemid + 1
         style = set_cell(worksheet, row, 0, sku).style
         style.alignment.horizontal =\
@@ -182,8 +185,8 @@ def main():
                         (sku, pers_level, name, enabled, main_photo)
                     )
 
-    #for sku, level, name in inventory:
-    #    print("%-9s %4s %-45s" % (sku, level, name))
+    # for sku, level, name in inventory:
+    #     print("%-9s %4s %-45s" % (sku, level, name))
 
     if args.verbose:
         sys.stderr.write("Generating %s\n" % args.xlsx_filename)

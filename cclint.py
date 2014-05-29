@@ -42,6 +42,7 @@ import os
 import re
 import sys
 
+
 def parse_checks(config, section):
     """Parse value check definitions in config file."""
     checks = list()
@@ -97,7 +98,7 @@ def check_item(item_checks, item_type_name, items, item, item_name):
             predicate = check_parts[2]
             if not eval(
                 predicate,
-                {"__builtins__": { "len": len }},
+                {"__builtins__": {"len": len}},
                 {"items": items, "item": item}
             ):
                 continue

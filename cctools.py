@@ -19,6 +19,7 @@ import time
 # pylint seems to be confused by calling methods via self._browser.
 # pylint: disable=E1102
 
+
 class CCBrowser(object):
     """Encapsulate mechanize.Browser object."""
     def __init__(
@@ -44,7 +45,7 @@ class CCBrowser(object):
         if not os.path.exists(self._cache_dir):
             os.mkdir(self._cache_dir, 0o700)
         self._browser = mechanize.Browser()
-        if proxy != None:
+        if proxy is not None:
             self._browser.set_proxies({"https": proxy})
         self._logged_in = False
         self._personalizations = None
@@ -94,36 +95,39 @@ class CCBrowser(object):
         # returned by pressing the "Export" button.
         #
         # jQuery.ajax({
-        #     type : "GET",
-        #     cache : false,
-        #     url : 'https://HOST/~SITE/controllers/ajaxController.php',
-        #     data : {
-        #         object : 'ExportAjax',
-        #         'function' : 'processExportCycle',
-        #         current : current
-        #     }
+        #   type : "GET",
+        #   cache : false,
+        #   url : 'https://HOST/~SITE/controllers/ajaxController.php',
+        #   data : {
+        #     object : 'ExportAjax',
+        #     'function' : 'processExportCycle',
+        #     current : current
+        #   }
         # })
         # .done(function(response) {
-        #     var responseObject = jQuery.parseJSON(response);
-        #     var current = responseObject.current;
-        #     var percentComplete = responseObject.percentComplete;
-        #     if(percentComplete == '100'){
-        #         var url = 'https://HOST/~SITE/admin/index.php?m=ajax_export_send';
-        #         var parent = window.opener;
-        #         parent.location = url;
-        #     } else {
-        #         doExport(current);
-        #     }
+        #   var responseObject = jQuery.parseJSON(response);
+        #   var current = responseObject.current;
+        #   var percentComplete = responseObject.percentComplete;
+        #   if(percentComplete == '100'){
+        #     var url = 'https://HST/~SITE/admin/index.php?m=ajax_export_send';
+        #     var parent = window.opener;
+        #     parent.location = url;
+        #   } else {
+        #     doExport(current);
+        #   }
         # })
 
         # Call the processExportCycle function until percentComplete == 100.
-        ajax_controller_url = self._base_url + "/controllers/ajaxController.php"
+        ajax_controller_url =\
+            self._base_url + "/controllers/ajaxController.php"
         current = 0
         while True:
-            url = "{}?object=ExportAjax&function=processExportCycle&current={}".format(
-                ajax_controller_url,
-                current
-            )
+            url = (
+                "{}"
+                "?object=ExportAjax"
+                "&function=processExportCycle"
+                "&current={}"
+            ).format(ajax_controller_url, current)
             response = self._browser.open(url).read()
             response_object = json.loads(response)
             if response_object["percentComplete"] == 100:
@@ -175,7 +179,7 @@ class CCBrowser(object):
     def get_personalizations(self):
         """Return a list of per-personalization dictionaries."""
 
-        if self._personalizations == None:
+        if self._personalizations is None:
             filename = os.path.join(self._cache_dir, "personalizations.csv")
 
             # Download products file if it is out of date.
@@ -267,7 +271,7 @@ class CCBrowser(object):
     def get_products(self):
         """Return a list of per-product dictionaries."""
 
-        if self._products == None:
+        if self._products is None:
             filename = os.path.join(self._cache_dir, "products.csv")
 
             # Download products file if it is out of date.
@@ -322,12 +326,12 @@ class CCBrowser(object):
         # Select first and only form on page.
         self._browser.select_form(nr=0)
 
-        #print [item.name for item in form.find_control('useFile').items]
+        # print [item.name for item in form.find_control('useFile').items]
         # Set the form values.
-        #self._browser["instance"] = "product_import"
-        #self._browser["xsubmit"] = "true"
-        #self._browser["file"] = "cctools.csv"
-        #self._browser["useFile"] = ["Y",]
+        # self._browser["instance"] = "product_import"
+        # self._browser["xsubmit"] = "true"
+        # self._browser["file"] = "cctools.csv"
+        # self._browser["useFile"] = ["Y",]
         with open("/tmp/cctools.csv", "wt") as tfile:
             tfile.write("SKU,{}\n{},{}\n".format(key, sku, value))
         tfile.close()
@@ -337,7 +341,8 @@ class CCBrowser(object):
             "/tmp/cctools.csv",
             name="importFile"
         )
-        #self._browser["importFile"] = "SKU,{}\n{},{}\n".format(key, sku, value)
+        # self._browser["importFile"] =\
+        #     "SKU,{}\n{},{}\n".format(key, sku, value)
         self._browser["updateType"] = "update"
 
         # Submit the form (press the "????" button).
@@ -366,8 +371,9 @@ class CCBrowser(object):
         self._browser.select_form(nr=0)
 
         # Set the form values.
-        #self._browser["instance"] = "product_import"
-        self._browser["go"] = self._admin_url + "?m=ajax_import&instance=product_import"
+        # self._browser["instance"] = "product_import"
+        self._browser["go"] =\
+            self._admin_url + "?m=ajax_import&instance=product_import"
         self._browser["submit"] = "true"
         self._browser["file"] = "cctools.csv"
         self._browser["useFile"] = "Y"
@@ -422,7 +428,7 @@ class CCBrowser(object):
     def get_categories(self):
         """Return a list of per-category dictionaries."""
 
-        if self._categories == None:
+        if self._categories is None:
             filename = os.path.join(self._cache_dir, "categories.csv")
 
             # Download categories file if it is out of date.
@@ -450,8 +456,8 @@ class CCBrowser(object):
         """Build the dictionary used for sorting by category based
         upon the category Sort value from CoreCommerce.
         """
-        if self._category_sort == None:
-            if self._categories == None:
+        if self._category_sort is None:
+            if self._categories is None:
                 self.get_categories()
             self._category_sort = dict()
             for category in self._categories:
@@ -463,7 +469,7 @@ class CCBrowser(object):
         """Return a key for a product dictionary used to sort by
         category, product_name.
         """
-        if self._category_sort == None:
+        if self._category_sort is None:
             self._init_category_sort()
         category = product["Category"]
         if category in self._category_sort:
@@ -476,7 +482,7 @@ class CCBrowser(object):
         """Return a key for a product dictionary used to sort by
         category, product_name.
         """
-        if self._category_sort == None:
+        if self._category_sort is None:
             self._init_category_sort()
         category = product["Category"]
         if category in self._category_sort:
@@ -504,6 +510,7 @@ _HTML_TO_PLAIN_TEXT_DICT = {
     "</p>": " "
 }
 _HTML_TO_PLAIN_TEXT_RE = re.compile('|'.join(_HTML_TO_PLAIN_TEXT_DICT.keys()))
+
 
 def html_to_plain_text(string):
     """Convert HTML markup to plain text."""

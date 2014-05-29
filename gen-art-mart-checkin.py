@@ -21,6 +21,7 @@ import sys
 INCH = reportlab.lib.units.inch
 BLACK = reportlab.lib.colors.black
 
+
 class NumberedCanvas(reportlab.pdfgen.canvas.Canvas):
     """http://code.activestate.com/recipes/576832/"""
     def __init__(self, *args, **kwargs):
@@ -68,7 +69,11 @@ def on_page(canvas, doc):
 
     # Upper-right block.
     canvas.setFont('Helvetica', 10)
-    canvas.drawString(6.65 * INCH, page_height - 0.60 * INCH, "Office Use Only")
+    canvas.drawString(
+        6.65 * INCH,
+        page_height - 0.60 * INCH,
+        "Office Use Only"
+    )
     canvas.setFont('Helvetica', 9)
     canvas.drawRightString(7.15 * INCH, page_height - 0.80 * INCH, "Recd. Via")
     canvas.drawRightString(7.15 * INCH, page_height - 1.00 * INCH, "Date Recd")
@@ -121,7 +126,7 @@ def generate_pdf(products, quantities, pdf_filename):
         pdf_filename,
         pagesize=reportlab.lib.pagesizes.letter,
         title="Art Mart Inventory Sheet Check In/Out",
-        #showBoundary=True
+        # showBoundary=True
     )
 
     # Construct a frame.
@@ -204,14 +209,20 @@ def generate_pdf(products, quantities, pdf_filename):
         ('ALIGN', (5, 0), (5, 0), 'LEFT'),
         # Other
         ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        #('GRID', (0, 0), (-1, -1), 1.0, BLACK)
+        # ('GRID', (0, 0), (-1, -1), 1.0, BLACK)
     ]
     header_row = (
         reportlab.platypus.Paragraph("Existing<br/>Qty", col_header_style),
         reportlab.platypus.Paragraph("Barcode<br/>&nbsp;", col_center_style),
         reportlab.platypus.Paragraph("Qty<br/>Added", col_header_style),
-        reportlab.platypus.Paragraph("Price<br/>&nbsp;", col_align_right_style),
-        reportlab.platypus.Paragraph("Description<br/>&nbsp;", col_header_style),
+        reportlab.platypus.Paragraph(
+            "Price<br/>&nbsp;",
+            col_align_right_style
+        ),
+        reportlab.platypus.Paragraph(
+            "Description<br/>&nbsp;",
+            col_header_style
+        ),
         reportlab.platypus.Paragraph("Total<br/>Qty", col_header_style)
     )
     table_data = [header_row]
