@@ -37,7 +37,9 @@ if [ "${OUTPUT_DIR}" ]; then
 fi
 rm -f ${FILENAME}
 
-# Generate the order form.
+# Generate the order form.  The "--exclude-sku" options indicate which
+# products should be excluded.
+#
 # SKU 30001 = All other Earrings
 "${SCRIPTDIR}/gen-wholesale-order.py"\
     --outfile="${FILENAME}"\
