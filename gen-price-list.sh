@@ -37,7 +37,9 @@ if [ "${OUTPUT_DIR}" ]; then
 fi
 rm -f ${FILENAME}
 
-# Generate the price list.
+# Generate the price list.  The "--exclude-sku" options indicate which
+# products should be excluded.
+#
 # 40012 = Rosary
 # 40050 = Mary Basket
 # 40051 = Mary Basket Small
