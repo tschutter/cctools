@@ -48,7 +48,9 @@ if [ -f "${FILENAME}" ]; then
     done
 fi
 
-# Generate the po/invoice.
+# Generate the po/invoice.  The "--exclude-sku" options indicate which
+# products should be excluded.
+#
 # SKU 30001 = All other Earrings
 "${SCRIPTDIR}/gen-po-invoice.py"\
     --number="${NUMBER}"\
