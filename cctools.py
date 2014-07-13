@@ -33,7 +33,6 @@ class CCBrowser(object):
         username,
         password,
         clean=True,
-        verbose=True,
         cache_ttl=3600,
         proxy=None
     ):

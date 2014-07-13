@@ -8,9 +8,10 @@ import ConfigParser
 import argparse
 import cctools
 import itertools
+import logging
+import notify_send_handler
 import openpyxl  # sudo apt-get install python-openpyxl
 import os
-import sys
 import datetime
 
 # Cell style constants.
@@ -638,6 +639,20 @@ def main():
     # Parse command line arguments.
     args = arg_parser.parse_args()
 
+    # Configure logging.
+    logging.basicConfig(
+        level=logging.INFO if args.verbose else logging.WARNING
+    )
+    logger = logging.getLogger()
+
+    # Also log using notify-send if it is available.
+    if notify_send_handler.NotifySendHandler.is_available():
+        logger.addHandler(
+            notify_send_handler.NotifySendHandler(
+                os.path.splitext(os.path.basename(__file__))[0]
+            )
+        )
+
     # Read config file.
     config = ConfigParser.RawConfigParser()
     config.readfp(open(args.config))
@@ -647,22 +662,17 @@ def main():
         config.get("website", "host"),
         config.get("website", "site"),
         config.get("website", "username"),
-        config.get("website", "password"),
-        verbose=args.verbose
+        config.get("website", "password")
     )
 
     # Fetch products list.
     products = cc_browser.get_products()
 
     # Generate spreadsheet.
-    if args.verbose:
-        sys.stderr.write(
-            "Generating %s\n" % os.path.abspath(args.xlsx_filename)
-        )
+    logger.debug("Generating %s" % os.path.abspath(args.xlsx_filename))
     generate_xlsx(args, config, cc_browser, products)
 
-    if args.verbose:
-        sys.stderr.write("Generation complete\n")
+    logger.debug("Generation complete")
     return 0
 
 

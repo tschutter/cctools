@@ -9,11 +9,12 @@ import argparse
 import cctools
 import csv
 import datetime
+import logging
 import math
+import notify_send_handler
 import os
 import reportlab.lib  # sudo apt-get install python-reportlab
 import reportlab.platypus
-import sys
 
 # Best reportlab reference is the ReportLab User's Guide.
 
@@ -340,6 +341,20 @@ def main():
     # Parse command line arguments.
     args = arg_parser.parse_args()
 
+    # Configure logging.
+    logging.basicConfig(
+        level=logging.INFO if args.verbose else logging.WARNING
+    )
+    logger = logging.getLogger()
+
+    # Also log using notify-send if it is available.
+    if notify_send_handler.NotifySendHandler.is_available():
+        logger.addHandler(
+            notify_send_handler.NotifySendHandler(
+                os.path.splitext(os.path.basename(__file__))[0]
+            )
+        )
+
     # Read config file.
     config = ConfigParser.RawConfigParser()
     config.readfp(open(args.config))
@@ -349,8 +364,7 @@ def main():
         config.get("website", "host"),
         config.get("website", "site"),
         config.get("website", "username"),
-        config.get("website", "password"),
-        verbose=args.verbose
+        config.get("website", "password")
     )
 
     # Fetch products list.
@@ -363,19 +377,16 @@ def main():
     )
 
     if args.write_quant:
-        if args.verbose:
-            sys.stderr.write("Generating %s\n" % args.quant_filename)
+        logger.debug("Generating %s" % args.quant_filename)
         write_quantities(args.quant_filename, products)
 
     else:
         quantities = load_quantities(args.quant_filename)
         pdf_filename = args.pdf_filename
-        if args.verbose:
-            sys.stderr.write("Generating %s\n" % pdf_filename)
+        logger.debug("Generating %s" % pdf_filename)
         generate_pdf(products, quantities, pdf_filename)
 
-    if args.verbose:
-        sys.stderr.write("Generation complete\n")
+    logger.debug("Generation complete")
     return 0
 
 if __name__ == "__main__":

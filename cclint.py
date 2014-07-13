@@ -38,6 +38,8 @@ from __future__ import print_function
 import ConfigParser
 import argparse
 import cctools
+import logging
+import notify_send_handler
 import os
 import re
 import sys
@@ -164,6 +166,20 @@ def main():
     # Parse command line arguments.
     args = arg_parser.parse_args()
 
+    # Configure logging.
+    logging.basicConfig(
+        level=logging.INFO if args.verbose else logging.WARNING
+    )
+    logger = logging.getLogger()
+
+    # Also log using notify-send if it is available.
+    if notify_send_handler.NotifySendHandler.is_available():
+        logger.addHandler(
+            notify_send_handler.NotifySendHandler(
+                os.path.splitext(os.path.basename(__file__))[0]
+            )
+        )
+
     # Read config file.
     config = ConfigParser.RawConfigParser()
     config.optionxform = str  # preserve case of option names
@@ -177,8 +193,7 @@ def main():
         config.get("website", "host"),
         config.get("website", "site"),
         config.get("website", "username"),
-        config.get("website", "password"),
-        verbose=args.verbose,
+        config.get("website", "password")
         clean=args.clean,
         cache_ttl=0 if args.refresh_cache else args.cache_ttl
     )
@@ -219,8 +234,7 @@ def main():
             personalization_display_name(personalization)
         )
 
-    if args.verbose:
-        sys.stderr.write("Checks complete\n")
+    logger.info("Checks complete")
     return 0
 
 if __name__ == "__main__":
