@@ -14,10 +14,15 @@ import operator
 import os
 import re
 
+# Define canonical object types.
+PRODUCT = "product"
+CATEGORY = "category"
+PERSONALIZATION = "personalization"
+
 # Specify abbreviations for object types.
-PRODUCT_ABBREVS = ["product", "prod"]
-CATEGORY_ABBREVS = ["category", "cat"]
-PERSONALIZATION_ABBREVS = ["personalization", "pers"]
+PRODUCT_ABBREVS = [PRODUCT, "products", "prod"]
+CATEGORY_ABBREVS = [CATEGORY, "categories", "cat"]
+PERSONALIZATION_ABBREVS = [PERSONALIZATION, "pers"]
 
 
 # In some output formats (such as table), it is helpful to have
@@ -88,7 +93,7 @@ def output_table_row(row, col_widths, mapping=None):
         mapping = dict()
     print(
         "| " + " | ".join(
-            "{0:{1}}" % (mapping.get(field, field), col_widths[col])
+            "{0:{1}}".format(mapping.get(field, field), col_widths[col])
             for col, field in enumerate(row)
         ) + " |"
     )
@@ -166,7 +171,7 @@ def get_default_fields(args, config):
                     for x in value.split(",")
                 ]
 
-    if args.obj_type == "product":
+    if args.obj_type == PRODUCT:
         return [
             "Category",
             "Product Name",
@@ -180,10 +185,10 @@ def get_default_fields(args, config):
             "Teaser"
         ]
 
-    elif args.obj_type == "category":
+    elif args.obj_type == CATEGORY:
         return ["Sort", "Category Name", "Thumbnail"]
 
-    elif args.obj_type == "personalization":
+    elif args.obj_type == PERSONALIZATION:
         return [
             "Product SKU",
             "SKU",
@@ -223,13 +228,13 @@ def get_output_fields(args, config, objects):
 
 def get_objects(args, cc_browser):
     """Get and filter objects from the cc_browser."""
-    if args.obj_type == "product":
+    if args.obj_type == PRODUCT:
         objects = cc_browser.get_products()
 
-    elif args.obj_type == "category":
+    elif args.obj_type == CATEGORY:
         objects = cc_browser.get_categories()
 
-    elif args.obj_type == "personalization":
+    elif args.obj_type == PERSONALIZATION:
         objects = cc_browser.get_personalizations()
 
     if args.filter:
@@ -246,7 +251,7 @@ def action_list(args, config, cc_browser):
     """List objects of a type."""
     objects = get_objects(args, cc_browser)
     fields = get_output_fields(args, config, objects)
-    if args.obj_type == "personalization":
+    if args.obj_type == PERSONALIZATION:
         objects = sorted(
             objects,
             key=cc_browser.personalization_sort_key
@@ -258,15 +263,16 @@ def action_list(args, config, cc_browser):
 
 def action_list_fields(args, config, cc_browser):
     """List fields of a type."""
-    if args.obj_type == "product":
+    if args.obj_type == PRODUCT:
         products = cc_browser.get_products()
         field_names = sorted(products[0].keys())
-    elif args.obj_type == "category":
+    elif args.obj_type == CATEGORY:
         categories = cc_browser.get_categories()
         field_names = sorted(categories[0].keys())
-    elif args.obj_type == "personalization":
+    elif args.obj_type == PERSONALIZATION:
         personalizations = cc_browser.get_personalizations()
         field_names = sorted(personalizations[0].keys())
+
     fields = ["Field Name"]
     records = list()
     for field_name in field_names:
@@ -276,13 +282,13 @@ def action_list_fields(args, config, cc_browser):
 
 def find_object(args, cc_browser):
     """Return an object iff there is one object matched by spec."""
-    if args.obj_type == "product":
+    if args.obj_type == PRODUCT:
         objects = cc_browser.get_products()
         keys = ["SKU", "Product Name"]
-    elif args.obj_type == "category":
+    elif args.obj_type == CATEGORY:
         objects = cc_browser.get_categories()
         keys = ["Category Name"]
-    elif args.obj_type == "personalization":
+    elif args.obj_type == PERSONALIZATION:
         objects = cc_browser.get_personalizations()
         keys = ["Question|Answer"]
 
@@ -345,15 +351,15 @@ def action_update(args, config, cc_browser):
 
 def action_refresh(args, config, cc_browser):
     """Refresh CoreCommerce object cache."""
-    if not args.obj_type or args.obj_type == "product":
+    if not args.obj_type or args.obj_type == PRODUCT:
         print("Refreshing products")
         cc_browser.get_products()
 
-    if not args.obj_type or args.obj_type == "category":
+    if not args.obj_type or args.obj_type == CATEGORY:
         print("Refreshing categories")
         cc_browser.get_categories()
 
-    if not args.obj_type or args.obj_type == "personalization":
+    if not args.obj_type or args.obj_type == PERSONALIZATION:
         print("Refreshing personalizations")
         cc_browser.get_personalizations()
 
@@ -388,11 +394,11 @@ def add_obj_type_argument(arg_parser, nargs=None):
 def normalize_obj_type(args):
     if args.obj_type:
         if args.obj_type in PRODUCT_ABBREVS:
-            args.obj_type = "product"
+            args.obj_type = PRODUCT
         elif args.obj_type in CATEGORY_ABBREVS:
-            args.obj_type = "category"
+            args.obj_type = CATEGORY
         elif args.obj_type in PERSONALIZATION_ABBREVS:
-            args.obj_type = "personalization"
+            args.obj_type = PERSONALIZATION
 
 
 def main():
@@ -497,7 +503,6 @@ def main():
         config.get("website", "username"),
         config.get("website", "password"),
         cache_ttl=0 if args.func == action_refresh else 3600,
-        verbose=args.verbose
         # ,proxy="localhost:8080"  # allow MITM debugging
     )
 
