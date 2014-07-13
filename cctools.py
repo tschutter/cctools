@@ -7,10 +7,10 @@ Web scraper interface to CoreCommerce.
 from __future__ import print_function
 import csv
 import json
+import logging
 import mechanize  # sudo apt-get install python-mechanize
 import os
 import re
-import sys
 import time
 
 # http://wwwsearch.sourceforge.net/mechanize/
@@ -18,6 +18,8 @@ import time
 
 # pylint seems to be confused by calling methods via self._browser.
 # pylint: disable=E1102
+
+logger = logging.getLogger(__name__)
 
 
 class CCBrowser(object):
@@ -62,9 +64,8 @@ class CCBrowser(object):
 
         # Notify user of time consuming step.
         if self._verbose:
-            sys.stderr.write(
-                "Logging into {} as {}\n".format(self._host, self._username)
-            )
+            logger.info("Logging into {}".format(self._host))
+            logger.debug("Username = {}".format(self._username))
 
         # Open the login page.
         self._browser.open(self._admin_url)
@@ -146,7 +147,7 @@ class CCBrowser(object):
 
         # Notify user of time consuming step.
         if self._verbose:
-            sys.stderr.write("Downloading personalizations\n")
+            logger.info("Downloading personalizations")
 
         # Load export page.
         url = "{}?{}{}".format(
@@ -203,7 +204,7 @@ class CCBrowser(object):
 
         # Notify user of time consuming step.
         if self._verbose:
-            sys.stderr.write("Downloading products\n")
+            logger.info("Downloading products")
 
         # Load the export page.
         url = (
@@ -307,8 +308,8 @@ class CCBrowser(object):
 
         # Notify user of time consuming step.
         if self._verbose:
-            sys.stderr.write(
-                "Updating product SKU={}, setting {} to {}\n".format(
+            logger.info(
+                "Updating product SKU={}, setting {} to {}".format(
                     sku,
                     key,
                     value
@@ -406,7 +407,7 @@ class CCBrowser(object):
 
         # Notify user of time consuming step.
         if self._verbose:
-            sys.stderr.write("Downloading categories\n")
+            logger.info("Downloading categories")
 
         # Load the export page.
         url = (
