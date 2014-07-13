@@ -88,7 +88,7 @@ def output_table_row(row, col_widths, mapping=None):
         mapping = dict()
     print(
         "| " + " | ".join(
-            "%-*s" % (col_widths[col], mapping.get(field, field))
+            "{0:{1}}" % (mapping.get(field, field), col_widths[col])
             for col, field in enumerate(row)
         ) + " |"
     )

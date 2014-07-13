@@ -38,7 +38,7 @@ def add_product_dict(args, config, cc_browser, products, worksheet):
         for product in product_group:
             if product["Discontinued Item"] == "Y":
                 continue
-            description = "%s: %s" % (
+            description = "{}: {}".format(
                 product["Product Name"],
                 cctools.html_to_plain_text(product["Teaser"])
             )
@@ -147,7 +147,7 @@ def main():
     products = cc_browser.get_products()
 
     # Generate spreadsheet.
-    logger.debug("Generating %s" % os.path.abspath(args.xlsx_filename))
+    logger.debug("Generating {}".format(os.path.abspath(args.xlsx_filename)))
     generate_xlsx(args, config, cc_browser, products)
 
     logger.debug("Generation complete")

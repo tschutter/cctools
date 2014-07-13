@@ -58,13 +58,13 @@ def parse_checks(config, section):
 
 def product_display_name(product):
     """Construct a display name for a product."""
-    display_name = "%s %s" % (product["SKU"], product["Product Name"])
+    display_name = "{} {}".format(product["SKU"], product["Product Name"])
     return display_name.strip()
 
 
 def personalization_display_name(personalization):
     """Construct a display name for a personalization."""
-    display_name = "%s %s %s" % (
+    display_name = "{} {} {}".format(
         personalization["Product SKU"],
         personalization["Product Name"],
         personalization["Question|Answer"]
@@ -80,7 +80,7 @@ def check_skus(products):
         sku = product["SKU"]
         if sku != "":
             if sku in skus:
-                print("%s '%s': SKU already used by '%s'" % (
+                print("{} '{}': SKU already used by '{}'".format(
                     "Product",
                     display_name,
                     skus[sku]
@@ -105,17 +105,19 @@ def check_item(item_checks, item_type_name, items, item, item_name):
             ):
                 continue
         else:
-            print("ERROR: Unknown check syntax '%s'" % check)
+            print("ERROR: Unknown check syntax '{}'".format(check))
             sys.exit(1)
         pattern = "^" + check_parts[0] + "$"  # entire value must match
         if not re.match(pattern, item[key]):
-            print("%s '%s': Invalid '%s' of '%s' (does not match %s)" % (
-                item_type_name,
-                item_name,
-                key,
-                item[key],
-                pattern
-            ))
+            print(
+                "{} '{}': Invalid '{}' of '{}' (does not match {})".format(
+                    item_type_name,
+                    item_name,
+                    key,
+                    item[key],
+                    pattern
+                )
+            )
 
 
 def main():

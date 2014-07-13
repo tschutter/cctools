@@ -44,7 +44,7 @@ class NumberedCanvas(reportlab.pdfgen.canvas.Canvas):
 
     def draw_page_number(self, page_count):
         self.setFont("Helvetica", 9)
-        label_str = "Page %d of %d" % (self._pageNumber, page_count)
+        label_str = "Page {} of {}".format(self._pageNumber, page_count)
         self.drawRightString(8.25 * INCH, 0.50 * INCH, label_str)
 
 
@@ -233,8 +233,8 @@ def generate_pdf(products, quantities, pdf_filename):
             quantity = quantities[sku]
             # Round price to nearest dollar.
             price = product["Price"]
-            price = "$%.0f" % math.trunc(float(price) + 0.5)
-            description = "%s: %s" % (
+            price = "${.0f}".format(math.trunc(float(price) + 0.5))
+            description = "{}: {}".format(
                 product["Product Name"],
                 cctools.html_to_plain_text(product["Teaser"])
             )
@@ -279,7 +279,7 @@ def write_quantities(quant_filename, products):
         quant_file.write("Quantity,SKU,Description(ignored)\n")
         for product in products:
             sku = product["SKU"]
-            description = "%s: %s" % (
+            description = "{}: {}".format(
                 product["Product Name"],
                 cctools.html_to_plain_text(product["Teaser"])
             )
@@ -294,7 +294,7 @@ def main():
     )
 
     today = datetime.date.today()
-    default_pdf_filename = "%4d-%02d-%02d-ArtMartCheckInOut.pdf" % (
+    default_pdf_filename = "{:4}-{:02}-{:02}-ArtMartCheckInOut.pdf".format(
         today.year,
         today.month,
         today.day
@@ -377,13 +377,13 @@ def main():
     )
 
     if args.write_quant:
-        logger.debug("Generating %s" % args.quant_filename)
+        logger.debug("Generating {}".format(args.quant_filename))
         write_quantities(args.quant_filename, products)
 
     else:
         quantities = load_quantities(args.quant_filename)
         pdf_filename = args.pdf_filename
-        logger.debug("Generating %s" % pdf_filename)
+        logger.debug("Generating {}".format(pdf_filename))
         generate_pdf(products, quantities, pdf_filename)
 
     logger.debug("Generation complete")

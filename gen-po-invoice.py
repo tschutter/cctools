@@ -331,7 +331,7 @@ def add_products(args, worksheet, row, cc_browser, products):
             category = product["Category"]
             if product["Discontinued Item"] == "Y":
                 continue
-            description = "  %s: %s" % (
+            description = "  {}: {}".format(
                 product["Product Name"],
                 cctools.html_to_plain_text(product["Teaser"])
             )
@@ -341,7 +341,7 @@ def add_products(args, worksheet, row, cc_browser, products):
             set_cell(worksheet, row, col_description, description)
             style = set_cell(worksheet, row, col_price, product["Cost"]).style
             style.number_format.format_code = NUMBER_FORMAT_USD
-            total_formula = "=IF(%s%i=\"\", \"\", %s%i * %s%i)" % (
+            total_formula = "=IF({}{}=\"\", \"\", {}{} * {}{})".format(
                 col_letter(col_qty),
                 row_number(row),
                 col_letter(col_price),
@@ -413,7 +413,7 @@ def add_totals(
     col_label_end = col_total - 1
 
     # Subtotal.
-    subtotal_formula = "=SUM(%s%i:%s%i)" % (
+    subtotal_formula = "=SUM({}{}:{}{})".format(
         col_letter(col_total),
         row_number(first_product_row),
         col_letter(col_total),
@@ -433,7 +433,7 @@ def add_totals(
 
     # Discount.
     percent_discount = config.getfloat("invoice", "percent_discount")
-    discount_formula = "=%s%i * %f" % (
+    discount_formula = "={}{} * {}".format(
         col_letter(col_total),
         row_number(subtotal_row),
         -percent_discount / 100.0
@@ -466,7 +466,7 @@ def add_totals(
             row += 1
 
     # Total.
-    total_formula = "=SUM(%s%i:%s%i)" % (
+    total_formula = "=SUM({}{}:{}{})".format(
         col_letter(col_total),
         row_number(subtotal_row),
         col_letter(col_total),
@@ -669,7 +669,9 @@ def main():
     products = cc_browser.get_products()
 
     # Generate spreadsheet.
-    logger.debug("Generating %s" % os.path.abspath(args.xlsx_filename))
+    sys.stderr.write(
+        "Generating {}".format(os.path.abspath(args.xlsx_filename))
+    )
     generate_xlsx(args, config, cc_browser, products)
 
     logger.debug("Generation complete")

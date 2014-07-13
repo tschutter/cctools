@@ -66,7 +66,7 @@ def on_page(canvas, doc):
     canvas.drawRightString(
         page_width - 0.5 * INCH,
         0.5 * INCH,
-        "Revised: %s" % today_str
+        "Revised: {}".format(today_str)
     )
     canvas.restoreState()
 
@@ -84,7 +84,7 @@ def create_col_frames(doc, ncols):
     frame_height = page_height - tb_margin * 2
     frames = [
         reportlab.platypus.Frame(
-            id="col%i" % col,
+            id="col{}".format(col),
             x1=lr_margin + (frame_width + col_spacing) * col,
             y1=tb_margin,
             width=frame_width,
@@ -180,7 +180,7 @@ def generate_pdf(
                 price_multiplier
             )
             if args.display_sku:
-                row = ("%s (%s)" % (product_name, product["SKU"]), price)
+                row = ("{} ({})".format(product_name, product["SKU"]), price)
             else:
                 row = (product_name, price)
             table_data.append(row)
@@ -378,7 +378,7 @@ def main():
     products = get_products(args, cc_browser)
 
     # Generate PDF file.
-    logger.debug("Generating %s" % os.path.abspath(args.pdf_file))
+    logger.debug("Generating {}\n".format(os.path.abspath(args.pdf_file)))
     generate_pdf(
         args,
         config,

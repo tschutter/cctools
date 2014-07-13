@@ -37,7 +37,7 @@ class CCBrowser(object):
         proxy=None
     ):
         self._host = host
-        self._base_url = "https://%s/~%s" % (host, site)
+        self._base_url = "https://{}/~{}".format(host, site)
         self._admin_url = self._base_url + "/admin/index.php"
         self._username = username
         self._password = password
@@ -485,10 +485,10 @@ class CCBrowser(object):
             self._init_category_sort()
         category = product["Category"]
         if category in self._category_sort:
-            category_sort_key = "%05i" % self._category_sort[category]
+            category_sort_key = "{:05i}".format(self._category_sort[category])
         else:
             category_sort_key = category
-        return "%s:%s" % (category_sort_key, product["Product Name"])
+        return "{}:{}".format(category_sort_key, product["Product Name"])
 
     def sort_key_by_category(self, product):
         """Return a key for a product dictionary used to sort by
@@ -498,7 +498,7 @@ class CCBrowser(object):
             self._init_category_sort()
         category = product["Category"]
         if category in self._category_sort:
-            category_sort_key = "%05i" % self._category_sort[category]
+            category_sort_key = "{:05i}".format(self._category_sort[category])
         else:
             category_sort_key = category
         return category_sort_key

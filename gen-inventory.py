@@ -188,11 +188,11 @@ def main():
                     if pers_sku == "":
                         sku = product_sku
                     else:
-                        sku = "%s-%s" % (product_sku, pers_sku)
+                        sku = "{}-{}".format(product_sku, pers_sku)
                     pers_level = personalization["Inventory Level"]
                     answer = personalization["Question|Answer"]
                     answer = answer.replace("|", "=")
-                    name = "%s (%s)" % (product_name, answer)
+                    name = "{} ({})".format(product_name, answer)
                     enabled = personalization["Answer Enabled"]
                     main_photo = personalization["Main Photo"]
                     inventory.append(
@@ -200,9 +200,9 @@ def main():
                     )
 
     # for sku, level, name in inventory:
-    #     print("%-9s %4s %-45s" % (sku, level, name))
+    #     print("{:9} {:4} {}".format(sku, level, name))
 
-    logger.debug("Generating %s" % args.xlsx_filename)
+    logger.debug("Generating {}".format(args.xlsx_filename))
     generate_xlsx(args, config, cc_browser, inventory)
 
     logger.debug("Generation complete")

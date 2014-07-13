@@ -247,7 +247,7 @@ def add_products(args, worksheet, row, cc_browser, products):
         for product in product_group:
             if product["Discontinued Item"] == "Y":
                 continue
-            description = "%s: %s" % (
+            description = "{}: {}".format(
                 product["Product Name"],
                 cctools.html_to_plain_text(product["Teaser"])
             )
@@ -258,7 +258,7 @@ def add_products(args, worksheet, row, cc_browser, products):
             wholesale_price = rounded_price * args.wholesale_fraction
             style = set_cell(worksheet, row, col_price, wholesale_price).style
             style.number_format.format_code = NUMBER_FORMAT_USD
-            total_formula = "=IF(%s%i=\"\", \"\", %s%i * %s%i)" % (
+            total_formula = "=IF({}{}=\"\", \"\", {}{} * {}{})".format(
                 col_letter(col_qty),
                 row_number(row),
                 col_letter(col_price),
@@ -289,7 +289,7 @@ def add_products(args, worksheet, row, cc_browser, products):
     col_label_end = col_total - 1
 
     # Subtotal.
-    subtotal_formula = "=SUM(%s%i:%s%i)" % (
+    subtotal_formula = "=SUM({}{}:{}{})".format(
         col_letter(col_total),
         row_number(first_product_row),
         col_letter(col_total),
@@ -332,7 +332,7 @@ def add_products(args, worksheet, row, cc_browser, products):
     row += 1
 
     # Total.
-    total_formula = "=SUM(%s%i:%s%i)" % (
+    total_formula = "=SUM({}{}:{}{})".format(
         col_letter(col_total),
         row_number(subtotal_row),
         col_letter(col_total),
@@ -486,7 +486,7 @@ def main():
     products = cc_browser.get_products()
 
     # Generate spreadsheet.
-    logger.debug("Generating %s" % args.xlsx_filename)
+    logger.debug("Generating {}".format(args.xlsx_filename))
     generate_xlsx(args, config, cc_browser, products)
 
     logger.debug("Generation complete")
