@@ -41,7 +41,6 @@ class CCBrowser(object):
         self._username = username
         self._password = password
         self._clean = clean
-        self._verbose = verbose
         self._cache_ttl = float(cache_ttl)
         self._cache_dir = os.environ["HOME"] + "/.cache/cctools"
         if not os.path.exists(self._cache_dir):
@@ -62,10 +61,9 @@ class CCBrowser(object):
         if self._logged_in:
             return
 
-        # Notify user of time consuming step.
-        if self._verbose:
-            logger.info("Logging into {}".format(self._host))
-            logger.debug("Username = {}".format(self._username))
+        # Log time consuming step.
+        logger.info("Logging into {}".format(self._host))
+        logger.debug("Username = {}".format(self._username))
 
         # Open the login page.
         self._browser.open(self._admin_url)
@@ -145,9 +143,8 @@ class CCBrowser(object):
         # Login if necessary.
         self._login()
 
-        # Notify user of time consuming step.
-        if self._verbose:
-            logger.info("Downloading personalizations")
+        # Log time consuming step.
+        logger.info("Downloading personalizations")
 
         # Load export page.
         url = "{}?{}{}".format(
@@ -202,9 +199,8 @@ class CCBrowser(object):
         # Login if necessary.
         self._login()
 
-        # Notify user of time consuming step.
-        if self._verbose:
-            logger.info("Downloading products")
+        # Log time consuming step.
+        logger.info("Downloading products")
 
         # Load the export page.
         url = (
@@ -306,15 +302,14 @@ class CCBrowser(object):
         # Login if necessary.
         self._login()
 
-        # Notify user of time consuming step.
-        if self._verbose:
-            logger.info(
-                "Updating product SKU={}, setting {} to {}".format(
-                    sku,
-                    key,
-                    value
-                )
+        # Log time consuming step.
+        logger.info(
+            "Updating product SKU={}, setting {} to {}".format(
+                sku,
+                key,
+                value
             )
+        )
 
         # Open the upload page.
         self._browser.open(
@@ -405,9 +400,8 @@ class CCBrowser(object):
         # Login if necessary.
         self._login()
 
-        # Notify user of time consuming step.
-        if self._verbose:
-            logger.info("Downloading categories")
+        # Log time consuming step.
+        logger.info("Downloading categories")
 
         # Load the export page.
         url = (
