@@ -75,10 +75,9 @@ rm -f ${FILENAME}
 if [ -f "${FILENAME}" ]; then
     # Enable monitor mode (job control).  If not set, evince will exit
     # when this shell exits.
-    echo "Opening ${FILENAME}"
     set -m
     evince "${FILENAME}" &
 else
-    echo "ERROR: '${FILENAME}' not created"
+    echo "ERROR: '${FILENAME}' not created" >&2
     read -p "Press [Enter] to continue..." key
 fi
