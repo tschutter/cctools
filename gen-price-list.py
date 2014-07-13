@@ -17,10 +17,10 @@ import datetime
 import itertools
 import logging
 import math
+import notify_send_handler
 import os
 import reportlab.lib  # sudo apt-get install python-reportlab
 import reportlab.platypus
-import subprocess
 
 # Best reportlab reference is the ReportLab User's Guide.
 
@@ -32,42 +32,6 @@ CURRENCY_INFO = {
     "ugx": ("", " USh", 1000.0),
     "usd": ("$", "", 1.0)
 }
-
-
-class NotifySendHandler(logging.Handler):
-    """logging Handler that displays records using notify-send."""
-    levelname_to_icon = {
-        "INFO": "dialog-information",
-        "WARNING": "dialog-warning",
-        "ERROR": "dialog-error",
-        "CRITICAL": "dialog-error"
-    }
-
-    def __init__(self, summary=None, expire_time=None):
-        logging.Handler.__init__(self)
-        self.summary = summary
-        self.expire_time = expire_time
-        self.setFormatter(logging.Formatter('%(msg)s'))
-
-    def emit(self, record):
-        """Override the default handler's emit method."""
-        message = self.format(record)
-        args = ['notify-send']
-        if self.expire_time:
-            args.append("--expire-time=%s" % self.expire_time)
-        icon = NotifySendHandler.levelname_to_icon.get(record.levelname, None)
-        if icon:
-            args.append("--icon=%s" % icon)
-        if self.summary:
-            args.append(self.summary)
-        args.append(message)
-        subprocess.check_call(args)
-
-    @staticmethod
-    def is_available():
-        p = subprocess.Popen(['which', 'notify-send'], stdout=subprocess.PIPE)
-        p.communicate()
-        return p.returncode == 0
 
 
 def calc_price_inc_tax(args, price, price_multiplier):
@@ -284,16 +248,6 @@ def get_products(args, cc_browser):
 
 def main():
     """main"""
-    # Configure logging.
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger()
-
-    # Also log using notify-send if it is available.
-    if NotifySendHandler.is_available():
-        logger.addHandler(
-            NotifySendHandler(os.path.splitext(os.path.basename(__file__))[0])
-        )
-
     # Construct default filename of configuration file.
     default_config = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
@@ -387,6 +341,20 @@ def main():
     if args.categories and args.exclude_categories:
         arg_parser.error("--category and --exclude-category specified")
 
+    # Configure logging.
+    logging.basicConfig(
+        level=logging.INFO if args.verbose else logging.WARNING
+    )
+    logger = logging.getLogger()
+
+    # Also log using notify-send if it is available.
+    if notify_send_handler.NotifySendHandler.is_available():
+        logger.addHandler(
+            notify_send_handler.NotifySendHandler(
+                os.path.splitext(os.path.basename(__file__))[0]
+            )
+        )
+
     # Read config file.
     config = ConfigParser.SafeConfigParser({
         "body_fontsize": "12"
@@ -403,16 +371,14 @@ def main():
         config.get("website", "host"),
         config.get("website", "site"),
         config.get("website", "username"),
-        config.get("website", "password"),
-        verbose=args.verbose
+        config.get("website", "password")
     )
 
     # Get product list.
     products = get_products(args, cc_browser)
 
     # Generate PDF file.
-    if args.verbose:
-        logger.debug("Generating %s" % os.path.abspath(args.pdf_file))
+    logger.debug("Generating %s" % os.path.abspath(args.pdf_file))
     generate_pdf(
         args,
         config,
@@ -421,8 +387,7 @@ def main():
         price_multiplier
     )
 
-    if args.verbose:
-        logger.debug("Generation complete")
+    logger.debug("Generation complete")
     return 0
 
 if __name__ == "__main__":
