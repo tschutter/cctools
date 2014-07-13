@@ -7,10 +7,12 @@ Web scraper interface to CoreCommerce.
 from __future__ import print_function
 import csv
 import json
+import lockfile  # sudo apt-get install python-lockfile
 import logging
 import mechanize  # sudo apt-get install python-mechanize
 import os
 import re
+import tempfile
 import time
 
 # http://wwwsearch.sourceforge.net/mechanize/
@@ -42,9 +44,17 @@ class CCBrowser(object):
         self._password = password
         self._clean = clean
         self._cache_ttl = float(cache_ttl)
-        self._cache_dir = os.environ["HOME"] + "/.cache/cctools"
+        self._cache_dir = os.path.join(os.environ["HOME"], ".cache", "cctools")
         if not os.path.exists(self._cache_dir):
             os.mkdir(self._cache_dir, 0o700)
+        # A single lockfile is used for all download operations.  We
+        # have no idea if the CoreCommerce ajax_export can support
+        # simultaneous downloads so we play it safe.  The lockfile
+        # module will append ".lock" to the filename.
+        self._download_lock_filename = os.path.join(
+            self._cache_dir,
+            "download"
+        )
         self._browser = mechanize.Browser()
         if proxy is not None:
             self._browser.set_proxies({"https": proxy})
@@ -180,16 +190,17 @@ class CCBrowser(object):
         if self._personalizations is None:
             filename = os.path.join(self._cache_dir, "personalizations.csv")
 
-            # Download products file if it is out of date.
-            if self._is_file_expired(filename):
-                self._download_personalizations_csv(filename)
+            with lockfile.FileLock(self._download_lock_filename):
+                # Download products file if it is out of date.
+                if self._is_file_expired(filename):
+                    self._download_personalizations_csv(filename)
 
-            # Read personalizations file.
-            self._personalizations = list(csv.DictReader(open(filename)))
+                # Read personalizations file.
+                self._personalizations = list(csv.DictReader(open(filename)))
 
-            # Cleanup suspect data.
-            if self._clean:
-                self._clean_personalizations()
+                # Cleanup suspect data.
+                if self._clean:
+                    self._clean_personalizations()
 
         return self._personalizations
 
@@ -271,16 +282,17 @@ class CCBrowser(object):
         if self._products is None:
             filename = os.path.join(self._cache_dir, "products.csv")
 
-            # Download products file if it is out of date.
-            if self._is_file_expired(filename):
-                self._download_products_csv(filename)
+            with lockfile.FileLock(self._download_lock_filename):
+                # Download products file if it is out of date.
+                if self._is_file_expired(filename):
+                    self._download_products_csv(filename)
 
-            # Read products file.
-            self._products = list(csv.DictReader(open(filename)))
+                # Read products file.
+                self._products = list(csv.DictReader(open(filename)))
 
-            # Cleanup suspect data.
-            if self._clean:
-                self._clean_products()
+                # Cleanup suspect data.
+                if self._clean:
+                    self._clean_products()
 
         return self._products
 
@@ -328,15 +340,20 @@ class CCBrowser(object):
         # self._browser["xsubmit"] = "true"
         # self._browser["file"] = "cctools.csv"
         # self._browser["useFile"] = ["Y",]
-        with open("/tmp/cctools.csv", "wt") as tfile:
-            tfile.write("SKU,{}\n{},{}\n".format(key, sku, value))
-        tfile.close()
-        self._browser.form.add_file(
-            open("/tmp/cctools.csv"),
-            "text/csv",
-            "/tmp/cctools.csv",
-            name="importFile"
+        named_tfile = tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".csv",
+            delete=False
         )
+        with named_tfile.file as tfile:
+            tfile.write("SKU,{}\n{},{}\n".format(key, sku, value))
+        with open(named_tfile.name, mode="w") as tfile:
+            self._browser.form.add_file(
+                tfile,
+                "text/csv",
+                named_tfile.name,
+                name="importFile"
+            )
         # self._browser["importFile"] =\
         #     "SKU,{}\n{},{}\n".format(key, sku, value)
         self._browser["updateType"] = "update"
@@ -426,16 +443,17 @@ class CCBrowser(object):
         if self._categories is None:
             filename = os.path.join(self._cache_dir, "categories.csv")
 
-            # Download categories file if it is out of date.
-            if self._is_file_expired(filename):
-                self._download_categories_csv(filename)
+            with lockfile.FileLock(self._download_lock_filename):
+                # Download categories file if it is out of date.
+                if self._is_file_expired(filename):
+                    self._download_categories_csv(filename)
 
-            # Read categories file.
-            self._categories = list(csv.DictReader(open(filename)))
+                # Read categories file.
+                self._categories = list(csv.DictReader(open(filename)))
 
-            # Cleanup suspect data.
-            if self._clean:
-                self._clean_categories()
+                # Cleanup suspect data.
+                if self._clean:
+                    self._clean_categories()
 
         return self._categories
 
