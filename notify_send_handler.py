@@ -54,6 +54,9 @@ class NotifySendHandler(logging.Handler):
     @staticmethod
     def is_available():
         """Returns True if the notify-send program is available."""
-        p = subprocess.Popen(['which', 'notify-send'], stdout=subprocess.PIPE)
-        p.communicate()
-        return p.returncode == 0
+        try:
+            # Use check_output() to swallow message to stdout.
+            subprocess.check_output(['which', 'notify-send'])
+            return True
+        except subprocess.CalledProcessError:
+            return False
