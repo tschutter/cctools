@@ -485,7 +485,7 @@ class CCBrowser(object):
             self._init_category_sort()
         category = product["Category"]
         if category in self._category_sort:
-            category_sort_key = "{:05i}".format(self._category_sort[category])
+            category_sort_key = "{:05d}".format(self._category_sort[category])
         else:
             category_sort_key = category
         return "{}:{}".format(category_sort_key, product["Product Name"])
@@ -498,7 +498,7 @@ class CCBrowser(object):
             self._init_category_sort()
         category = product["Category"]
         if category in self._category_sort:
-            category_sort_key = "{:05i}".format(self._category_sort[category])
+            category_sort_key = "{:05d}".format(self._category_sort[category])
         else:
             category_sort_key = category
         return category_sort_key
