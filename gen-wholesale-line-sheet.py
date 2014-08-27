@@ -154,7 +154,7 @@ def add_products(args, worksheet, row, cc_browser, products):
     col_category = 0
     col_description = 1
     col_price = 2
-    col_srp = 3
+    col_msrp = 3
     col_size = 4
     col_sku = 5
 
@@ -178,8 +178,8 @@ def add_products(args, worksheet, row, cc_browser, products):
     set_cell(
         worksheet,
         row,
-        col_srp,
-        "SRP",
+        col_msrp,
+        "MSRP",
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
     )
@@ -216,7 +216,7 @@ def add_products(args, worksheet, row, cc_browser, products):
     ):
         # Add product rows.
         for product in product_group:
-            if product["Discontinued Item"] == "Y":
+            if product["Available"] != "Y":
                 continue
 
             set_cell(worksheet, row, col_category, product["Category"])
@@ -233,7 +233,7 @@ def add_products(args, worksheet, row, cc_browser, products):
             style = set_cell(worksheet, row, col_price, wholesale_price).style
             style.number_format.format_code = NUMBER_FORMAT_USD
 
-            style = set_cell(worksheet, row, col_srp, online_price).style
+            style = set_cell(worksheet, row, col_msrp, online_price).style
             style.number_format.format_code = NUMBER_FORMAT_USD
 
             set_cell(worksheet, row, col_size, product["Size"])
@@ -245,8 +245,8 @@ def add_products(args, worksheet, row, cc_browser, products):
     # Set column widths.
     worksheet.column_dimensions[col_letter(col_category)].width = 21
     worksheet.column_dimensions[col_letter(col_description)].width = 70
-    worksheet.column_dimensions[col_letter(col_price)].width = 7
-    worksheet.column_dimensions[col_letter(col_srp)].width = 7
+    worksheet.column_dimensions[col_letter(col_price)].width = 9
+    worksheet.column_dimensions[col_letter(col_msrp)].width = 9
     worksheet.column_dimensions[col_letter(col_size)].width = 24
     worksheet.column_dimensions[col_letter(col_sku)].width = 6
 
