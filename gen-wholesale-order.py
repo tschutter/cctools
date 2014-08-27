@@ -245,7 +245,7 @@ def add_products(args, worksheet, row, cc_browser, products):
     ):
         # Add product rows.
         for product in product_group:
-            if product["Discontinued Item"] == "Y":
+            if product["Available"] != "Y":
                 continue
             description = "{}: {}".format(
                 product["Product Name"],
