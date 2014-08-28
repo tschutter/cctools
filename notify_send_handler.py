@@ -31,8 +31,8 @@ class NotifySendHandler(logging.Handler):
         "CRITICAL": "dialog-error"
     }
 
-    def __init__(self, summary=None, expire_time=None):
-        logging.Handler.__init__(self)
+    def __init__(self, summary=None, expire_time=None, level=logging.NOTSET):
+        logging.Handler.__init__(self, level=level)
         self.summary = summary
         self.expire_time = expire_time
         self.setFormatter(logging.Formatter('%(msg)s'))
