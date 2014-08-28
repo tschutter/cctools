@@ -2,6 +2,9 @@
 
 """
 Generates a Purchase Order / Commercial Invoice.
+
+All known products are included.  If you are never ordering a product
+again, then just don't order it.  Or use the --exclude-sku option.
 """
 
 import ConfigParser
