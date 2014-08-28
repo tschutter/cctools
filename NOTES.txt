@@ -1,0 +1,41 @@
+ccc update
+  mitmproxy can be used for debugging
+
+  https://www16.corecommerce.com/~cohu1/admin/index.php?m=ajax_import&instance=product_import
+    test-prod.mitm
+
+  https://www16.corecommerce.com/~cohu1/admin/index.php?m=ajax_import&instance=product_import
+  POST https://www16.corecommerce.com/~cohu1/admin/index.php
+    m:           ajax_import
+    instance:    product_import
+    xsubmit:     true
+    file:
+    useFile:     Y
+    importFile:  SKU,Price
+                 00000,5.62
+    updateType:  update
+
+  POST https://www16.corecommerce.com/~cohu1/admin/index.php?m=ajax_import_save&instance=product_import
+    m:           ajax_import_save
+    go:          https://www16.corecommerce.com/~cohu1/admin/index.php?m=ajax_import&instance=product_import
+    submit:      true
+    file:        test-prod-update.csv
+    useFile:     Y
+    instance:    product_import
+    updateType:  update
+    fields[0]:   pNum
+    fields[1]:   pPrice
+    ignore:      Y
+
+  GET https://www16.corecommerce.com/~cohu1/admin/index.php?m=ajax_import_save&instance=product_import&rs=doImport&rst=&rsrnd=1366573377627&rsargs[]=
+
+  GET https://www16.corecommerce.com/~cohu1/admin/index.php?m=ajax_import_save&importDone=1&instance=product_import
+
+  updateType = insert_update, update
+  removeProductsNotInFile = Y, N
+
+  something funky happens with cost
+
+  test-prod-update.csv
+    SKU,Price
+    00000,5.62
