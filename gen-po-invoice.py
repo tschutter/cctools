@@ -330,8 +330,6 @@ def add_products(args, worksheet, row, cc_browser, products):
         # Add product rows.
         for product in product_group:
             category = product["Category"]
-            if product["Discontinued Item"] == "Y":
-                continue
             description = "  {}: {}".format(
                 product["Product Name"],
                 cctools.html_to_plain_text(product["Teaser"])
