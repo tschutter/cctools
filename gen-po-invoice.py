@@ -7,12 +7,13 @@ Generates a Purchase Order / Commercial Invoice.
 import ConfigParser
 import argparse
 import cctools
+import datetime
 import itertools
 import logging
 import notify_send_handler
 import openpyxl  # sudo apt-get install python-openpyxl
 import os
-import datetime
+import sys
 
 # Cell style constants.
 ALIGNMENT_HORIZONTAL_RIGHT = openpyxl.style.Alignment.HORIZONTAL_RIGHT
