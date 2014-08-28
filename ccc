@@ -10,6 +10,8 @@ import ConfigParser
 import argparse
 import cctools
 import json
+import logging
+import notify_send_handler
 import operator
 import os
 import re
@@ -36,10 +38,8 @@ HEADER_MAP = {
     "Category Id": "CatId",
     "Product SKU": "PrdSKU",
     "Required": "QReq",
-    "Track Inventory": "TrkInv",
     "Question Enabled": "QEnab",
     "Answer Sort Order": "Sort",
-    "Inventory Level": "InvLvl",
     "Answer Input Type": "AnsType"
 }
 
@@ -53,7 +53,9 @@ def canonicalize_field_name(field):
 
 
 class ArgumentError(Exception):
+    """Class to hold info about an argument error."""
     def __init__(self, value):
+        super(ArgumentError, self).__init__()
         self.value = value
 
     def __str__(self):
@@ -80,6 +82,7 @@ def output_csv(args, records, fields, header_map=None):
 
 
 def output_table_divider(col_widths):
+    """Print a horizontal table divider."""
     print(
         "+" + "+".join(
             "-" * (col_width + 2)
@@ -88,13 +91,14 @@ def output_table_divider(col_widths):
     )
 
 
-def output_table_row(row, col_widths, mapping=None):
+def output_table_row(row_values, col_widths, mapping=None):
+    """Print a single row of a table."""
     if mapping is None:
         mapping = dict()
     print(
         "| " + " | ".join(
             "{0:{1}}".format(mapping.get(field, field), col_widths[col])
-            for col, field in enumerate(row)
+            for col, field in enumerate(row_values)
         ) + " |"
     )
 
@@ -119,7 +123,7 @@ def output_table(records, fields, header_map=None):
     output_table_divider(col_widths)
     output_table_row(fields, col_widths, header_map)
     output_table_divider(col_widths)
-    for row, record in enumerate(records):
+    for record in records:
         output_table_row(
             [
                 cctools.html_to_plain_text(record.get(field, ""))
@@ -130,7 +134,7 @@ def output_table(records, fields, header_map=None):
     output_table_divider(col_widths)
 
 
-def output_json(args, records, fields, header_map=None):
+def output_json(records, fields, header_map=None):
     """Output records in JSON format."""
     mapped_records = []
     for record in records:
@@ -152,10 +156,11 @@ def output_json(args, records, fields, header_map=None):
 
 
 def output_records(args, records, fields, header_map=None):
+    """Output records based upon args.format."""
     if args.format == "csv":
         output_csv(args, records, fields, header_map)
     elif args.format == "json":
-        output_json(args, records, fields, header_map)
+        output_json(records, fields, header_map)
     elif args.format == "table":
         output_table(records, fields, header_map)
 
@@ -324,7 +329,7 @@ def action_update(args, config, cc_browser):
     elif len(objects) > 1:
         print("WARNING: About to modify {} objects.".format(len(objects)))
 
-    for object in objects:
+    for obj in objects:
         for keyval in args.keyvals:
             split_key_value = keyval.split("=")
             if len(split_key_value) != 2:
@@ -339,14 +344,9 @@ def action_update(args, config, cc_browser):
                 )
             value = split_key_value[1]
             print(
-                "{} {} {}->{}".format(
-                    object["SKU"],
-                    key,
-                    object[key],
-                    value
-                )
+                "{} {} {}->{}".format(obj["SKU"], key, obj[key], value)
             )
-            # cc_browser.update_product(object["SKU"], key, value)
+            # cc_browser.update_product(obj["SKU"], key, value)
 
 
 def action_refresh(args, config, cc_browser):
@@ -423,6 +423,12 @@ def main():
         default=False,
         help="display progress messages"
     )
+    arg_parser.add_argument(
+        "--notify-send",
+        action="store_true",
+        default=False,
+        help="display progress messages via notify-send(1)"
+    )
     subparsers = arg_parser.add_subparsers(title="sub-commands")
 
     # Add list sub-command.
@@ -492,6 +498,24 @@ def main():
     args = arg_parser.parse_args()
     normalize_obj_type(args)
 
+    # Configure logging.
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)  # lowest level of all handlers
+    logger.handlers = []
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.INFO if args.verbose else logging.WARNING)
+    logger.addHandler(handler)
+
+    if args.notify_send:
+        # Also log using notify-send if it is available.
+        if notify_send_handler.NotifySendHandler.is_available():
+            logger.addHandler(
+                notify_send_handler.NotifySendHandler(
+                    os.path.splitext(os.path.basename(__file__))[0],
+                    level=logging.INFO
+                )
+            )
+
     # Read config file.
     config = ConfigParser.RawConfigParser()
     config.readfp(open(args.config))
@@ -509,8 +533,8 @@ def main():
     # Perform the action.
     try:
         args.func(args, config, cc_browser)
-    except ArgumentError as ae:
-        arg_parser.error(ae)
+    except ArgumentError as argument_error:
+        arg_parser.error(argument_error)
 
     return 0
 
