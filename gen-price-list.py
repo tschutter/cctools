@@ -362,7 +362,11 @@ def main():
     config.readfp(open(args.config))
 
     # Determine price multiplier.
-    price_multiplier = 1.0 + args.tax_percent / 100.0
+    if config.has_option("price_list", "price_multiplier"):
+        price_multiplier = float(config.get("price_list", "price_multiplier"))
+    else:
+        price_multiplier = 1.0
+    price_multiplier = price_multiplier + args.tax_percent / 100.0
     if args.currency == "ugx":
         price_multiplier *= float(config.get("price_list", "ugx_exchange"))
 
