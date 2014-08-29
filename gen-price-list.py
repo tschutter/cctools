@@ -1,13 +1,15 @@
 #!/usr/bin/env python2
 
 """
-Generates a price list from CoreCommerce data in PDF form.  Prices
-are adjusted to include sales tax and are rounded to even dollar
-amounts.  The intent is to use the price list at fairs and shows to
-avoid the handling of change.  It also makes accounting easier because
-you can deal with round numbers.
+Generates a price list from CoreCommerce data in PDF form.
+
+Prices are adjusted to include any discount and sales tax.  They are
+then rounded to even dollar amounts.  The intent is to use the price
+list at fairs and shows to avoid the handling of change.  It also
+makes accounting easier because you can deal with round numbers.
 
 TODO: page orientation
+
 """
 
 import ConfigParser
@@ -28,7 +30,7 @@ import reportlab.platypus
 INCH = reportlab.lib.units.inch
 
 
-def calc_price_inc_tax(args, price, price_multiplier):
+def calc_price_inc_tax(price, price_multiplier):
     """Calculate a price including tax."""
     price_inc_tax = float(price) * price_multiplier
     whole_price_inc_tax = max(1.0, math.floor(price_inc_tax + 0.5))
@@ -37,30 +39,41 @@ def calc_price_inc_tax(args, price, price_multiplier):
 
 def on_page(canvas, doc):
     """Add page header and footer.  Called for each page."""
+
+    # Save current state.
+    canvas.saveState()
+
+    # Get page geometry.
     page_width = doc.pagesize[0]
     page_height = doc.pagesize[1]
-    canvas.saveState()
+
+    # Draw header.
     canvas.setFont("Helvetica-Bold", 16)
     canvas.drawCentredString(
         page_width / 2.0,
         page_height - 0.5 * INCH,
         doc.my_title
     )
+
+    # Draw left footer.
     canvas.setFont("Helvetica", 9)
     canvas.drawString(
         0.5 * INCH,
         0.5 * INCH,
-        "Price = Online Price - {:.0f}% Discount + {:.2f}% Sales Tax".format(
-            doc.discount_percent,
-            doc.tax_percent
+        "Price includes {:g}% Discount and Sales Tax".format(
+            doc.discount_percent
         )
     )
+
+    # Draw right footer.
     today_str = datetime.date.today().isoformat()
     canvas.drawRightString(
         page_width - 0.5 * INCH,
         0.5 * INCH,
         "Revised: {}".format(today_str)
     )
+
+    # Restore current state.
     canvas.restoreState()
 
 
@@ -114,7 +127,6 @@ def generate_pdf(
     # Construct a template and add it to the document.
     doc.my_title = doc_title
     doc.discount_percent = args.discount_percent
-    doc.tax_percent = args.tax_percent
     doc.addPageTemplates(
         reportlab.platypus.PageTemplate(
             id="mytemplate",
@@ -150,7 +162,7 @@ def generate_pdf(
     price_multiplier = (
         1.0
         - args.discount_percent / 100.0
-        + args.tax_percent / 100.0
+        + args.avg_tax_percent / 100.0
     )
 
     # Group products by category.
@@ -176,7 +188,6 @@ def generate_pdf(
             category = product["Category"]
             product_name = cctools.plain_text_to_html(product["Product Name"])
             price = calc_price_inc_tax(
-                args,
                 product["Price"],
                 price_multiplier
             )
@@ -324,12 +335,12 @@ def main():
         help="discount in percent (default=%(default).0f)"
     )
     arg_parser.add_argument(
-        "--tax",
+        "--avg-tax",
         type=float,
-        dest="tax_percent",
+        dest="avg_tax_percent",
         metavar="PCT",
         default=8.3,
-        help="tax rate in percent (default=%(default).2f)"
+        help="average sales tax rate in percent (default=%(default).2f)"
     )
     arg_parser.add_argument(
         "--verbose",
