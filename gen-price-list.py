@@ -65,7 +65,7 @@ def on_page(canvas, doc):
     canvas.drawString(
         0.5 * INCH,
         0.5 * INCH,
-        "Price includes {:g}% Discount and Sales Tax".format(
+        "Price includes {:g}% discount and sales tax".format(
             doc.discount_percent
         )
     )
