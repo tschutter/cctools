@@ -27,22 +27,12 @@ import reportlab.platypus
 # Convenience constants.
 INCH = reportlab.lib.units.inch
 
-# Currency related constants (pre_symbol, post_symbol, rounder).
-CURRENCY_INFO = {
-    "ugx": ("", " USh", 1000.0),
-    "usd": ("$", "", 1.0)
-}
-
 
 def calc_price_inc_tax(args, price, price_multiplier):
     """Calculate a price including tax."""
     price_inc_tax = float(price) * price_multiplier
-    pre_symbol, post_symbol, rounder = CURRENCY_INFO[args.currency]
-    whole_price_inc_tax = max(
-        rounder,
-        math.floor((price_inc_tax + 0.5) / rounder) * rounder
-    )
-    return "{}{:,.0f}{}".format(pre_symbol, whole_price_inc_tax, post_symbol)
+    whole_price_inc_tax = max(1.0, math.floor(price_inc_tax + 0.5))
+    return "${:,.0f}".format(whole_price_inc_tax)
 
 
 def on_page(canvas, doc):
@@ -60,7 +50,10 @@ def on_page(canvas, doc):
     canvas.drawString(
         0.5 * INCH,
         0.5 * INCH,
-        "PricePreTax = PriceIncTax / (1 + TaxPercent / 100)"
+        "Price = Online Price - {:.0f}% Discount + {:.2f}% Sales Tax".format(
+            doc.discount_percent,
+            doc.tax_percent
+        )
     )
     today_str = datetime.date.today().isoformat()
     canvas.drawRightString(
@@ -103,8 +96,7 @@ def generate_pdf(
     args,
     config,
     cc_browser,
-    products,
-    price_multiplier
+    products
 ):
     """Generate a PDF given a list of products by category."""
     # Construct a document.
@@ -121,6 +113,8 @@ def generate_pdf(
 
     # Construct a template and add it to the document.
     doc.my_title = doc_title
+    doc.discount_percent = args.discount_percent
+    doc.tax_percent = args.tax_percent
     doc.addPageTemplates(
         reportlab.platypus.PageTemplate(
             id="mytemplate",
@@ -151,6 +145,13 @@ def generate_pdf(
     if args.categories:
         cc_browser.set_category_sort_order(args.categories)
     products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
+
+    # Determine price multiplier.
+    price_multiplier = (
+        1.0
+        - args.discount_percent / 100.0
+        + args.tax_percent / 100.0
+    )
 
     # Group products by category.
     body_fontsize = float(config.get("price_list", "body_fontsize"))
@@ -315,19 +316,20 @@ def main():
         help="greybar interval (default=%(default)i)"
     )
     arg_parser.add_argument(
+        "--discount",
+        type=float,
+        dest="discount_percent",
+        metavar="PCT",
+        default=30,
+        help="discount in percent (default=%(default).0f)"
+    )
+    arg_parser.add_argument(
         "--tax",
         type=float,
         dest="tax_percent",
         metavar="PCT",
-        default=8.4,
+        default=8.3,
         help="tax rate in percent (default=%(default).2f)"
-    )
-    arg_parser.add_argument(
-        "--currency",
-        dest="currency",
-        choices=["usd", "ugx"],
-        default="usd",
-        help="currency (default=%(default)s)"
     )
     arg_parser.add_argument(
         "--verbose",
@@ -361,15 +363,6 @@ def main():
     })
     config.readfp(open(args.config))
 
-    # Determine price multiplier.
-    if config.has_option("price_list", "price_multiplier"):
-        price_multiplier = float(config.get("price_list", "price_multiplier"))
-    else:
-        price_multiplier = 1.0
-    price_multiplier = price_multiplier + args.tax_percent / 100.0
-    if args.currency == "ugx":
-        price_multiplier *= float(config.get("price_list", "ugx_exchange"))
-
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
         config.get("website", "host"),
@@ -387,8 +380,7 @@ def main():
         args,
         config,
         cc_browser,
-        products,
-        price_multiplier
+        products
     )
 
     logger.debug("Generation complete")
