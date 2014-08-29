@@ -4,9 +4,14 @@
 Generates a price list from CoreCommerce data in PDF form.
 
 Prices are adjusted to include any discount and sales tax.  They are
-then rounded to even dollar amounts.  The intent is to use the price
+then rounded to the nearest dollar.  The intent is to use the price
 list at fairs and shows to avoid the handling of change.  It also
 makes accounting easier because you can deal with round numbers.
+
+The average sales tax rate is used rather than a specific rate so that
+the same price list can be used in multiple jurisdictions.  Because
+the result is rounded to the nearest dollar, the exact sales tax rate
+is not significant.
 
 TODO: page orientation
 
