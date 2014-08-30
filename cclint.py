@@ -195,7 +195,7 @@ def main():
         config.get("website", "host"),
         config.get("website", "site"),
         config.get("website", "username"),
-        config.get("website", "password")
+        config.get("website", "password"),
         clean=args.clean,
         cache_ttl=0 if args.refresh_cache else args.cache_ttl
     )
