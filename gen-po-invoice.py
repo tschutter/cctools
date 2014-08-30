@@ -16,12 +16,22 @@ import logging
 import notify_send_handler
 import openpyxl  # sudo apt-get install python-openpyxl
 import os
-import sys
 
 # Cell style constants.
+ALIGNMENT_HORIZONTAL_LEFT = openpyxl.style.Alignment.HORIZONTAL_LEFT
 ALIGNMENT_HORIZONTAL_RIGHT = openpyxl.style.Alignment.HORIZONTAL_RIGHT
 ALIGNMENT_VERTICAL_TOP = openpyxl.style.Alignment.VERTICAL_TOP
 NUMBER_FORMAT_USD = openpyxl.style.NumberFormat.FORMAT_CURRENCY_USD_SIMPLE
+
+# Column numbers of product values.
+COL_LINE_NO = 0
+COL_SKU = 1
+COL_DESCRIPTION = 2
+COL_PRICE = 3
+COL_QTY = 4
+COL_TOTAL = 5
+COL_HTSUS_NO = 6
+COL_INSTRUCTIONS = 7
 
 
 def has_merge_cells(worksheet):
@@ -241,22 +251,103 @@ def add_header(args, config, worksheet, row):
     return row
 
 
-def add_products(args, worksheet, row, cc_browser, products):
+def add_variant(
+    worksheet,
+    row,
+    lineno,
+    sku,
+    description,
+    cost,
+    htsus_no
+):
+    set_cell(worksheet, row, COL_LINE_NO, lineno)
+    set_cell(
+        worksheet,
+        row,
+        COL_SKU,
+        sku,
+        alignment_horizontal=ALIGNMENT_HORIZONTAL_LEFT
+    )
+    set_cell(worksheet, row, COL_DESCRIPTION, description)
+    style = set_cell(worksheet, row, COL_PRICE, cost).style
+    style.number_format.format_code = NUMBER_FORMAT_USD
+    total_formula = "=IF({}{}=\"\", \"\", {}{} * {}{})".format(
+        col_letter(COL_QTY),
+        row_number(row),
+        col_letter(COL_PRICE),
+        row_number(row),
+        col_letter(COL_QTY),
+        row_number(row)
+    )
+    style = set_cell(worksheet, row, COL_TOTAL, total_formula).style
+    style.number_format.format_code = NUMBER_FORMAT_USD
+    set_cell(worksheet, row, COL_HTSUS_NO, htsus_no)
+
+
+def get_product_variants(variants, sku):
+    """Returns a list of variants for a product."""
+    product_variants = filter(
+        lambda variant:
+        variant["Product SKU"] == sku and
+        variant["Question Enabled"] == "Y",
+        variants
+    )
+    product_variants.sort(key=lambda variant: variant["Answer Sort Order"])
+    return product_variants
+
+
+def add_product(worksheet, row, lineno, product, variants):
+    """Add row for each variant."""
+    sku = product["SKU"]
+    product_variants = get_product_variants(variants, sku)
+    if len(product_variants) > 0:
+        answer = " (any)"
+    else:
+        answer = ""
+    description = "{}{}: {}".format(
+        product["Product Name"],
+        answer,
+        cctools.html_to_plain_text(product["Teaser"])
+    )
+    cost = product["Cost"]
+    htsus_no = product["HTSUS No"]
+
+    add_variant(worksheet, row, lineno, sku, description, cost, htsus_no)
+    row += 1
+    lineno += 1
+
+    # Add variant rows.
+    for variant in product_variants:
+        variant_sku = "{}-{}".format(sku, variant["SKU"])
+        variant_answer = variant["Question|Answer"].split("|")[1]
+        variant_description = "{} ({}): {}".format(
+            product["Product Name"],
+            variant_answer,
+            cctools.html_to_plain_text(product["Teaser"])
+        )
+        add_variant(
+            worksheet,
+            row,
+            lineno,
+            variant_sku,
+            variant_description,
+            cost,
+            htsus_no
+        )
+        row += 1
+        lineno += 1
+
+    return row, lineno
+
+
+def add_products(args, worksheet, row, cc_browser):
     """Add row for each product."""
-    col_line_no = 0
-    col_sku = 1
-    col_description = 2
-    col_price = 3
-    col_qty = 4
-    col_total = 5
-    col_htsus_no = 6
-    col_instructions = 7
 
     # Add header row.
     set_cell(
         worksheet,
         row,
-        col_line_no,
+        COL_LINE_NO,
         "Line No",
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
@@ -264,16 +355,16 @@ def add_products(args, worksheet, row, cc_browser, products):
     set_cell(
         worksheet,
         row,
-        col_sku,
+        COL_SKU,
         "SKU",
         bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
+        alignment_horizontal=ALIGNMENT_HORIZONTAL_LEFT
     )
-    set_cell(worksheet, row, col_description, "Description", bold=True)
+    set_cell(worksheet, row, COL_DESCRIPTION, "Description", bold=True)
     set_cell(
         worksheet,
         row,
-        col_price,
+        COL_PRICE,
         "Price",
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
@@ -281,7 +372,7 @@ def add_products(args, worksheet, row, cc_browser, products):
     set_cell(
         worksheet,
         row,
-        col_qty,
+        COL_QTY,
         "Qty",
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
@@ -289,7 +380,7 @@ def add_products(args, worksheet, row, cc_browser, products):
     set_cell(
         worksheet,
         row,
-        col_total,
+        COL_TOTAL,
         "Total",
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
@@ -297,18 +388,21 @@ def add_products(args, worksheet, row, cc_browser, products):
     set_cell(
         worksheet,
         row,
-        col_htsus_no,
+        COL_HTSUS_NO,
         "HTSUS No",
         bold=True
     )
     set_cell(
         worksheet,
         row,
-        col_instructions,
+        COL_INSTRUCTIONS,
         "Item Special Instructions",
         bold=True
     )
     row += 1
+
+    # Fetch products list.
+    products = cc_browser.get_products()
 
     # Remove excluded SKUs.
     if args.exclude_skus:
@@ -318,6 +412,9 @@ def add_products(args, worksheet, row, cc_browser, products):
 
     # Sort products by category, product_name.
     products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
+
+    # Fetch variants (personalizations) list.
+    variants = cc_browser.get_personalizations()
 
     # Group products by category.
     first_product_row = row
@@ -332,45 +429,29 @@ def add_products(args, worksheet, row, cc_browser, products):
         row += 1
         # Add product rows.
         for product in product_group:
+            row, lineno = add_product(
+                worksheet,
+                row,
+                lineno,
+                product,
+                variants
+            )
             category = product["Category"]
-            description = "  {}: {}".format(
-                product["Product Name"],
-                cctools.html_to_plain_text(product["Teaser"])
-            )
-            htsus_no = product["HTSUS No"]
-            set_cell(worksheet, row, col_line_no, lineno)
-            set_cell(worksheet, row, col_sku, product["SKU"])
-            set_cell(worksheet, row, col_description, description)
-            style = set_cell(worksheet, row, col_price, product["Cost"]).style
-            style.number_format.format_code = NUMBER_FORMAT_USD
-            total_formula = "=IF({}{}=\"\", \"\", {}{} * {}{})".format(
-                col_letter(col_qty),
-                row_number(row),
-                col_letter(col_price),
-                row_number(row),
-                col_letter(col_qty),
-                row_number(row)
-            )
-            style = set_cell(worksheet, row, col_total, total_formula).style
-            style.number_format.format_code = NUMBER_FORMAT_USD
-            set_cell(worksheet, row, col_htsus_no, htsus_no)
-            row += 1
-            lineno += 1
         # Go back and insert category name.
-        set_cell(worksheet, category_row, col_description, category, bold=True)
+        set_cell(worksheet, category_row, COL_DESCRIPTION, category, bold=True)
     last_product_row = row - 1
 
     # Set column widths.
-    worksheet.column_dimensions[col_letter(col_line_no)].width = 8
-    worksheet.column_dimensions[col_letter(col_sku)].width = 6
-    worksheet.column_dimensions[col_letter(col_description)].width = 66
-    worksheet.column_dimensions[col_letter(col_price)].width = 7
-    worksheet.column_dimensions[col_letter(col_qty)].width = 5
-    worksheet.column_dimensions[col_letter(col_total)].width = 10
-    worksheet.column_dimensions[col_letter(col_htsus_no)].width = 12
-    worksheet.column_dimensions[col_letter(col_instructions)].width = 30
+    worksheet.column_dimensions[col_letter(COL_LINE_NO)].width = 8
+    worksheet.column_dimensions[col_letter(COL_SKU)].width = 15
+    worksheet.column_dimensions[col_letter(COL_DESCRIPTION)].width = 100
+    worksheet.column_dimensions[col_letter(COL_PRICE)].width = 7
+    worksheet.column_dimensions[col_letter(COL_QTY)].width = 5
+    worksheet.column_dimensions[col_letter(COL_TOTAL)].width = 10
+    worksheet.column_dimensions[col_letter(COL_HTSUS_NO)].width = 13
+    worksheet.column_dimensions[col_letter(COL_INSTRUCTIONS)].width = 30
 
-    return row, col_total, first_product_row, last_product_row
+    return row, first_product_row, last_product_row
 
 
 def set_label_dollar_value(
@@ -502,7 +583,7 @@ def add_special_instructions(worksheet, row):
     )
 
 
-def add_invoice(args, config, cc_browser, products, worksheet):
+def add_invoice(args, config, cc_browser, worksheet):
     """Create the PO-Invoice worksheet."""
 
     # Prepare worksheet.
@@ -519,12 +600,11 @@ def add_invoice(args, config, cc_browser, products, worksheet):
     row += 1
 
     # Add products.
-    row, col_total, first_product_row, last_product_row = add_products(
+    row, first_product_row, last_product_row = add_products(
         args,
         worksheet,
         row,
-        cc_browser,
-        products
+        cc_browser
     )
 
     # Blank row.
@@ -535,7 +615,7 @@ def add_invoice(args, config, cc_browser, products, worksheet):
         worksheet,
         config,
         row,
-        col_total,
+        COL_TOTAL,
         first_product_row,
         last_product_row
     )
@@ -568,17 +648,17 @@ def add_instructions(config, worksheet):
             row += 1
 
     # Set column widths.
-    worksheet.column_dimensions[col_letter(col_instruction)].width = 70
+    worksheet.column_dimensions[col_letter(col_instruction)].width = 120
 
 
-def generate_xlsx(args, config, cc_browser, products):
+def generate_xlsx(args, config, cc_browser):
     """Generate the XLS file."""
 
     # Construct a document.
     workbook = openpyxl.workbook.Workbook()
 
     # Create PO-Invoice worksheet.
-    add_invoice(args, config, cc_browser, products, workbook.worksheets[0])
+    add_invoice(args, config, cc_browser, workbook.worksheets[0])
 
     # Create Instructions worksheet.
     add_instructions(config, workbook.create_sheet())
@@ -667,14 +747,9 @@ def main():
         config.get("website", "password")
     )
 
-    # Fetch products list.
-    products = cc_browser.get_products()
-
     # Generate spreadsheet.
-    sys.stderr.write(
-        "Generating {}".format(os.path.abspath(args.xlsx_filename))
-    )
-    generate_xlsx(args, config, cc_browser, products)
+    logger.debug("Generating {}\n".format(os.path.abspath(args.xlsx_filename)))
+    generate_xlsx(args, config, cc_browser)
 
     logger.debug("Generation complete")
     return 0
