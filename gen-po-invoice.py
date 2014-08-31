@@ -288,8 +288,7 @@ def get_product_variants(variants, sku):
     """Returns a list of variants for a product."""
     product_variants = filter(
         lambda variant:
-        variant["Product SKU"] == sku and
-        variant["Question Enabled"] == "Y",
+        variant["Product SKU"] == sku,
         variants
     )
     product_variants.sort(key=lambda variant: variant["Answer Sort Order"])
