@@ -345,7 +345,7 @@ def add_product(worksheet, row, lineno, product, variants):
     return row, lineno
 
 
-def add_products(args, worksheet, row, cc_browser):
+def add_products(worksheet, row, cc_browser, products):
     """Add row for each product."""
 
     # Add header row.
@@ -405,18 +405,6 @@ def add_products(args, worksheet, row, cc_browser):
         bold=True
     )
     row += 1
-
-    # Fetch products list.
-    products = cc_browser.get_products()
-
-    # Remove excluded SKUs.
-    if args.exclude_skus:
-        products = [
-            x for x in products if str(x["SKU"]) not in args.exclude_skus
-        ]
-
-    # Sort products by category, product_name.
-    products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
 
     # Fetch variants (personalizations) list.
     variants = cc_browser.get_personalizations()
@@ -574,6 +562,51 @@ def add_totals(
     return(row)
 
 
+def add_summary(
+    worksheet,
+    row,
+    first_product_row,
+    last_product_row,
+    htsus_numbers
+):
+    """
+    Add a section that summarizes total cost by HTSUS number.  This
+    is intended to make the customs inspector's job easier and
+    therefore less likely to be grumpy and cause problems.
+    """
+
+    # Section title.
+    set_cell(
+        worksheet,
+        row,
+        COL_DESCRIPTION,
+        "Summary by HTSUS number:",
+        bold=True
+    )
+    row += 1
+
+    for htsus_no in sorted(htsus_numbers):
+        if htsus_no == "":
+            continue
+        total_formula = "=SUMIF({}{}:{}{}, \"{}\", {}{}:{}{})".format(
+            col_letter(COL_HTSUS_NO),
+            row_number(first_product_row),
+            col_letter(COL_HTSUS_NO),
+            row_number(last_product_row),
+            htsus_no,
+            col_letter(COL_TOTAL),
+            row_number(first_product_row),
+            col_letter(COL_TOTAL),
+            row_number(last_product_row)
+        )
+        style = set_cell(worksheet, row, COL_TOTAL, total_formula).style
+        style.number_format.format_code = NUMBER_FORMAT_USD
+        set_cell(worksheet, row, COL_HTSUS_NO, htsus_no)
+        row += 1
+
+    return(row)
+
+
 def add_special_instructions(worksheet, row):
     """Add special instructions."""
     col_value_name = 2
@@ -604,12 +637,24 @@ def add_invoice(args, config, cc_browser, worksheet):
     # Blank row.
     row += 1
 
+    # Fetch products list.
+    products = cc_browser.get_products()
+
+    # Remove excluded SKUs.
+    if args.exclude_skus:
+        products = [
+            x for x in products if str(x["SKU"]) not in args.exclude_skus
+        ]
+
+    # Sort products by category, product_name.
+    products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
+
     # Add products.
     row, first_product_row, last_product_row = add_products(
-        args,
         worksheet,
         row,
-        cc_browser
+        cc_browser,
+        products
     )
 
     # Blank row.
@@ -623,6 +668,26 @@ def add_invoice(args, config, cc_browser, worksheet):
         COL_TOTAL,
         first_product_row,
         last_product_row
+    )
+
+    # Blank row.
+    row += 1
+
+    # Create list of unique HTSUS numbers.
+    htsus_numbers = []
+    for product in products:
+        if product["HTSUS No"] == "9999.99.9999":
+            print("{}: {}".format(product["SKU"], product["Teaser"]))
+        if product["HTSUS No"] not in htsus_numbers:
+            htsus_numbers.append(product["HTSUS No"])
+
+    # Add summary by HTSUS.
+    row = add_summary(
+        worksheet,
+        row,
+        first_product_row,
+        last_product_row,
+        htsus_numbers
     )
 
     # Add special instructions.
