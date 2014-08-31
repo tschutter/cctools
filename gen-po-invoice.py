@@ -299,43 +299,48 @@ def get_product_variants(variants, sku):
 def add_product(worksheet, row, lineno, product, variants):
     """Add row for each variant."""
     sku = product["SKU"]
-    product_variants = get_product_variants(variants, sku)
-    if len(product_variants) > 0:
-        answer = " (any)"
-    else:
-        answer = ""
-    description = "{}{}: {}".format(
-        product["Product Name"],
-        answer,
-        cctools.html_to_plain_text(product["Teaser"])
-    )
+    teaser = cctools.html_to_plain_text(product["Teaser"])
     cost = product["Cost"]
     htsus_no = product["HTSUS No"]
-
-    add_variant(worksheet, row, lineno, sku, description, cost, htsus_no)
-    row += 1
-    lineno += 1
-
-    # Add variant rows.
-    for variant in product_variants:
-        variant_sku = "{}-{}".format(sku, variant["SKU"])
-        variant_answer = variant["Question|Answer"].split("|")[1]
-        variant_description = "{} ({}): {}".format(
+    product_variants = get_product_variants(variants, sku)
+    if len(product_variants) == 0:
+        description = "{}: {}".format(
             product["Product Name"],
-            variant_answer,
-            cctools.html_to_plain_text(product["Teaser"])
+            teaser
         )
-        add_variant(
-            worksheet,
-            row,
-            lineno,
-            variant_sku,
-            variant_description,
-            cost,
-            htsus_no
-        )
+        add_variant(worksheet, row, lineno, sku, description, cost, htsus_no)
         row += 1
         lineno += 1
+    else:
+        various_variant_exists = False
+        for variant in product_variants:
+            if variant["SKU"] == "VAR":
+                various_variant_exists = True
+            variant_sku = "{}-{}".format(sku, variant["SKU"])
+            answer = variant["Question|Answer"].split("|")[1]
+            description = "{} ({}): {}".format(
+                product["Product Name"],
+                answer,
+                teaser
+            )
+            add_variant(
+                worksheet,
+                row,
+                lineno,
+                variant_sku,
+                description,
+                cost,
+                htsus_no
+            )
+            row += 1
+            lineno += 1
+        if not various_variant_exists:
+            logging.getLogger().warning(
+                "No 'Variety' variant exists for {} {}".format(
+                    sku,
+                    product["Product Name"]
+                )
+            )
 
     return row, lineno
 
