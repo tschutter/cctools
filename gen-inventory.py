@@ -161,12 +161,9 @@ def main():
         key = cc_browser.sort_key_by_category_and_name
     products = sorted(products, key=key)
 
-    # Get list of personalizations.
-    personalizations = cc_browser.get_personalizations()
-    personalizations = sorted(
-        personalizations,
-        key=cc_browser.personalization_sort_key
-    )
+    # Get list of variants.
+    variants = cc_browser.get_variants()
+    variants = sorted(variants, key=cc_browser.variant_sort_key)
 
     inventory = list()
     for product in products:
@@ -182,19 +179,19 @@ def main():
                 (product_sku, product_level, product_name, enabled, main_photo)
             )
         else:
-            for personalization in personalizations:
-                if product_sku == personalization["Product SKU"]:
-                    pers_sku = personalization["SKU"]
+            for variant in variants:
+                if product_sku == variant["Product SKU"]:
+                    pers_sku = variant["SKU"]
                     if pers_sku == "":
                         sku = product_sku
                     else:
                         sku = "{}-{}".format(product_sku, pers_sku)
-                    pers_level = personalization["Inventory Level"]
-                    answer = personalization["Question|Answer"]
+                    pers_level = variant["Inventory Level"]
+                    answer = variant["Question|Answer"]
                     answer = answer.replace("|", "=")
                     name = "{} ({})".format(product_name, answer)
-                    enabled = personalization["Answer Enabled"]
-                    main_photo = personalization["Main Photo"]
+                    enabled = variant["Answer Enabled"]
+                    main_photo = variant["Main Photo"]
                     inventory.append(
                         (sku, pers_level, name, enabled, main_photo)
                     )

@@ -10,8 +10,8 @@ calc-online-price.py
 
 ccc
     Core Commerce Command line tool.  Interact with CoreCommerce from
-    the command line.  List categories, products, and
-    personalizations.
+    the command line.  List categories, products, and variants
+    (personalizations).
 
 cclint.py
     Detects problems in CoreCommerce product data.

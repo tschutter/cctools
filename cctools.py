@@ -15,8 +15,16 @@ import re
 import tempfile
 import time
 
+# Notes:
+#
 # http://wwwsearch.sourceforge.net/mechanize/
 # https://views.scraperwiki.com/run/python_mechanize_cheat_sheet/?
+#
+# CoreCommerce is schizophrenic regarding personalizations
+# vs. variants.  Most likely they were originally called
+# personalizations and were later renamed to variants.  Except they
+# didn't change all of the references on the web site.  I chose to
+# call them variants here.
 
 # pylint seems to be confused by calling methods via self._browser.
 # pylint: disable=E1102
@@ -58,7 +66,7 @@ class CCBrowser(object):
         if proxy is not None:
             self._browser.set_proxies({"https": proxy})
         self._logged_in = False
-        self._personalizations = None
+        self._variants = None
         self._products = None
         self._categories = None
         self._category_sort = None
@@ -146,14 +154,14 @@ class CCBrowser(object):
         url = self._admin_url + "?m=ajax_export_send"
         self._browser.retrieve(url, filename)
 
-    def _download_personalizations_csv(self, filename):
-        """Download personalization list to a CSV file."""
+    def _download_variants_csv(self, filename):
+        """Download variant list to a CSV file."""
 
         # Login if necessary.
         self._login()
 
         # Log time consuming step.
-        logger.info("Downloading personalizations")
+        logger.info("Downloading variants")
 
         # Load export page.
         url = "{}?{}{}".format(
@@ -166,8 +174,8 @@ class CCBrowser(object):
         # Call the doExport function.
         self._do_export(url, filename)
 
-    def _clean_personalizations(self):
-        """Normalize suspect personalization data."""
+    def _clean_variants(self):
+        """Normalize suspect variant data."""
         # Boolean value of "" appears to mean "N".
         booleans = [
             "Answer Enabled",
@@ -177,31 +185,31 @@ class CCBrowser(object):
             "Required",
             "Track Inventory"
         ]
-        for personalization in self._personalizations:
+        for variant in self._variants:
             # Booleans should be Y|N, but we sometimes see "".
             for boolean in booleans:
-                if not personalization[boolean] in ("Y", "N"):
-                    personalization[boolean] = "N"
+                if not variant[boolean] in ("Y", "N"):
+                    variant[boolean] = "N"
 
-    def get_personalizations(self):
-        """Return a list of per-personalization dictionaries."""
+    def get_variants(self):
+        """Return a list of per-variant dictionaries."""
 
-        if self._personalizations is None:
-            filename = os.path.join(self._cache_dir, "personalizations.csv")
+        if self._variants is None:
+            filename = os.path.join(self._cache_dir, "variants.csv")
 
             with lockfile.FileLock(self._download_lock_filename):
                 # Download products file if it is out of date.
                 if self._is_file_expired(filename):
-                    self._download_personalizations_csv(filename)
+                    self._download_variants_csv(filename)
 
-                # Read personalizations file.
-                self._personalizations = list(csv.DictReader(open(filename)))
+                # Read variants file.
+                self._variants = list(csv.DictReader(open(filename)))
 
                 # Cleanup suspect data.
                 if self._clean:
-                    self._clean_personalizations()
+                    self._clean_variants()
 
-        return self._personalizations
+        return self._variants
 
     def _download_products_csv(self, filename):
         """Download products list to a CSV file."""
@@ -507,12 +515,12 @@ class CCBrowser(object):
         """Return a key for a product dictionary used to sort by sku."""
         return product["SKU"]
 
-    def personalization_sort_key(self, personalization):
-        """Return a key to sort personalizations."""
+    def variant_sort_key(self, variant):
+        """Return a key to sort variants."""
         return (
-            personalization["Product SKU"],
-            personalization["Question Sort Order"],
-            personalization["Answer Sort Order"]
+            variant["Product SKU"],
+            variant["Question Sort Order"],
+            variant["Answer Sort Order"]
         )
 
 _HTML_TO_PLAIN_TEXT_DICT = {

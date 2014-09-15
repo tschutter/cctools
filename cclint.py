@@ -30,8 +30,8 @@ expression.  For example:
 The [lint_category] section is similar and is used for category value
 checks.
 
-The [lint_personalization] section is similar and is used for
-personalization value checks.
+The [lint_variant] section is similar and is used for
+variant value checks.
 """
 
 from __future__ import print_function
@@ -62,12 +62,12 @@ def product_display_name(product):
     return display_name.strip()
 
 
-def personalization_display_name(personalization):
-    """Construct a display name for a personalization."""
+def variant_display_name(variant):
+    """Construct a display name for a variant."""
     display_name = "{} {} {}".format(
-        personalization["Product SKU"],
-        personalization["Product Name"],
-        personalization["Question|Answer"]
+        variant["Product SKU"],
+        variant["Product Name"],
+        variant["Question|Answer"]
     )
     return display_name.strip()
 
@@ -188,7 +188,7 @@ def main():
     config.readfp(open(args.config))
     category_checks = parse_checks(config, "lint_category")
     product_checks = parse_checks(config, "lint_product")
-    personalization_checks = parse_checks(config, "lint_personalization")
+    variant_checks = parse_checks(config, "lint_variant")
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
@@ -225,15 +225,15 @@ def main():
             product_display_name(product)
         )
 
-    # Check personalizations list.
-    personalizations = cc_browser.get_personalizations()
-    for personalization in personalizations:
+    # Check variants list.
+    variants = cc_browser.get_variants()
+    for variant in variants:
         check_item(
-            personalization_checks,
-            "Personalization",
-            personalizations,
-            personalization,
-            personalization_display_name(personalization)
+            variant_checks,
+            "Variant",
+            variants,
+            variant,
+            variant_display_name(variant)
         )
 
     logger.info("Checks complete")

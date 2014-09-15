@@ -405,8 +405,8 @@ def add_products(worksheet, row, cc_browser, products):
     )
     row += 1
 
-    # Fetch variants (personalizations) list.
-    variants = cc_browser.get_personalizations()
+    # Fetch variants list.
+    variants = cc_browser.get_variants()
 
     # Group products by category.
     first_product_row = row

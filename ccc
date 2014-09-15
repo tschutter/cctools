@@ -19,12 +19,12 @@ import re
 # Define canonical object types.
 PRODUCT = "product"
 CATEGORY = "category"
-PERSONALIZATION = "personalization"
+VARIANT = "variant"
 
 # Specify abbreviations for object types.
 PRODUCT_ABBREVS = [PRODUCT, "products", "prod"]
 CATEGORY_ABBREVS = [CATEGORY, "categories", "cat"]
-PERSONALIZATION_ABBREVS = [PERSONALIZATION, "pers"]
+VARIANT_ABBREVS = [VARIANT, "var"]
 
 
 # In some output formats (such as table), it is helpful to have
@@ -193,7 +193,7 @@ def get_default_fields(args, config):
     elif args.obj_type == CATEGORY:
         return ["Sort", "Category Name", "Thumbnail"]
 
-    elif args.obj_type == PERSONALIZATION:
+    elif args.obj_type == VARIANT:
         return [
             "Product SKU",
             "SKU",
@@ -239,8 +239,8 @@ def get_objects(args, cc_browser):
     elif args.obj_type == CATEGORY:
         objects = cc_browser.get_categories()
 
-    elif args.obj_type == PERSONALIZATION:
-        objects = cc_browser.get_personalizations()
+    elif args.obj_type == VARIANT:
+        objects = cc_browser.get_variants()
 
     if args.filter:
         for filter in args.filter:
@@ -256,10 +256,10 @@ def action_list(args, config, cc_browser):
     """List objects of a type."""
     objects = get_objects(args, cc_browser)
     fields = get_output_fields(args, config, objects)
-    if args.obj_type == PERSONALIZATION:
+    if args.obj_type == VARIANT:
         objects = sorted(
             objects,
-            key=cc_browser.personalization_sort_key
+            key=cc_browser.variant_sort_key
         )
     else:
         objects = sorted(objects, key=operator.itemgetter(*fields))
@@ -274,9 +274,9 @@ def action_list_fields(args, config, cc_browser):
     elif args.obj_type == CATEGORY:
         categories = cc_browser.get_categories()
         field_names = sorted(categories[0].keys())
-    elif args.obj_type == PERSONALIZATION:
-        personalizations = cc_browser.get_personalizations()
-        field_names = sorted(personalizations[0].keys())
+    elif args.obj_type == VARIANT:
+        variants = cc_browser.get_variants()
+        field_names = sorted(variants[0].keys())
 
     fields = ["Field Name"]
     records = list()
@@ -293,8 +293,8 @@ def find_object(args, cc_browser):
     elif args.obj_type == CATEGORY:
         objects = cc_browser.get_categories()
         keys = ["Category Name"]
-    elif args.obj_type == PERSONALIZATION:
-        objects = cc_browser.get_personalizations()
+    elif args.obj_type == VARIANT:
+        objects = cc_browser.get_variants()
         keys = ["Question|Answer"]
 
     found_obj = None
@@ -359,9 +359,9 @@ def action_refresh(args, config, cc_browser):
         print("Refreshing categories")
         cc_browser.get_categories()
 
-    if not args.obj_type or args.obj_type == PERSONALIZATION:
-        print("Refreshing personalizations")
-        cc_browser.get_personalizations()
+    if not args.obj_type or args.obj_type == VARIANT:
+        print("Refreshing variants")
+        cc_browser.get_variants()
 
 
 def add_format_args(arg_parser):
@@ -385,7 +385,7 @@ def add_obj_type_argument(arg_parser, nargs=None):
     """Add object type argument to arg_parser."""
     arg_parser.add_argument(
         "obj_type",
-        choices=PRODUCT_ABBREVS + CATEGORY_ABBREVS + PERSONALIZATION_ABBREVS,
+        choices=PRODUCT_ABBREVS + CATEGORY_ABBREVS + VARIANT_ABBREVS,
         nargs=nargs,
         help="optional object type" if nargs == "?" else "object type"
     )
@@ -397,8 +397,8 @@ def normalize_obj_type(args):
             args.obj_type = PRODUCT
         elif args.obj_type in CATEGORY_ABBREVS:
             args.obj_type = CATEGORY
-        elif args.obj_type in PERSONALIZATION_ABBREVS:
-            args.obj_type = PERSONALIZATION
+        elif args.obj_type in VARIANT_ABBREVS:
+            args.obj_type = VARIANT
 
 
 def main():
