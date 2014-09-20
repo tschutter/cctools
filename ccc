@@ -136,6 +136,9 @@ def output_table(records, fields, header_map=None):
 
 def output_json(records, fields, header_map=None):
     """Output records in JSON format."""
+    # W0163(unused-argument) header_map
+    # pylint: disable=W0613
+
     mapped_records = []
     for record in records:
         mapped_record = dict()
@@ -166,6 +169,8 @@ def output_records(args, records, fields, header_map=None):
 
 
 def get_default_fields(args, config):
+    """Return a default list of fields to output."""
+
     # Look for default fields in config file.
     if config.has_section("ccc"):
         option = "default_{}_fields".format(args.obj_type)
@@ -242,9 +247,9 @@ def get_objects(args, cc_browser):
     elif args.obj_type == VARIANT:
         objects = cc_browser.get_variants()
 
-    if args.filter:
-        for filter in args.filter:
-            field, regex = filter.split("=")
+    if args.item_filter:
+        for item_filter in args.item_filter:
+            field, regex = item_filter.split("=")
             field = canonicalize_field_name(field)
             regex = re.compile(regex, re.IGNORECASE)
             objects = [p for p in objects if regex.search(p[field])]
@@ -254,6 +259,9 @@ def get_objects(args, cc_browser):
 
 def action_list(args, config, cc_browser):
     """List objects of a type."""
+    # W0142(star-args) Used * or ** magic
+    # pylint: disable=W0142
+
     objects = get_objects(args, cc_browser)
     fields = get_output_fields(args, config, objects)
     if args.obj_type == VARIANT:
@@ -268,6 +276,9 @@ def action_list(args, config, cc_browser):
 
 def action_list_fields(args, config, cc_browser):
     """List fields of a type."""
+    # W0163(unused-argument) config
+    # pylint: disable=W0613
+
     if args.obj_type == PRODUCT:
         products = cc_browser.get_products()
         field_names = sorted(products[0].keys())
@@ -323,6 +334,9 @@ def find_object(args, cc_browser):
 
 def action_update(args, config, cc_browser):
     """Update attributes of objects."""
+    # W0163(unused-argument) config
+    # pylint: disable=W0613
+
     objects = get_objects(args, cc_browser)
     if len(objects) == 0:
         raise ArgumentError("No matching {}".format(args.obj_type))
@@ -351,6 +365,9 @@ def action_update(args, config, cc_browser):
 
 def action_refresh(args, config, cc_browser):
     """Refresh CoreCommerce object cache."""
+    # W0163(unused-argument) config
+    # pylint: disable=W0613
+
     if not args.obj_type or args.obj_type == PRODUCT:
         print("Refreshing products")
         cc_browser.get_products()
@@ -392,6 +409,9 @@ def add_obj_type_argument(arg_parser, nargs=None):
 
 
 def normalize_obj_type(args):
+    """Normalize a user-specified object type to a standard name for
+    an object type.
+    """
     if args.obj_type:
         if args.obj_type in PRODUCT_ABBREVS:
             args.obj_type = PRODUCT
@@ -448,7 +468,7 @@ def main():
     )
     list_parser.add_argument(
         "--filter",
-        dest="filter",
+        dest="item_filter",
         action="append",
         metavar="FIELD=RE",
         help="filter items based on regular expression"
@@ -473,7 +493,7 @@ def main():
     add_obj_type_argument(update_parser)
     update_parser.add_argument(
         "--filter",
-        dest="filter",
+        dest="item_filter",
         action="append",
         metavar="FIELD=RE",
         help="filter items based on regular expression"
