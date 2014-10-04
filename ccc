@@ -92,13 +92,17 @@ def output_table_divider(col_widths):
     )
 
 
-def output_table_row(row_values, col_widths, mapping=None):
+def output_table_row(row_values, col_aligns, col_widths, mapping):
     """Print a single row of a table."""
     if mapping is None:
         mapping = dict()
     print(
         "| " + " | ".join(
-            "{0:{1}}".format(mapping.get(field, field), col_widths[col])
+            "{0:{1}{2}}".format(
+                mapping.get(field, field),
+                col_aligns[col],
+                col_widths[col]
+            )
             for col, field in enumerate(row_values)
         ) + " |"
     )
@@ -109,12 +113,25 @@ def output_table(records, fields, header_map=None):
     if header_map is None:
         header_map = dict()
 
-    # Determine the column widths.
+    # Determine the column alignments and widths.
+    col_aligns = list()
     col_widths = list()
     for field in fields:
+        col_aligns.append(">")
         col_widths.append(len(header_map.get(field, field)))
     for record in records:
         for col, field in enumerate(fields):
+            # Left align the column if any value is not a number.
+            value = record.get(field)
+            if value.startswith("(err) "):
+                value = value[6:]  # strip error prefix
+            if value != "":
+                try:
+                    float(value)
+                except ValueError:
+                    col_aligns[col] = "<"
+
+            # Update the column width.
             col_widths[col] = max(
                 col_widths[col],
                 len(str(record.get(field, "")))
@@ -122,7 +139,7 @@ def output_table(records, fields, header_map=None):
 
     # Pretty print the records to the output.
     output_table_divider(col_widths)
-    output_table_row(fields, col_widths, header_map)
+    output_table_row(fields, col_aligns, col_widths, header_map)
     output_table_divider(col_widths)
     for record in records:
         output_table_row(
@@ -130,7 +147,9 @@ def output_table(records, fields, header_map=None):
                 cctools.html_to_plain_text(record.get(field, ""))
                 for field in fields
             ],
-            col_widths
+            col_aligns,
+            col_widths,
+            None
         )
     output_table_divider(col_widths)
 
