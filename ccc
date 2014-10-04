@@ -27,9 +27,9 @@ CATEGORY_ABBREVS = [CATEGORY, "categories", "cat"]
 VARIANT_ABBREVS = [VARIANT, "var"]
 
 
-# In some output formats (such as table), it is helpful to have
-# abbreviated column headers.  This is true especially for boolean
-# values like "Available" and "Discontinued Item".
+# In some output formats (such as the 'table' format), it is helpful
+# to have abbreviated column headers.  This is true especially for
+# boolean values like "Available" and "Discontinued Item".
 HEADER_MAP = {
     "Available": "Avail",
     "Discontinued Item": "Discd",
@@ -289,10 +289,15 @@ def action_list_fields(args, config, cc_browser):
         variants = cc_browser.get_variants()
         field_names = sorted(variants[0].keys())
 
-    fields = ["Field Name"]
+    fields = ["Field Name", "ccc Abbrev"]
     records = list()
     for field_name in field_names:
-        records.append({"Field Name": field_name})
+        records.append(
+            {
+                "Field Name": field_name,
+                "ccc Abbrev": HEADER_MAP.get(field_name, "")
+            }
+        )
     output_records(args, records, fields)
 
 
