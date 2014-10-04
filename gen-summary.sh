@@ -37,7 +37,7 @@ if [ "${OUTPUT_DIR}" ]; then
 fi
 rm -f ${FILENAME}
 
-FIELDS="Category,Product Name,SKU,Avail,Discd"
+FIELDS="Category,Product Name,SKU,Avail,Discd,InvLvl,VInvLvl"
 
 echo "Products that are viewable online and cannot be purchased online, but are available at shows:" >> "${FILENAME}"
 "${SCRIPTDIR}/ccc" --notify-send list prod --fields "${FIELDS}" --filter Avail=Y --filter Discd=Y >> "${FILENAME}" ${ARGS}
@@ -49,6 +49,9 @@ echo "Products that are not viewable online, but are available at shows:" >> "${
 echo "" >> "${FILENAME}"
 echo "Products that are not viewable online, and are not available at shows:" >> "${FILENAME}"
 "${SCRIPTDIR}/ccc" --notify-send list prod --fields "${FIELDS}" --filter Avail=N --filter Discd=Y >> "${FILENAME}" ${ARGS}
+
+echo "" >> "${FILENAME}"
+date +"This report generated %Y-%m-%d %H:%M:%S." >> "${FILENAME}"
 
 # Display the output file if it was successfully created.
 if [ -f "${FILENAME}" ]; then
