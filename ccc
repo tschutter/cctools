@@ -24,7 +24,7 @@ VARIANT = "variant"
 # Specify abbreviations for object types.
 PRODUCT_ABBREVS = [PRODUCT, "products", "prod"]
 CATEGORY_ABBREVS = [CATEGORY, "categories", "cat"]
-VARIANT_ABBREVS = [VARIANT, "var"]
+VARIANT_ABBREVS = [VARIANT, "variants", "var"]
 
 
 # In some output formats (such as the 'table' format), it is helpful
@@ -35,6 +35,7 @@ HEADER_MAP = {
     "Discontinued Item": "Discd",
     "Track Inventory": "TrkInv",
     "Inventory Level": "InvLvl",
+    "Variant Inventory Level": "VInvLvl",
     "Category Id": "CatId",
     "Product SKU": "PrdSKU",
     "Required": "QReq",
@@ -192,6 +193,7 @@ def get_default_fields(args, config):
             "Discontinued Item",
             "Track Inventory",
             "Inventory Level",
+            "Variant Inventory Level",
             "Teaser"
         ]
 
@@ -257,6 +259,30 @@ def get_objects(args, cc_browser):
     return objects
 
 
+def calc_var_inv_level(cc_browser, objects):
+    """For each product in objects, add the inventory level of the
+    product's variants to the product.
+    """
+
+    variants = cc_browser.get_variants()
+
+    for product in objects:
+        vinvlvl = 0  # Total inventory level.
+        err = False  # Has any variant inventory level been a problem?
+        for variant in variants:
+            if variant["Product Name"] == product["Product Name"]:
+                try:
+                    inv_lvl = int(variant["Inventory Level"])
+                except ValueError:
+                    inv_lvl = 0
+                    err = True
+                if inv_lvl < 0:
+                    err = True
+                vinvlvl += inv_lvl
+        vinvlvl = "{}{}".format("(err) " if err else "", vinvlvl)
+        product["Variant Inventory Level"] = vinvlvl
+
+
 def action_list(args, config, cc_browser):
     """List objects of a type."""
     # W0142(star-args) Used * or ** magic
@@ -270,6 +296,8 @@ def action_list(args, config, cc_browser):
             key=cc_browser.variant_sort_key
         )
     else:
+        if args.obj_type == PRODUCT and "Variant Inventory Level" in fields:
+            calc_var_inv_level(cc_browser, objects)
         objects = sorted(objects, key=operator.itemgetter(*fields))
     output_records(args, objects, fields, HEADER_MAP)
 
