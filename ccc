@@ -117,7 +117,7 @@ def output_table(records, fields, header_map=None):
     col_aligns = list()
     col_widths = list()
     for field in fields:
-        col_aligns.append(">")
+        col_aligns.append(">")  # align right
         col_widths.append(len(header_map.get(field, field)))
     for record in records:
         for col, field in enumerate(fields):
@@ -129,7 +129,7 @@ def output_table(records, fields, header_map=None):
                 try:
                     float(value)
                 except ValueError:
-                    col_aligns[col] = "<"
+                    col_aligns[col] = "<"  # align left
 
             # Update the column width.
             col_widths[col] = max(
