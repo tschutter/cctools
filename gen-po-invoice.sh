@@ -27,7 +27,7 @@ for ARG in "$@"; do
     esac
 done
 
-SCRIPT=`readlink --canonicalize "$0"`
+SCRIPT=`readlink -k "$0"`
 SCRIPTDIR=`dirname "${SCRIPT}"`
 
 # Determine the output filename and PO number.
