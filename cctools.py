@@ -14,6 +14,7 @@ import os
 import re
 import tempfile
 import time
+import xdg.BaseDirectory
 
 # Notes:
 #
@@ -29,7 +30,7 @@ import time
 # pylint seems to be confused by calling methods via self._browser.
 # pylint: disable=E1102
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 class CCBrowser(object):
@@ -51,7 +52,10 @@ class CCBrowser(object):
         self._password = password
         self._clean = clean
         self._cache_ttl = float(cache_ttl)
-        self._cache_dir = os.path.join(os.environ["HOME"], ".cache", "cctools")
+        self._cache_dir = os.path.join(
+            xdg.BaseDirectory.xdg_cache_home,
+            "cctools"
+        )
         if not os.path.exists(self._cache_dir):
             os.mkdir(self._cache_dir, 0o700)
         # A single lockfile is used for all download operations.  We
@@ -79,8 +83,8 @@ class CCBrowser(object):
             return
 
         # Log time consuming step.
-        logger.info("Logging into {}".format(self._host))
-        logger.debug("Username = {}".format(self._username))
+        LOGGER.info("Logging into {}".format(self._host))
+        LOGGER.debug("Username = {}".format(self._username))
 
         # Open the login page.
         self._browser.open(self._admin_url)
@@ -161,7 +165,7 @@ class CCBrowser(object):
         self._login()
 
         # Log time consuming step.
-        logger.info("Downloading variants")
+        LOGGER.info("Downloading variants")
 
         # Load export page.
         url = "{}?{}{}".format(
@@ -218,7 +222,7 @@ class CCBrowser(object):
         self._login()
 
         # Log time consuming step.
-        logger.info("Downloading products")
+        LOGGER.info("Downloading products")
 
         # Load the export page.
         url = (
@@ -322,7 +326,7 @@ class CCBrowser(object):
         self._login()
 
         # Log time consuming step.
-        logger.info(
+        LOGGER.info(
             "Updating product SKU={}, setting {} to {}".format(
                 sku,
                 key,
@@ -368,7 +372,8 @@ class CCBrowser(object):
         # Submit the form (press the "????" button).
         self._browser.submit()
 
-        # https://www16.corecommerce.com/~cohu1/admin/index.php?m=ajax_import&instance=product_import
+        # https://www16.corecommerce.com/~cohu1/admin/index.php?\
+        #     m=ajax_import&instance=product_import
         # POST https://www16.corecommerce.com/~cohu1/admin/index.php
         #   m:           ajax_import
         #   instance:    product_import
@@ -406,9 +411,12 @@ class CCBrowser(object):
         # Submit the form (press the "????" button).
         self._browser.submit()
 
-        # POST https://www16.corecommerce.com/~cohu1/admin/index.php?m=ajax_import_save&instance=product_import
+        # POST https://www16.corecommerce.com/~cohu1/admin/index.php?\
+        #          m=ajax_import_save&instance=product_import
         #   m:           ajax_import_save
-        #   go:          https://www16.corecommerce.com/~cohu1/admin/index.php?m=ajax_import&instance=product_import
+        #   go:          https://www16.corecommerce.com/~cohu1/admin/index.php\
+        #                    ?m=ajax_import&\
+        #                    instance=product_import
         #   submit:      true
         #   file:        test-prod-update.csv
         #   useFile:     Y
@@ -425,7 +433,7 @@ class CCBrowser(object):
         self._login()
 
         # Log time consuming step.
-        logger.info("Downloading categories")
+        LOGGER.info("Downloading categories")
 
         # Load the export page.
         url = (
@@ -542,7 +550,7 @@ def html_to_plain_text(string):
     )
 
     # Collapse all whitespace to a single space.
-    string = re.sub("\s+", " ", string)
+    string = re.sub(r"\s+", " ", string)
 
     # Strip leading and trailing whitespace.
     string = string.strip()
