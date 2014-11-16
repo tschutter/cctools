@@ -43,6 +43,7 @@ class NumberedCanvas(reportlab.pdfgen.canvas.Canvas):
         reportlab.pdfgen.canvas.Canvas.save(self)
 
     def draw_page_number(self, page_count):
+        """Add 'Page x of y' to canvas."""
         self.setFont("Helvetica", 9)
         label_str = "Page {} of {}".format(self._pageNumber, page_count)
         self.drawRightString(8.25 * INCH, 0.50 * INCH, label_str)
@@ -288,7 +289,7 @@ def write_quantities(quant_filename, products):
 
 def main():
     """main"""
-    defaultConfig = os.path.join(
+    default_config = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "cctools.cfg"
     )
@@ -307,7 +308,7 @@ def main():
         "--config",
         dest="config",
         metavar="FILE",
-        default=defaultConfig,
+        default=default_config,
         help="configuration filename (default=%(default)s)"
     )
     arg_parser.add_argument(

@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-"""Detects problems in CoreCommerce product data.
+r"""Detects problems in CoreCommerce product data.
 
 Requires a [website] section in config file for login info.
 
@@ -122,7 +122,7 @@ def check_item(item_checks, item_type_name, items, item, item_name):
 
 def main():
     """main"""
-    defaultConfig = os.path.join(
+    default_config = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "cctools.cfg"
     )
@@ -134,7 +134,7 @@ def main():
         "--config",
         action="store",
         metavar="FILE",
-        default=defaultConfig,
+        default=default_config,
         help="configuration filename (default=%(default)s)"
     )
     arg_parser.add_argument(

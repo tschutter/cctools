@@ -15,7 +15,7 @@ import os
 import datetime
 
 
-def add_product_dict(args, config, cc_browser, products, worksheet):
+def add_product_dict(args, cc_browser, products, worksheet):
     """Create the Product Dictionary worksheet."""
 
     # Prepare worksheet.
@@ -53,20 +53,14 @@ def add_product_dict(args, config, cc_browser, products, worksheet):
     worksheet.column_dimensions["C"].width = 13
 
 
-def generate_xlsx(args, config, cc_browser, products):
+def generate_xlsx(args, cc_browser, products):
     """Generate the XLS file."""
 
     # Construct a document.
     workbook = openpyxl.workbook.Workbook()
 
     # Create Product Dictionary worksheet.
-    add_product_dict(
-        args,
-        config,
-        cc_browser,
-        products,
-        workbook.worksheets[0]
-    )
+    add_product_dict(args, cc_browser, products, workbook.worksheets[0])
 
     # Write to file.
     workbook.save(args.xlsx_filename)
@@ -74,7 +68,7 @@ def generate_xlsx(args, config, cc_browser, products):
 
 def main():
     """main"""
-    defaultConfig = os.path.join(
+    default_config = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "cctools.cfg"
     )
@@ -89,7 +83,7 @@ def main():
         action="store",
         dest="config",
         metavar="FILE",
-        default=defaultConfig,
+        default=default_config,
         help="configuration filename (default=%(default)s)"
     )
     arg_parser.add_argument(
@@ -148,7 +142,7 @@ def main():
 
     # Generate spreadsheet.
     logger.debug("Generating {}".format(os.path.abspath(args.xlsx_filename)))
-    generate_xlsx(args, config, cc_browser, products)
+    generate_xlsx(args, cc_browser, products)
 
     logger.debug("Generation complete")
     return 0

@@ -35,7 +35,7 @@ def set_cell(
     return cell
 
 
-def generate_xlsx(args, config, cc_browser, inventory):
+def generate_xlsx(args, inventory):
     """Generate the XLS file."""
 
     # Construct a document.
@@ -200,7 +200,7 @@ def main():
     #     print("{:9} {:4} {}".format(sku, level, name))
 
     logger.debug("Generating {}".format(args.xlsx_filename))
-    generate_xlsx(args, config, cc_browser, inventory)
+    generate_xlsx(args, inventory)
 
     logger.debug("Generation complete")
     return 0

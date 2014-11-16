@@ -7,6 +7,7 @@ All known products are included.  If you are never ordering a product
 again, then just don't order it.  Or use the --exclude-sku option.
 """
 
+from __future__ import print_function
 import ConfigParser
 import argparse
 import cctools
@@ -260,6 +261,8 @@ def add_variant(
     cost,
     htsus_no
 ):
+    """Add a row for a variant."""
+
     set_cell(worksheet, row, COL_LINE_NO, lineno)
     set_cell(
         worksheet,
@@ -286,11 +289,9 @@ def add_variant(
 
 def get_product_variants(variants, sku):
     """Returns a list of variants for a product."""
-    product_variants = filter(
-        lambda variant:
-        variant["Product SKU"] == sku,
-        variants
-    )
+    product_variants = [
+        variant for variant in variants if variant["Product SKU"] == sku
+    ]
     product_variants.sort(key=lambda variant: variant["Answer Sort Order"])
     return product_variants
 
@@ -558,7 +559,7 @@ def add_totals(
     )
     row += 1
 
-    return(row)
+    return row
 
 
 def add_summary(
@@ -603,7 +604,7 @@ def add_summary(
         set_cell(worksheet, row, COL_HTSUS_NO, htsus_no)
         row += 1
 
-    return(row)
+    return row
 
 
 def add_special_instructions(worksheet, row):
@@ -738,7 +739,7 @@ def generate_xlsx(args, config, cc_browser):
 
 def main():
     """main"""
-    defaultConfig = os.path.join(
+    default_config = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "cctools.cfg"
     )
@@ -754,7 +755,7 @@ def main():
         action="store",
         dest="config",
         metavar="FILE",
-        default=defaultConfig,
+        default=default_config,
         help="configuration filename (default=%(default)s)"
     )
     arg_parser.add_argument(
