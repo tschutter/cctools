@@ -156,14 +156,14 @@ def main():
 
     # Sort products.
     if args.sort == "SKU":
-        key = cc_browser.sort_key_by_sku
+        key = cc_browser.product_key_by_sku
     else:
-        key = cc_browser.sort_key_by_category_and_name
+        key = cc_browser.product_key_by_cat_and_name
     products = sorted(products, key=key)
 
     # Get list of variants.
     variants = cc_browser.get_variants()
-    variants = sorted(variants, key=cc_browser.variant_sort_key)
+    variants = sorted(variants, key=cc_browser.variant_key)
 
     inventory = list()
     for product in products:

@@ -40,7 +40,8 @@ HEADER_MAP = {
     "Product SKU": "PrdSKU",
     "Required": "QReq",
     "Question Enabled": "QEnab",
-    "Answer Sort Order": "Sort",
+    "Question Sort Order": "QSort",
+    "Answer Sort Order": "ASort",
     "Answer Input Type": "AnsType"
 }
 
@@ -224,14 +225,13 @@ def get_default_fields(args, config):
             "Product SKU",
             "SKU",
             "Product Name",
-            "Answer Input Type",
-            "Answer Sort Order",
             "Question|Answer",
+            "Inventory Level",
+            "Track Inventory",
+            "Main Photo",
             "Question Enabled",
             "Required",
-            "Track Inventory",
-            "Inventory Level",
-            "Main Photo"
+            "Answer Input Type"
         ]
 
 
@@ -312,7 +312,7 @@ def action_list(args, config, cc_browser):
     if args.obj_type == VARIANT:
         objects = sorted(
             objects,
-            key=cc_browser.variant_sort_key
+            key=cc_browser.variant_key
         )
     else:
         if args.obj_type == PRODUCT and "Variant Inventory Level" in fields:

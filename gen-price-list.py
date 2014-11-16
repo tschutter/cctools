@@ -161,7 +161,7 @@ def generate_pdf(
     # Sort products by category, product_name.
     if args.categories:
         cc_browser.set_category_sort_order(args.categories)
-    products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
+    products = sorted(products, key=cc_browser.product_key_by_cat_and_name)
 
     # Determine price multiplier.
     price_multiplier = (
@@ -174,7 +174,7 @@ def generate_pdf(
     body_fontsize = float(config.get("price_list", "body_fontsize"))
     for _, product_group in itertools.groupby(
         products,
-        key=cc_browser.sort_key_by_category
+        key=cc_browser.product_key_by_category
     ):
         # TableStyle cell formatting commands.
         styles = [

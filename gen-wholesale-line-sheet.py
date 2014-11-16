@@ -207,12 +207,12 @@ def add_products(args, worksheet, row, cc_browser, products):
         ]
 
     # Sort products by category, product_name.
-    products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
+    products = sorted(products, key=cc_browser.product_key_by_cat_and_name)
 
     # Group products by category.
     for _, product_group in itertools.groupby(
         products,
-        key=cc_browser.sort_key_by_category
+        key=cc_browser.product_key_by_category
     ):
         # Add product rows.
         for product in product_group:

@@ -373,7 +373,7 @@ def main():
     # Sort products by category, product_name.
     products = sorted(
         products,
-        key=cc_browser.sort_key_by_category_and_name
+        key=cc_browser.product_key_by_cat_and_name
     )
 
     if args.write_quant:

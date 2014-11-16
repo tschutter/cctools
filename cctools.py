@@ -493,7 +493,7 @@ class CCBrowser(object):
                 sort = int(category["Sort"])
                 self._category_sort[name] = sort
 
-    def sort_key_by_category_and_name(self, product):
+    def product_key_by_cat_and_name(self, product):
         """Return a key for a product dictionary used to sort by
         category, product_name.
         """
@@ -506,7 +506,7 @@ class CCBrowser(object):
             category_sort_key = category
         return "{}:{}".format(category_sort_key, product["Product Name"])
 
-    def sort_key_by_category(self, product):
+    def product_key_by_category(self, product):
         """Return a key for a product dictionary used to sort by
         category, product_name.
         """
@@ -519,12 +519,14 @@ class CCBrowser(object):
             category_sort_key = category
         return category_sort_key
 
-    def sort_key_by_sku(self, product):
+    def product_key_by_sku(self, product):
         """Return a key for a product dictionary used to sort by sku."""
+        # pylint: disable=R0201
         return product["SKU"]
 
-    def variant_sort_key(self, variant):
+    def variant_key(self, variant):
         """Return a key to sort variants."""
+        # pylint: disable=R0201
         return (
             variant["Product SKU"],
             variant["Question Sort Order"],

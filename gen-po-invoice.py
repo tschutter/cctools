@@ -413,7 +413,7 @@ def add_products(worksheet, row, cc_browser, products):
     lineno = 1
     for _, product_group in itertools.groupby(
         products,
-        key=cc_browser.sort_key_by_category
+        key=cc_browser.product_key_by_category
     ):
         # Leave a row for the category name.
         category = "unknown"
@@ -646,7 +646,7 @@ def add_invoice(args, config, cc_browser, worksheet):
         ]
 
     # Sort products by category, product_name.
-    products = sorted(products, key=cc_browser.sort_key_by_category_and_name)
+    products = sorted(products, key=cc_browser.product_key_by_cat_and_name)
 
     # Add products.
     row, first_product_row, last_product_row = add_products(

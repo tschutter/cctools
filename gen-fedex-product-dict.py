@@ -32,7 +32,7 @@ def add_product_dict(args, config, cc_browser, products, worksheet):
     row = 0
     for _, product_group in itertools.groupby(
         products,
-        key=cc_browser.sort_key_by_category
+        key=cc_browser.product_key_by_category
     ):
         # Add product rows.
         for product in product_group:
