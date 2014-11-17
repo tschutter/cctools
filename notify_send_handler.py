@@ -42,10 +42,10 @@ class NotifySendHandler(logging.Handler):
         message = self.format(record)
         args = ['notify-send']
         if self.expire_time:
-            args.append("--expire-time=%s" % self.expire_time)
+            args.append("--expire-time={}".format(self.expire_time))
         icon = NotifySendHandler.levelname_to_icon.get(record.levelname, None)
         if icon:
-            args.append("--icon=%s" % icon)
+            args.append("--icon={}".format(icon))
         if self.summary:
             args.append(self.summary)
         args.append(message)
