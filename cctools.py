@@ -14,7 +14,13 @@ import os
 import re
 import tempfile
 import time
-import xdg.BaseDirectory
+try:
+    # pylint: disable=F0401
+    from xdg.BaseDirectory import xdg_cache_home
+except ImportError:
+    # xdg not available on all platforms
+    # pylint: disable=C0103
+    xdg_cache_home = os.path.expanduser("~/.cache")
 
 # Notes:
 #
@@ -52,10 +58,7 @@ class CCBrowser(object):
         self._password = password
         self._clean = clean
         self._cache_ttl = float(cache_ttl)
-        self._cache_dir = os.path.join(
-            xdg.BaseDirectory.xdg_cache_home,
-            "cctools"
-        )
+        self._cache_dir = os.path.join(xdg_cache_home, "cctools")
         if not os.path.exists(self._cache_dir):
             os.mkdir(self._cache_dir, 0o700)
         # A single lockfile is used for all download operations.  We
