@@ -4,40 +4,26 @@ r"""Detects problems in CoreCommerce product data.
 
 Requires a [website] section in config file for login info.
 
-The [lint_product] section of the config file contains product value
-checks.  The key is the product value (column) to check and the value
-is a regular expression which the product value must match.  You can
-specify multiple checks for a product value by putting them on
-multiple lines.  The regex can be followed by a Python "if"
-expression.  For example:
+The rules file (default=cclint.cfg) contains product value checks.  It
+should contain an array of objects, each of which must have these
+key/value pairs:
 
-    [lint_product]
-    Teaser: \S.{9,59}  ; 10-59 chars
-    Discontinued Item: Y|N  ; Y or N
-    Available:
-        Y|N
-        N if item["Discontinued Item"] == "Y"
-    # UPC must be blank
-    UPC:
-    Cost: [0-9]+\.[0-9]{2}  ; positive float
-    Price: [0-9]+\.[0-9]{2}  ; positive float
-    # SKU must be 5 digits.
-    # SKU must start with 8 if the category is Cat or Dog.
-    SKU:
-        [1-9][0-9]{4}
-        [8][0-9]{4} if item["Category"] in ("Cat", "Dog")
-
-The [lint_category] section is similar and is used for category value
-checks.
-
-The [lint_variant] section is similar and is used for
-variant value checks.
+* "id" - a unique ID for the rule
+* "itemtype" - one of "category", "product", or "variant"
+* "test" - a Python predicate that returns True or False
+* "message" - a message output if the test fails
 """
+
+# TODO
+# * change error from string to tuple
+# * display errors in a table
+# * specify SKU uniqueness check as a rule
 
 from __future__ import print_function
 import ConfigParser
 import argparse
 import cctools
+import json
 import logging
 import notify_send_handler
 import os
@@ -45,15 +31,62 @@ import re
 import sys
 
 
-def parse_checks(config, section):
-    """Parse value check definitions in config file."""
-    checks = list()
-    for name, value in config.items(section):
-        for check in value.split("\n"):
-            check = check.strip()
-            if check != "":
-                checks.append((name, check))
-    return checks
+def validate_rules(logger, rules):
+    """Validate rules read from rules file."""
+    rule_ids = []
+    failed = False
+    for ruleno, rule in enumerate(rules):
+        rule_id = "#{}".format(ruleno + 1)
+        if "id" not in rule:
+            logger.error(
+                "Rule {} does not specify an id.".format(rule_id)
+            )
+            failed = True
+        elif len(rule["id"].strip()) == 0:
+            logger.error(
+                "ERROR: Rule {} has an invalid id of '{}'.".format(
+                    rule_id,
+                    rule["id"]
+                )
+            )
+            failed = True
+        elif rule["id"] in rule_ids:
+            logger.error(
+                "ERROR: Rule {} has a duplicate id of '{}'.".format(
+                    rule_id,
+                    rule["id"]
+                )
+            )
+            failed = True
+        else:
+            rule_id = rule["id"].strip()
+            rule_ids.append(rule_id)
+
+        if "itemtype" not in rule:
+            logger.error(
+                "ERROR: Rule {} does not specify an itemtype.".format(rule_id)
+            )
+            failed = True
+        elif rule["itemtype"] not in ["category", "product", "variant"]:
+            logger.error(
+                "ERROR: Rule {} has an invalid itemtype.".format(rule_id)
+            )
+            failed = True
+
+        if "test" not in rule:
+            logger.error(
+                "ERROR: Rule {} does not specify a test.".format(rule_id)
+            )
+            failed = True
+
+        if "message" not in rule:
+            logger.error(
+                "ERROR: Rule {} does not specify a message.".format(rule_id)
+            )
+            failed = True
+
+    if failed:
+        sys.exit(1)
 
 
 def product_display_name(product):
@@ -74,50 +107,92 @@ def variant_display_name(variant):
 
 def check_skus(products):
     """Check SKUs for uniqueness."""
+    errors = []
     skus = dict()
     for product in products:
         display_name = product_display_name(product)
         sku = product["SKU"]
         if sku != "":
             if sku in skus:
-                print("{} '{}': SKU already used by '{}'".format(
-                    "Product",
-                    display_name,
-                    skus[sku]
-                ))
+                errors.append(
+                    "{} '{}': SKU already used by '{}'".format(
+                        "Product",
+                        display_name,
+                        skus[sku]
+                    )
+                )
             else:
                 skus[sku] = display_name
+    return errors
 
 
-def check_item(item_checks, item_type_name, items, item, item_name):
-    """Check category or product for problems."""
+def check_item(rules, items, item, item_name):
+    """Check item for problems."""
 
-    for key, check in item_checks:
-        check_parts = check.split(None, 2)
-        if len(check_parts) == 1:
-            pass
-        elif len(check_parts) == 3 and check_parts[1].lower() == "if":
-            predicate = check_parts[2]
-            if not eval(
-                predicate,
-                {"__builtins__": {"len": len}},
-                {"items": items, "item": item}
-            ):
-                continue
-        else:
-            print("ERROR: Unknown check syntax '{}'".format(check))
-            sys.exit(1)
-        pattern = "^" + check_parts[0] + "$"  # entire value must match
-        if not re.match(pattern, item[key]):
-            print(
-                "{} '{}': Invalid '{}' of '{}' (does not match {})".format(
-                    item_type_name,
-                    item_name,
-                    key,
-                    item[key],
-                    pattern
-                )
+    errors = []
+    eval_globals = {"__builtins__": {"len": len, "re": re}}
+    eval_locals = {"items": items, "item": item}
+
+    for rule in rules:
+        if not eval(rule["test"], eval_globals, eval_locals):
+            try:
+                # pylint: disable=W0142
+                message = rule["message"].format(**item)
+            except Exception:
+                message = rule["message"]
+            errors.append("{} '{}': {}".format(rule["id"], item_name, message))
+
+    return errors
+
+
+def run_checks(cc_browser, rules):
+    """Run all checks, returning a list of errors."""
+
+    errors = []
+
+    # Check category list.
+    categories = cc_browser.get_categories()
+    category_rules = [rule for rule in rules if rule["itemtype"] == "category"]
+    for category in categories:
+        errors.extend(
+            check_item(
+                category_rules,
+                categories,
+                category,
+                category["Category Name"]
             )
+        )
+
+    # Check products list.
+    products = cc_browser.get_products()
+    product_rules = [rule for rule in rules if rule["itemtype"] == "product"]
+    errors.extend(check_skus(products))
+    for product in products:
+        for key in ["Teaser"]:
+            product[key] = cctools.html_to_plain_text(product[key])
+        errors.extend(
+            check_item(
+                product_rules,
+                products,
+                product,
+                product_display_name(product)
+            )
+        )
+
+    # Check variants list.
+    variants = cc_browser.get_variants()
+    variant_rules = [rule for rule in rules if rule["itemtype"] == "variant"]
+    for variant in variants:
+        errors.extend(
+            check_item(
+                variant_rules,
+                variants,
+                variant,
+                variant_display_name(variant)
+            )
+        )
+
+    return errors
 
 
 def main():
@@ -125,6 +200,10 @@ def main():
     default_config = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "cctools.cfg"
+    )
+    default_rules = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "cclint.cfg"
     )
 
     arg_parser = argparse.ArgumentParser(
@@ -136,6 +215,13 @@ def main():
         metavar="FILE",
         default=default_config,
         help="configuration filename (default=%(default)s)"
+    )
+    arg_parser.add_argument(
+        "--rules",
+        action="store",
+        metavar="FILE",
+        default=default_rules,
+        help="lint rules filename (default=%(default)s)"
     )
     arg_parser.add_argument(
         "--no-clean",
@@ -186,9 +272,11 @@ def main():
     config = ConfigParser.RawConfigParser()
     config.optionxform = str  # preserve case of option names
     config.readfp(open(args.config))
-    category_checks = parse_checks(config, "lint_category")
-    product_checks = parse_checks(config, "lint_product")
-    variant_checks = parse_checks(config, "lint_variant")
+
+    # Read rules file.
+    rules = json.load(open(args.rules))
+    #print(json.dumps(rules, indent=4, sort_keys=True))
+    validate_rules(logger, rules)
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
@@ -200,44 +288,16 @@ def main():
         cache_ttl=0 if args.refresh_cache else args.cache_ttl
     )
 
-    # Check category list.
-    categories = cc_browser.get_categories()
-    for category in categories:
-        check_item(
-            category_checks,
-            "Category",
-            categories,
-            category,
-            category["Category Name"]
-        )
+    # Run checks.
+    errors = run_checks(cc_browser, rules)
 
-    # Check products list.
-    products = cc_browser.get_products()
-    check_skus(products)
-    for product in products:
-        for key in ["Teaser"]:
-            product[key] = cctools.html_to_plain_text(product[key])
-        check_item(
-            product_checks,
-            "Product",
-            products,
-            product,
-            product_display_name(product)
-        )
-
-    # Check variants list.
-    variants = cc_browser.get_variants()
-    for variant in variants:
-        check_item(
-            variant_checks,
-            "Variant",
-            variants,
-            variant,
-            variant_display_name(variant)
-        )
+    # Display errors.
+    for error in errors:
+        print(error)
 
     logger.info("Checks complete")
     return 0
+
 
 if __name__ == "__main__":
     main()
