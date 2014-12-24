@@ -4,20 +4,38 @@ r"""Detects problems in CoreCommerce product data.
 
 Requires a [website] section in config file for login info.
 
-The rules file (default=cclint.cfg) contains product value checks.  It
-should contain an array of objects, each of which must have these
-key/value pairs:
+The rules file (default=cclint.rules) contains product value checks in
+JSON format.  The schema is:
 
-* "id" - a unique ID for the rule
-* "itemtype" - one of "category", "product", or "variant"
-* "test" - a Python predicate that returns True or False
-* "message" - a message output if the test fails
+    {
+        constants: {
+            CONST_NAME1: CONST_VALUE1,
+            CONST_NAME2: [ "CV2_PART1", "CV2_PART2", ... ],
+            ...
+        },
+        rules: [
+            {
+                "id": "unique ID for rule",
+                "itemtype": "category|product|variant",
+                "test": "Python predicate, True means test passed",
+                "message": "message output if test returned False"
+            },
+            ...
+        ]
+    }
+
+The message is formatted using message.format(current_item), so it can
+contain member variable references like "{SKU}".
+
+TODO
+----
+
+* change rules from array to dict; make id the key
+* allow multiple rules files; cclint.rules and cclint-cohu.rules
+* change error from string to a tuple
+* display errors in a GUI table
+* specify SKU uniqueness check as a rule
 """
-
-# TODO
-# * change error from string to tuple
-# * display errors in a table
-# * specify SKU uniqueness check as a rule
 
 from __future__ import print_function
 import ConfigParser
@@ -29,6 +47,17 @@ import notify_send_handler
 import os
 import re
 import sys
+
+
+def load_constants(logger, constants, eval_locals):
+    """Load constants from rules file into eval_locals."""
+    for varname in constants:
+        value = constants[varname]
+        if isinstance(value, list):
+            value = "\n".join(value)
+        statement = "{} = {}".format(varname, value)
+        # pylint: disable=W0122
+        exec(statement, {}, eval_locals)
 
 
 def validate_rules(logger, rules):
@@ -78,6 +107,9 @@ def validate_rules(logger, rules):
                 "ERROR: Rule {} does not specify a test.".format(rule_id)
             )
             failed = True
+        else:
+            if isinstance(rule["test"], list):
+                rule["test"] = " ".join(rule["test"])
 
         if "message" not in rule:
             logger.error(
@@ -126,15 +158,22 @@ def check_skus(products):
     return errors
 
 
-def check_item(rules, items, item, item_name):
+def check_item(logger, eval_locals, rules, item, item_name):
     """Check item for problems."""
 
     errors = []
     eval_globals = {"__builtins__": {"len": len, "re": re}}
-    eval_locals = {"items": items, "item": item}
+    eval_locals["item"] = item
 
     for rule in rules:
-        if not eval(rule["test"], eval_globals, eval_locals):
+        try:
+            success = eval(rule["test"], eval_globals, eval_locals)
+        except SyntaxError as ex:
+            # SyntaxError probably means that the test is a statement,
+            # not an expression.
+            logger.fatal("Syntax error in {} rule:\n{}".format(rule["id"], rule["test"]))
+            sys.exit(1)
+        if not success:
             try:
                 # pylint: disable=W0142
                 message = rule["message"].format(**item)
@@ -145,19 +184,21 @@ def check_item(rules, items, item, item_name):
     return errors
 
 
-def run_checks(cc_browser, rules):
+def run_checks(logger, eval_locals, cc_browser, rules):
     """Run all checks, returning a list of errors."""
 
     errors = []
 
     # Check category list.
     categories = cc_browser.get_categories()
+    eval_locals["items"] = categories
     category_rules = [rule for rule in rules if rule["itemtype"] == "category"]
     for category in categories:
         errors.extend(
             check_item(
+                logger,
+                eval_locals,
                 category_rules,
-                categories,
                 category,
                 category["Category Name"]
             )
@@ -165,6 +206,7 @@ def run_checks(cc_browser, rules):
 
     # Check products list.
     products = cc_browser.get_products()
+    eval_locals["items"] = products
     product_rules = [rule for rule in rules if rule["itemtype"] == "product"]
     errors.extend(check_skus(products))
     for product in products:
@@ -172,8 +214,9 @@ def run_checks(cc_browser, rules):
             product[key] = cctools.html_to_plain_text(product[key])
         errors.extend(
             check_item(
+                logger,
+                eval_locals,
                 product_rules,
-                products,
                 product,
                 product_display_name(product)
             )
@@ -181,12 +224,14 @@ def run_checks(cc_browser, rules):
 
     # Check variants list.
     variants = cc_browser.get_variants()
+    eval_locals["items"] = variants
     variant_rules = [rule for rule in rules if rule["itemtype"] == "variant"]
     for variant in variants:
         errors.extend(
             check_item(
+                logger,
+                eval_locals,
                 variant_rules,
-                variants,
                 variant,
                 variant_display_name(variant)
             )
@@ -203,7 +248,7 @@ def main():
     )
     default_rules = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        "cclint.cfg"
+        "cclint.rules"
     )
 
     arg_parser = argparse.ArgumentParser(
@@ -276,7 +321,9 @@ def main():
     # Read rules file.
     rules = json.load(open(args.rules))
     #print(json.dumps(rules, indent=4, sort_keys=True))
-    validate_rules(logger, rules)
+    eval_locals = {}
+    load_constants(logger, rules["constants"], eval_locals)
+    validate_rules(logger, rules["rules"])
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
@@ -289,7 +336,7 @@ def main():
     )
 
     # Run checks.
-    errors = run_checks(cc_browser, rules)
+    errors = run_checks(logger, eval_locals, cc_browser, rules["rules"])
 
     # Display errors.
     for error in errors:
