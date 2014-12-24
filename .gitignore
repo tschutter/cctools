@@ -3,4 +3,5 @@
 *.pdf
 *.pyc
 *.xlsx
+cclint-*.rules
 ProductSummary.txt
