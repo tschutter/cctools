@@ -16,6 +16,7 @@ JSON format.  The schema is:
         rules: [
             {
                 "id": "unique ID for rule",
+                "disabled": "message why rule disabled (key optional)",
                 "itemtype": "category|product|variant",
                 "test": "Python predicate, True means test passed",
                 "message": "message output if test returned False"
@@ -30,8 +31,8 @@ contain member variable references like "{SKU}".
 TODO
 ----
 
+* HTSUS No in message is not working
 * change rules from array to dict; make id the key
-* allow multiple rules files; cclint.rules and cclint-cohu.rules
 * change error from string to a tuple
 * display errors in a GUI table
 * specify SKU uniqueness check as a rule
@@ -263,10 +264,9 @@ def main():
     )
     arg_parser.add_argument(
         "--rules",
-        action="store",
+        action="append",
         metavar="FILE",
-        default=default_rules,
-        help="lint rules filename (default=%(default)s)"
+        help="lint rules filename (default={})".format(default_rules)
     )
     arg_parser.add_argument(
         "--no-clean",
@@ -298,6 +298,8 @@ def main():
 
     # Parse command line arguments.
     args = arg_parser.parse_args()
+    if args.rules is None:
+        args.rules = [default_rules]
 
     # Configure logging.
     logging.basicConfig(
@@ -318,12 +320,32 @@ def main():
     config.optionxform = str  # preserve case of option names
     config.readfp(open(args.config))
 
-    # Read rules file.
-    rules = json.load(open(args.rules))
-    #print(json.dumps(rules, indent=4, sort_keys=True))
+    # Read rules files.
     eval_locals = {}
-    load_constants(logger, rules["constants"], eval_locals)
-    validate_rules(logger, rules["rules"])
+    rules = []
+    for rulesfile in args.rules:
+        try:
+            constants_and_rules = json.load(open(rulesfile))
+        except Exception as ex:
+            print("Error loading rules file {}:".format(rulesfile))
+            print("  {}".format(ex.message))
+            return 1
+
+        #print(json.dumps(rules, indent=4, sort_keys=True))
+        if "constants" in constants_and_rules:
+            load_constants(
+                logger,
+                constants_and_rules["constants"],
+                eval_locals
+            )
+        if "rules" in constants_and_rules:
+            file_rules = [
+                rule
+                for rule in constants_and_rules["rules"]
+                if "disabled" not in rule
+            ]
+            validate_rules(logger, file_rules)
+            rules.extend(file_rules)
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
@@ -336,7 +358,7 @@ def main():
     )
 
     # Run checks.
-    errors = run_checks(logger, eval_locals, cc_browser, rules["rules"])
+    errors = run_checks(logger, eval_locals, cc_browser, rules)
 
     # Display errors.
     for error in errors:
