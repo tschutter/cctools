@@ -30,20 +30,32 @@ contain member variable references like "{SKU}".
 TODO
 ----
 
-* display errors in a GUI table
+* recheck should flush cache
+* in GUI, display message box when checking
+* create href link to item
+  * multiline CLI output
+  * itemtype itemname
+  *   message
+  *   link
+* fix width determination of item column
+* freeze width of item and rule columns
+* enable GUI scrollbars
+* sort by column if column header clicked
 * specify SKU uniqueness check as a rule
 """
 
 from __future__ import print_function
 import ConfigParser
+import Tkinter
 import argparse
 import cctools
 import json
 import os
 import re
 import sys
-import Tkinter
+import tkFont
 import tkMessageBox
+import ttk
 
 
 def dupe_checking_hook(pairs):
@@ -122,7 +134,7 @@ class AppUI(object):
         failed = False
         for rule_id, rule in rules.items():
             if "itemtype" not in rule:
-                self.fatal(
+                self.error(
                     "Rule {} does not specify an itemtype in {}.".format(
                         rule_id,
                         rulesfile
@@ -130,7 +142,7 @@ class AppUI(object):
                 )
                 failed = True
             elif rule["itemtype"] not in ["category", "product", "variant"]:
-                self.fatal(
+                self.error(
                     "Rule {} has an invalid itemtype in {}.".format(
                         rule_id,
                         rulesfile
@@ -139,7 +151,7 @@ class AppUI(object):
                 failed = True
 
             if "test" not in rule:
-                self.fatal(
+                self.error(
                     "Rule {} does not specify a test in {}.".format(
                         rule_id,
                         rulesfile
@@ -151,7 +163,7 @@ class AppUI(object):
                     rule["test"] = " ".join(rule["test"])
 
             if "message" not in rule:
-                self.fatal(
+                self.error(
                     "ERROR: Rule {} does not specify a message in {}.".format(
                         rule_id,
                         rulesfile
@@ -178,9 +190,12 @@ class AppUI(object):
                 )
             except Exception as ex:
                 # FIXME
-                print("Error loading rules file {}:".format(rulesfile))
-                print("  {}".format(ex.message))
-                sys.exit(1)
+                self.fatal(
+                    "Error loading rules file {}:\n  {}".format(
+                        rulesfile,
+                        ex.message
+                    )
+                )
 
             #print(json.dumps(rules, indent=4, sort_keys=True))
             if "constants" in constants_and_rules:
@@ -227,7 +242,6 @@ class AppUI(object):
                         rule["test"]
                     )
                 )
-                sys.exit(1)
             if not success:
                 try:
                     # pylint: disable=W0142
@@ -319,6 +333,22 @@ class AppUI(object):
             print("{0} '{1}' {2} {3}".format(*error))
 
 
+#def sortby(tree, col, descending):
+#    """Sort tree contents when a column header is clicked on."""
+#    # grab values to sort
+#    data = [(tree.set(child, col), child) \
+#        for child in tree.get_children('')]
+#    # if the data to be sorted is numeric change to float
+#    #data =  change_numeric(data)
+#    # now sort the data in place
+#    data.sort(reverse=descending)
+#    for index, item in enumerate(data):
+#        tree.move(item[1], '', index)
+#    # switch the heading so it will sort in the opposite direction
+#    tree.heading(col, command=lambda col=col: sortby(tree, col, \
+#        int(not descending)))
+
+
 class AppGUI(AppUI):
     """Application graphical user interface."""
 
@@ -330,29 +360,76 @@ class AppGUI(AppUI):
         AppUI.__init__(self, args)
         self.root = root
         self.frame = Tkinter.Frame(root)
-        self.frame.pack()
+        self.frame.pack(fill="both", expand=True)
 
-        # CSV file
-        csv_group = Tkinter.LabelFrame(
-            self.frame,
-            text="CSV file",
-            padx=5,
-            pady=5
-        )
-        csv_group.pack(padx=10, pady=10)
-        self.csv_entry = Tkinter.Entry(csv_group, width=AppGUI.FILENAME_WIDTH)
-        self.csv_entry.pack(side=Tkinter.LEFT)
+        # http://www.tkdocs.com/tutorial/tree.html
+        # https://www.daniweb.com/software-development/\
+        #   python/threads/350266/creating-table-in-python
+        # Create treeview.
+        self.tree = ttk.Treeview(self.frame)
+        # selectmode, "browse" single select
+        # tree.tag_bind('ttk', '<1>', itemClicked);
+        # item clicked is tree.focus()
 
-        # QIF file
-        qif_group = Tkinter.LabelFrame(
-            self.frame,
-            text="QIF file",
-            padx=5,
-            pady=5
-        )
-        qif_group.pack(padx=10, pady=10)
-        self.qif_entry = Tkinter.Entry(qif_group, width=AppGUI.FILENAME_WIDTH)
-        self.qif_entry.pack(side=Tkinter.LEFT)
+        # Configure first (tree) column
+        self.tree.heading("#0", text="Item")
+        self.tree.column("#0", width=350)
+
+        # Define data columns.
+        # fix width for rule column
+        self.tree["columns"] = ["Rule", "Problem"]
+        self.tree.heading("Rule", text="Rule")
+        self.tree.column("Rule", width=tkFont.Font().measure("Rule"))
+        self.tree.heading("Problem", text="Problem")
+        self.tree.column("Problem", width=750)
+            #sortable columns
+            #self.tree.heading(
+            #    column,
+            #    text=column,
+            #    command=lambda c=column: sortby(self.tree, c, 0)
+            #)
+
+#        self.tree.tag_configure("ttk")
+        self.tree.pack(side=Tkinter.TOP, fill="both", expand=True)
+
+# scrollbars
+# http://stackoverflow.com/questions/16746387/tkinter-treeview-widget
+#        ysb = ttk.Scrollbar(self, orient='vertical', command=self.tree.yview)
+#        xsb = ttk.Scrollbar(self, orient='horizontal',
+#             command=self.tree.xview)
+#        self.tree.configure(yscroll=ysb.set, xscroll=xsb.set)
+#        self.tree.heading('#0', text='Path', anchor='w')
+#
+#        abspath = os.path.abspath(path)
+#        root_node = self.tree.insert('', 'end', text=abspath, open=True)
+#        self.process_directory(root_node, abspath)
+#
+#        self.tree.grid(row=0, column=0)
+#        ysb.grid(row=0, column=1, sticky='ns')
+#        xsb.grid(row=1, column=0, sticky='ew')
+#        self.grid()
+
+#        # CSV file
+#        csv_group = Tkinter.LabelFrame(
+#            self.frame,
+#            text="CSV file",
+#            padx=5,
+#            pady=5
+#        )
+#        csv_group.pack(padx=10, pady=10)
+#        self.csv_entry = Tkinter.Entry(csv_group, width=AppGUI.FILENAME_WIDTH)
+#        self.csv_entry.pack(side=Tkinter.LEFT)
+#
+#        # QIF file
+#        qif_group = Tkinter.LabelFrame(
+#            self.frame,
+#            text="QIF file",
+#            padx=5,
+#            pady=5
+#        )
+#        qif_group.pack(padx=10, pady=10)
+#        self.qif_entry = Tkinter.Entry(qif_group, width=AppGUI.FILENAME_WIDTH)
+#        self.qif_entry.pack(side=Tkinter.LEFT)
 
         # Recheck button
         self.recheck_button = Tkinter.Button(
@@ -375,11 +452,6 @@ class AppGUI(AppUI):
 
         self.run_checks()
 
-#    def set_csvfile(self, csvfile):
-#        """Set the name of the CSV file."""
-#        self.csv_entry.delete(0, Tkinter.END)
-#        self.csv_entry.insert(0, csvfile)
-
     def error(self, msg):
         """Display an error message."""
         tkMessageBox.showerror("Error", msg)
@@ -396,10 +468,46 @@ class AppGUI(AppUI):
 
     def display_errors(self, errors):
         """Display errors in table."""
-        # FIXME
-        for error in errors:
-            # pylint: disable=W0142
-            print("{0} '{1}' {2} {3}".format(*error))
+
+        # Delete existing items in table.
+        for child in self.tree.get_children():
+            self.tree.delete(child)
+
+        # Determine the minimum width of the Item column.
+        item_col_width = tkFont.Font().measure("Item")
+
+        # Insert errors in table.
+        for itemtype in ("category", "product", "variant"):
+            # Insert an itemtype branch.
+            self.tree.insert(
+                "",
+                "end",
+                itemtype,
+                text=itemtype,
+                open=True
+            )
+            width = tkFont.Font().measure(itemtype)
+            if item_col_width < width:
+                item_col_width = width
+
+            # Insert items of the same itemtype.
+            for error in errors:
+                if error[0] == itemtype:
+                    self.tree.insert(
+                        error[0],
+                        "end",
+                        "",
+                        text=error[1],
+                        values=(error[2], error[3])
+                    )
+                    width = tkFont.Font().measure(error[1])
+                    if item_col_width < width:
+                        item_col_width = width
+
+        # Set width of the Item column.
+        # FIXME, doesn't work
+        #self.tree.column("#0", width=item_col_width)
+        #self.tree.pack(side=Tkinter.TOP, fill="both", expand=True)
 
 
 class AppCLI(AppUI):
