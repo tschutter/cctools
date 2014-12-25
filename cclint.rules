@@ -14,42 +14,42 @@
         "C01": {
             "itemtype": "category",
             "test": "4 <= len(item['Category Name']) <= 30",
-            "message": "Category Name length must be 4 to 30"
+            "message": "'Category Name' length must be 4 to 30"
         },
         "C02": {
             "itemtype": "category",
-            "test": "0 < len(item['Thumbnail'])",
-            "message": "Thumbnail must be non blank"
+            "test": "len(item['Thumbnail']) > 0",
+            "message": "'Thumbnail' must be non blank"
         },
         "P01": {
             "itemtype": "product",
             "test": "10 <= len(item['Teaser']) <= 60",
-            "message": "Teaser length must be 10 to 60 ({Teaser})"
+            "message": "'Teaser' length must be 10 to 60 (Teaser={Teaser})"
         },
         "P02": {
             "itemtype": "product",
             "test": "re.match('^Y|N$', item['Discontinued Item'])",
-            "message": "Discontinued Item must be Y or N ({Discontinued Item})"
+            "message": "'Discontinued Item' must be 'Y' or 'N' (Discontinued Item={Discontinued Item})"
         },
         "P03": {
             "itemtype": "product",
             "test": "0 < len(item['Category'])",
-            "message": "Category must be non blank"
+            "message": "'Category' must be non blank"
         },
         "P04": {
             "itemtype": "product",
             "test": "re.match('^Y|N$', item['Available'])",
-            "message": "Available must be Y or N ({Available})"
+            "message": "'Available' must be 'Y' or 'N' (Available={Available})"
         },
         "P05": {
             "itemtype": "product",
             "test": "re.match('^[0-9]+\\.[0-9]{2}$', item['Cost'])",
-            "message": "Cost must be a positive number ({Cost})"
+            "message": "'Cost' must be a positive number (Cost={Cost})"
         },
         "P06": {
             "itemtype": "product",
             "test": "re.match('^[0-9]+\\.[0-9]{2}$', item['Price'])",
-            "message": "Price must be a positive number ({Price})"
+            "message": "'Price' must be a positive number (Price={Price})"
         },
         "V01": {
             "itemtype": "variant",
@@ -57,7 +57,7 @@
                 "item['Question|Answer'] not in QA_TO_SKU_MAP.keys()",
                 "or QA_TO_SKU_MAP[item['Question|Answer']] == item['SKU']"
             ],
-            "message": "Invalid SKU of '{SKU}'"
+            "message": "'SKU' does not match 'Question|Answer' (SKU={SKU}, {Question|Answer})"
         },
         "V02": {
             "itemtype": "variant",
@@ -71,7 +71,7 @@
                 " ]",
                 ") > 1"
             ],
-            "message": "Default must be Y if only one enabled variant for a product exists"
+            "message": "'Default' must be 'Y' if only one enabled variant for a product exists"
         }
     }
 }
