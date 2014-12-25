@@ -14,8 +14,7 @@ JSON format.  The schema is:
             ...
         },
         rules: [
-            {
-                "id": "unique ID for rule",
+            "uniqueid": {
                 "disabled": "message why rule disabled (key optional)",
                 "itemtype": "category|product|variant",
                 "test": "Python predicate, True means test passed",
@@ -31,7 +30,6 @@ contain member variable references like "{SKU}".
 TODO
 ----
 
-* HTSUS No in message is not working
 * change rules from array to dict; make id the key
 * change error from string to a tuple
 * display errors in a GUI table
@@ -50,7 +48,18 @@ import re
 import sys
 
 
-def load_constants(logger, constants, eval_locals):
+def dupe_checking_hook(pairs):
+    result = dict()
+    for key, val in pairs:
+        if key.strip() == "":
+            raise KeyError("Blank key specified")
+        if key in result:
+            raise KeyError("Duplicate key specified: %s" % key)
+        result[key] = val
+    return result
+
+
+def load_constants(constants, eval_locals):
     """Load constants from rules file into eval_locals."""
     for varname in constants:
         value = constants[varname]
@@ -63,35 +72,8 @@ def load_constants(logger, constants, eval_locals):
 
 def validate_rules(logger, rules):
     """Validate rules read from rules file."""
-    rule_ids = []
     failed = False
-    for ruleno, rule in enumerate(rules):
-        rule_id = "#{}".format(ruleno + 1)
-        if "id" not in rule:
-            logger.error(
-                "Rule {} does not specify an id.".format(rule_id)
-            )
-            failed = True
-        elif len(rule["id"].strip()) == 0:
-            logger.error(
-                "ERROR: Rule {} has an invalid id of '{}'.".format(
-                    rule_id,
-                    rule["id"]
-                )
-            )
-            failed = True
-        elif rule["id"] in rule_ids:
-            logger.error(
-                "ERROR: Rule {} has a duplicate id of '{}'.".format(
-                    rule_id,
-                    rule["id"]
-                )
-            )
-            failed = True
-        else:
-            rule_id = rule["id"].strip()
-            rule_ids.append(rule_id)
-
+    for rule_id, rule in rules.items():
         if "itemtype" not in rule:
             logger.error(
                 "ERROR: Rule {} does not specify an itemtype.".format(rule_id)
@@ -159,20 +141,26 @@ def check_skus(products):
     return errors
 
 
-def check_item(logger, eval_locals, rules, item, item_name):
+def check_item(logger, eval_locals, rules, itemtype, item, item_name):
     """Check item for problems."""
 
     errors = []
     eval_globals = {"__builtins__": {"len": len, "re": re}}
     eval_locals["item"] = item
 
-    for rule in rules:
+    for rule_id, rule in rules.items():
+        # Skip rules that do not apply to this itemtype.
+        if rule["itemtype"] != itemtype:
+            continue
+
         try:
             success = eval(rule["test"], eval_globals, eval_locals)
         except SyntaxError as ex:
             # SyntaxError probably means that the test is a statement,
             # not an expression.
-            logger.fatal("Syntax error in {} rule:\n{}".format(rule["id"], rule["test"]))
+            logger.fatal(
+                "Syntax error in {} rule:\n{}".format(rule_id, rule["test"])
+            )
             sys.exit(1)
         if not success:
             try:
@@ -180,7 +168,7 @@ def check_item(logger, eval_locals, rules, item, item_name):
                 message = rule["message"].format(**item)
             except Exception:
                 message = rule["message"]
-            errors.append("{} '{}': {}".format(rule["id"], item_name, message))
+            errors.append("{} '{}': {}".format(rule_id, item_name, message))
 
     return errors
 
@@ -193,13 +181,13 @@ def run_checks(logger, eval_locals, cc_browser, rules):
     # Check category list.
     categories = cc_browser.get_categories()
     eval_locals["items"] = categories
-    category_rules = [rule for rule in rules if rule["itemtype"] == "category"]
     for category in categories:
         errors.extend(
             check_item(
                 logger,
                 eval_locals,
-                category_rules,
+                rules,
+                "category",
                 category,
                 category["Category Name"]
             )
@@ -208,7 +196,6 @@ def run_checks(logger, eval_locals, cc_browser, rules):
     # Check products list.
     products = cc_browser.get_products()
     eval_locals["items"] = products
-    product_rules = [rule for rule in rules if rule["itemtype"] == "product"]
     errors.extend(check_skus(products))
     for product in products:
         for key in ["Teaser"]:
@@ -217,7 +204,8 @@ def run_checks(logger, eval_locals, cc_browser, rules):
             check_item(
                 logger,
                 eval_locals,
-                product_rules,
+                rules,
+                "product",
                 product,
                 product_display_name(product)
             )
@@ -226,13 +214,13 @@ def run_checks(logger, eval_locals, cc_browser, rules):
     # Check variants list.
     variants = cc_browser.get_variants()
     eval_locals["items"] = variants
-    variant_rules = [rule for rule in rules if rule["itemtype"] == "variant"]
     for variant in variants:
         errors.extend(
             check_item(
                 logger,
                 eval_locals,
-                variant_rules,
+                rules,
+                "variant",
                 variant,
                 variant_display_name(variant)
             )
@@ -325,10 +313,13 @@ def main():
 
     # Read rules files.
     eval_locals = {}
-    rules = []
+    rules = {}
     for rulesfile in args.rules:
         try:
-            constants_and_rules = json.load(open(rulesfile))
+            constants_and_rules = json.load(
+                open(rulesfile),
+                object_pairs_hook=dupe_checking_hook
+            )
         except Exception as ex:
             print("Error loading rules file {}:".format(rulesfile))
             print("  {}".format(ex.message))
@@ -337,25 +328,24 @@ def main():
         #print(json.dumps(rules, indent=4, sort_keys=True))
         if "constants" in constants_and_rules:
             load_constants(
-                logger,
                 constants_and_rules["constants"],
                 eval_locals
             )
         if "rules" in constants_and_rules:
-            file_rules = [
-                rule
-                for rule in constants_and_rules["rules"]
-                if "disabled" not in rule
-            ]
+            file_rules = constants_and_rules["rules"]
             validate_rules(logger, file_rules)
-            if args.rule_ids is not None:
+
+            # Merge rules from this file into master rules dict.
+            if args.rule_ids is None:
+                rule_ids = None
+            else:
                 rule_ids = args.rule_ids.split(",")
-                file_rules = [
-                    rule
-                    for rule in file_rules
-                    if rule["id"] in args.rule_ids
-                ]
-            rules.extend(file_rules)
+            for rule_id, rule in file_rules.items():
+                if (
+                    (rule_ids is None or rule_id in rule_ids) and
+                    "disabled" not in rule
+                ):
+                    rules[rule_id] = rule
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(

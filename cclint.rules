@@ -10,57 +10,48 @@
             "}"
         ]
     },
-    "rules": [
-        {
-            "id": "C01",
+    "rules": {
+        "C01": {
             "itemtype": "category",
             "test": "4 <= len(item['Category Name']) <= 30",
             "message": "Category Name length must be 4 to 30"
         },
-        {
-            "id": "C02",
+        "C02": {
             "itemtype": "category",
             "test": "0 < len(item['Thumbnail'])",
             "message": "Thumbnail must be non blank"
         },
-        {
-            "id": "P01",
+        "P01": {
             "itemtype": "product",
             "test": "10 <= len(item['Teaser']) <= 60",
             "message": "Teaser length must be 10 to 60 ({Teaser})"
         },
-        {
-            "id": "P02",
+        "P02": {
             "itemtype": "product",
             "test": "re.match('^Y|N$', item['Discontinued Item'])",
             "message": "Discontinued Item must be Y or N ({Discontinued Item})"
         },
-        {
-            "id": "P03",
+        "P03": {
             "itemtype": "product",
             "test": "0 < len(item['Category'])",
             "message": "Category must be non blank"
         },
-        {
-            "id": "P04",
+        "P04": {
             "itemtype": "product",
             "test": "re.match('^Y|N$', item['Available'])",
             "message": "Available must be Y or N ({Available})"
         },
-        {
-            "id": "P06",
+        "P05": {
             "itemtype": "product",
             "test": "re.match('^[0-9]+\\.[0-9]{2}$', item['Cost'])",
             "message": "Cost must be a positive number ({Cost})"
         },
-        {
-            "id": "P07",
+        "P06": {
             "itemtype": "product",
             "test": "re.match('^[0-9]+\\.[0-9]{2}$', item['Price'])",
             "message": "Price must be a positive number ({Price})"
         },
-        {
-            "id": "V01",
+        "V01": {
             "itemtype": "variant",
             "test": [
                 "item['Question|Answer'] not in QA_TO_SKU_MAP.keys()",
@@ -68,8 +59,7 @@
             ],
             "message": "Invalid SKU of '{SKU}'"
         },
-        {
-            "id": "V02",
+        "V02": {
             "itemtype": "variant",
             "test": [
                 "item['Default'] == 'Y' or len(",
@@ -83,5 +73,5 @@
             ],
             "message": "Default must be Y if only one enabled variant for a product exists"
         }
-    ]
+    }
 }
