@@ -30,7 +30,6 @@ contain member variable references like "{SKU}".
 TODO
 ----
 
-* change rules from array to dict; make id the key
 * change error from string to a tuple
 * display errors in a GUI table
 * specify SKU uniqueness check as a rule
@@ -129,13 +128,13 @@ def check_skus(products):
         sku = product["SKU"]
         if sku != "":
             if sku in skus:
-                errors.append(
-                    "{} '{}': SKU already used by '{}'".format(
-                        "Product",
-                        display_name,
-                        skus[sku]
-                    )
+                error = (
+                    "product",
+                    display_name,
+                    "P00",
+                    "SKU already used by '{}'".format(skus[sku])
                 )
+                errors.append(error)
             else:
                 skus[sku] = display_name
     return errors
@@ -168,7 +167,8 @@ def check_item(logger, eval_locals, rules, itemtype, item, item_name):
                 message = rule["message"].format(**item)
             except Exception:
                 message = rule["message"]
-            errors.append("{} '{}': {}".format(rule_id, item_name, message))
+            error = (itemtype, item_name, rule_id, message)
+            errors.append(error)
 
     return errors
 
@@ -362,7 +362,8 @@ def main():
 
     # Display errors.
     for error in errors:
-        print(error)
+        # pylint: disable=W0142
+        print("{0} '{1}' {2} {3}".format(*error))
 
     logger.info("Checks complete")
     return 0
