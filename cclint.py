@@ -257,7 +257,6 @@ def main():
     )
     arg_parser.add_argument(
         "--config",
-        action="store",
         metavar="FILE",
         default=default_config,
         help="configuration filename (default=%(default)s)"
@@ -283,11 +282,15 @@ def main():
     )
     arg_parser.add_argument(
         "--cache-ttl",
-        action="store",
         type=int,
         metavar="SEC",
         default=3600,
         help="cache TTL in seconds (default=%(default)i)"
+    )
+    arg_parser.add_argument(
+        "--rule-ids",
+        metavar="ID1,ID2,...",
+        help="rules to check (default=all)"
     )
     arg_parser.add_argument(
         "--verbose",
@@ -345,6 +348,13 @@ def main():
                 if "disabled" not in rule
             ]
             validate_rules(logger, file_rules)
+            if args.rule_ids is not None:
+                rule_ids = args.rule_ids.split(",")
+                file_rules = [
+                    rule
+                    for rule in file_rules
+                    if rule["id"] in args.rule_ids
+                ]
             rules.extend(file_rules)
 
     # Create a connection to CoreCommerce.
