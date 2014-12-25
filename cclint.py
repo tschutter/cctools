@@ -30,7 +30,6 @@ contain member variable references like "{SKU}".
 TODO
 ----
 
-* change error from string to a tuple
 * display errors in a GUI table
 * specify SKU uniqueness check as a rule
 """
@@ -40,14 +39,18 @@ import ConfigParser
 import argparse
 import cctools
 import json
-import logging
-import notify_send_handler
 import os
 import re
 import sys
+import Tkinter
+import tkMessageBox
 
 
 def dupe_checking_hook(pairs):
+    """
+    An object_pairs_hook for json.load() that raises a KeyError on
+    duplicate or blank keys.
+    """
     result = dict()
     for key, val in pairs:
         if key.strip() == "":
@@ -67,40 +70,6 @@ def load_constants(constants, eval_locals):
         statement = "{} = {}".format(varname, value)
         # pylint: disable=W0122
         exec(statement, {}, eval_locals)
-
-
-def validate_rules(logger, rules):
-    """Validate rules read from rules file."""
-    failed = False
-    for rule_id, rule in rules.items():
-        if "itemtype" not in rule:
-            logger.error(
-                "ERROR: Rule {} does not specify an itemtype.".format(rule_id)
-            )
-            failed = True
-        elif rule["itemtype"] not in ["category", "product", "variant"]:
-            logger.error(
-                "ERROR: Rule {} has an invalid itemtype.".format(rule_id)
-            )
-            failed = True
-
-        if "test" not in rule:
-            logger.error(
-                "ERROR: Rule {} does not specify a test.".format(rule_id)
-            )
-            failed = True
-        else:
-            if isinstance(rule["test"], list):
-                rule["test"] = " ".join(rule["test"])
-
-        if "message" not in rule:
-            logger.error(
-                "ERROR: Rule {} does not specify a message.".format(rule_id)
-            )
-            failed = True
-
-    if failed:
-        sys.exit(1)
 
 
 def product_display_name(product):
@@ -140,93 +109,308 @@ def check_skus(products):
     return errors
 
 
-def check_item(logger, eval_locals, rules, itemtype, item, item_name):
-    """Check item for problems."""
+class AppUI(object):
+    """Base application user interface."""
+    def __init__(self, args):
+        self.args = args
+        self.config = None
+        self.eval_locals = {}
+        self.rules = {}
 
-    errors = []
-    eval_globals = {"__builtins__": {"len": len, "re": re}}
-    eval_locals["item"] = item
+    def validate_rules(self, rulesfile, rules):
+        """Validate rules read from rules file."""
+        failed = False
+        for rule_id, rule in rules.items():
+            if "itemtype" not in rule:
+                self.fatal(
+                    "Rule {} does not specify an itemtype in {}.".format(
+                        rule_id,
+                        rulesfile
+                    )
+                )
+                failed = True
+            elif rule["itemtype"] not in ["category", "product", "variant"]:
+                self.fatal(
+                    "Rule {} has an invalid itemtype in {}.".format(
+                        rule_id,
+                        rulesfile
+                    )
+                )
+                failed = True
 
-    for rule_id, rule in rules.items():
-        # Skip rules that do not apply to this itemtype.
-        if rule["itemtype"] != itemtype:
-            continue
+            if "test" not in rule:
+                self.fatal(
+                    "Rule {} does not specify a test in {}.".format(
+                        rule_id,
+                        rulesfile
+                    )
+                )
+                failed = True
+            else:
+                if isinstance(rule["test"], list):
+                    rule["test"] = " ".join(rule["test"])
 
-        try:
-            success = eval(rule["test"], eval_globals, eval_locals)
-        except SyntaxError as ex:
-            # SyntaxError probably means that the test is a statement,
-            # not an expression.
-            logger.fatal(
-                "Syntax error in {} rule:\n{}".format(rule_id, rule["test"])
-            )
+            if "message" not in rule:
+                self.fatal(
+                    "ERROR: Rule {} does not specify a message in {}.".format(
+                        rule_id,
+                        rulesfile
+                    )
+                )
+                failed = True
+
+        if failed:
             sys.exit(1)
-        if not success:
+
+    def load_config_and_rules(self):
+        """Load cctools configuration file and cclint rules files."""
+        # Read config file.
+        self.config = ConfigParser.RawConfigParser()
+        self.config.optionxform = str  # preserve case of option names
+        self.config.readfp(open(self.args.config))
+
+        # Read rules files.
+        for rulesfile in self.args.rules:
             try:
-                # pylint: disable=W0142
-                message = rule["message"].format(**item)
-            except Exception:
-                message = rule["message"]
-            error = (itemtype, item_name, rule_id, message)
-            errors.append(error)
+                constants_and_rules = json.load(
+                    open(rulesfile),
+                    object_pairs_hook=dupe_checking_hook
+                )
+            except Exception as ex:
+                # FIXME
+                print("Error loading rules file {}:".format(rulesfile))
+                print("  {}".format(ex.message))
+                sys.exit(1)
 
-    return errors
+            #print(json.dumps(rules, indent=4, sort_keys=True))
+            if "constants" in constants_and_rules:
+                load_constants(
+                    constants_and_rules["constants"],
+                    self.eval_locals
+                )
+            if "rules" in constants_and_rules:
+                file_rules = constants_and_rules["rules"]
+                self.validate_rules(rulesfile, file_rules)
 
+                # Merge rules from this file into master rules dict.
+                if self.args.rule_ids is None:
+                    rule_ids = None
+                else:
+                    rule_ids = self.args.rule_ids.split(",")
+                for rule_id, rule in file_rules.items():
+                    if (
+                        (rule_ids is None or rule_id in rule_ids) and
+                        "disabled" not in rule
+                    ):
+                        self.rules[rule_id] = rule
 
-def run_checks(logger, eval_locals, cc_browser, rules):
-    """Run all checks, returning a list of errors."""
+    def check_item(self, itemtype, item, item_name):
+        """Check item for problems."""
 
-    errors = []
+        errors = []
+        eval_globals = {"__builtins__": {"len": len, "re": re}}
+        self.eval_locals["item"] = item
 
-    # Check category list.
-    categories = cc_browser.get_categories()
-    eval_locals["items"] = categories
-    for category in categories:
-        errors.extend(
-            check_item(
-                logger,
-                eval_locals,
-                rules,
-                "category",
-                category,
-                category["Category Name"]
-            )
+        for rule_id, rule in self.rules.items():
+            # Skip rules that do not apply to this itemtype.
+            if rule["itemtype"] != itemtype:
+                continue
+
+            try:
+                success = eval(rule["test"], eval_globals, self.eval_locals)
+            except SyntaxError:
+                # SyntaxError probably means that the test is a statement,
+                # not an expression.
+                self.fatal(
+                    "Syntax error in {} rule:\n{}".format(
+                        rule_id,
+                        rule["test"]
+                    )
+                )
+                sys.exit(1)
+            if not success:
+                try:
+                    # pylint: disable=W0142
+                    message = rule["message"].format(**item)
+                except Exception:
+                    message = rule["message"]
+                error = (itemtype, item_name, rule_id, message)
+                errors.append(error)
+
+        return errors
+
+    def run_checks(self):
+        """Run all checks, returning a list of errors."""
+
+        errors = []
+
+        # Create a connection to CoreCommerce.
+        cc_browser = cctools.CCBrowser(
+            self.config.get("website", "host"),
+            self.config.get("website", "site"),
+            self.config.get("website", "username"),
+            self.config.get("website", "password"),
+            clean=self.args.clean,
+            cache_ttl=0 if self.args.refresh_cache else self.args.cache_ttl
         )
 
-    # Check products list.
-    products = cc_browser.get_products()
-    eval_locals["items"] = products
-    errors.extend(check_skus(products))
-    for product in products:
-        for key in ["Teaser"]:
-            product[key] = cctools.html_to_plain_text(product[key])
-        errors.extend(
-            check_item(
-                logger,
-                eval_locals,
-                rules,
-                "product",
-                product,
-                product_display_name(product)
+        # Check category list.
+        categories = cc_browser.get_categories()
+        self.eval_locals["items"] = categories
+        for category in categories:
+            errors.extend(
+                self.check_item(
+                    "category",
+                    category,
+                    category["Category Name"]
+                )
             )
-        )
 
-    # Check variants list.
-    variants = cc_browser.get_variants()
-    eval_locals["items"] = variants
-    for variant in variants:
-        errors.extend(
-            check_item(
-                logger,
-                eval_locals,
-                rules,
-                "variant",
-                variant,
-                variant_display_name(variant)
+        # Check products list.
+        products = cc_browser.get_products()
+        self.eval_locals["items"] = products
+        errors.extend(check_skus(products))
+        for product in products:
+            for key in ["Teaser"]:
+                product[key] = cctools.html_to_plain_text(product[key])
+            errors.extend(
+                self.check_item(
+                    "product",
+                    product,
+                    product_display_name(product)
+                )
             )
-        )
 
-    return errors
+        # Check variants list.
+        variants = cc_browser.get_variants()
+        self.eval_locals["items"] = variants
+        for variant in variants:
+            errors.extend(
+                self.check_item(
+                    "variant",
+                    variant,
+                    variant_display_name(variant)
+                )
+            )
+
+        # Display errors.
+        self.display_errors(errors)
+
+    def error(self, msg):
+        """Display an error message."""
+        # pylint: disable=no-self-use
+        print("ERROR: {}".format(msg), file=sys.stderr)
+
+    def fatal(self, msg):
+        """Display an error message and exit."""
+        self.error(msg)
+        sys.exit(1)
+
+    def warning(self, msg):
+        """Display a warning message."""
+        # pylint: disable=no-self-use
+        print("WARNING: {}".format(msg), file=sys.stderr)
+
+    def display_errors(self, errors):
+        """Print errors to stdout."""
+        # pylint: disable=no-self-use
+        for error in errors:
+            # pylint: disable=W0142
+            print("{0} '{1}' {2} {3}".format(*error))
+
+
+class AppGUI(AppUI):
+    """Application graphical user interface."""
+
+    # Width of filename text entry boxes.
+    FILENAME_WIDTH = 95
+
+    # pylint: disable=no-self-use
+    def __init__(self, args, root):
+        AppUI.__init__(self, args)
+        self.root = root
+        self.frame = Tkinter.Frame(root)
+        self.frame.pack()
+
+        # CSV file
+        csv_group = Tkinter.LabelFrame(
+            self.frame,
+            text="CSV file",
+            padx=5,
+            pady=5
+        )
+        csv_group.pack(padx=10, pady=10)
+        self.csv_entry = Tkinter.Entry(csv_group, width=AppGUI.FILENAME_WIDTH)
+        self.csv_entry.pack(side=Tkinter.LEFT)
+
+        # QIF file
+        qif_group = Tkinter.LabelFrame(
+            self.frame,
+            text="QIF file",
+            padx=5,
+            pady=5
+        )
+        qif_group.pack(padx=10, pady=10)
+        self.qif_entry = Tkinter.Entry(qif_group, width=AppGUI.FILENAME_WIDTH)
+        self.qif_entry.pack(side=Tkinter.LEFT)
+
+        # Recheck button
+        self.recheck_button = Tkinter.Button(
+            self.frame,
+            text="Recheck",
+            command=self.run_checks,
+            default=Tkinter.ACTIVE
+        )
+        self.recheck_button.pack(side=Tkinter.LEFT, padx=5, pady=5)
+
+        # Quit button
+        self.quit_button = Tkinter.Button(
+            self.frame,
+            text="Quit",
+            command=self.frame.quit
+        )
+        self.quit_button.pack(side=Tkinter.LEFT, padx=5, pady=5)
+
+        self.load_config_and_rules()
+
+        self.run_checks()
+
+#    def set_csvfile(self, csvfile):
+#        """Set the name of the CSV file."""
+#        self.csv_entry.delete(0, Tkinter.END)
+#        self.csv_entry.insert(0, csvfile)
+
+    def error(self, msg):
+        """Display an error message."""
+        tkMessageBox.showerror("Error", msg)
+
+    def fatal(self, msg):
+        """Display an error message and exit."""
+        self.error(msg)
+        self.frame.quit()
+        sys.exit(1)
+
+    def warning(self, msg):
+        """Display a warning message."""
+        tkMessageBox.showwarning("Warning", msg)
+
+    def display_errors(self, errors):
+        """Display errors in table."""
+        # FIXME
+        for error in errors:
+            # pylint: disable=W0142
+            print("{0} '{1}' {2} {3}".format(*error))
+
+
+class AppCLI(AppUI):
+    """Application command line user interface."""
+    # pylint: disable=no-self-use
+    def __init__(self, args):
+        AppUI.__init__(self, args)
+
+        self.load_config_and_rules()
+
+        self.run_checks()
 
 
 def main():
@@ -281,6 +465,12 @@ def main():
         help="rules to check (default=all)"
     )
     arg_parser.add_argument(
+        "--gui",
+        action="store_true",
+        default=False,
+        help="display a GUI"
+    )
+    arg_parser.add_argument(
         "--verbose",
         action="store_true",
         default=False,
@@ -292,80 +482,15 @@ def main():
     if args.rules is None:
         args.rules = [default_rules]
 
-    # Configure logging.
-    logging.basicConfig(
-        level=logging.INFO if args.verbose else logging.WARNING
-    )
-    logger = logging.getLogger()
+    if args.gui:
+        root = Tkinter.Tk()
+        root.title("cclint")
+        AppGUI(args, root)
+        root.mainloop()
+        root.destroy()
+    else:
+        AppCLI(args)
 
-    # Also log using notify-send if it is available.
-    if notify_send_handler.NotifySendHandler.is_available():
-        logger.addHandler(
-            notify_send_handler.NotifySendHandler(
-                os.path.splitext(os.path.basename(__file__))[0]
-            )
-        )
-
-    # Read config file.
-    config = ConfigParser.RawConfigParser()
-    config.optionxform = str  # preserve case of option names
-    config.readfp(open(args.config))
-
-    # Read rules files.
-    eval_locals = {}
-    rules = {}
-    for rulesfile in args.rules:
-        try:
-            constants_and_rules = json.load(
-                open(rulesfile),
-                object_pairs_hook=dupe_checking_hook
-            )
-        except Exception as ex:
-            print("Error loading rules file {}:".format(rulesfile))
-            print("  {}".format(ex.message))
-            return 1
-
-        #print(json.dumps(rules, indent=4, sort_keys=True))
-        if "constants" in constants_and_rules:
-            load_constants(
-                constants_and_rules["constants"],
-                eval_locals
-            )
-        if "rules" in constants_and_rules:
-            file_rules = constants_and_rules["rules"]
-            validate_rules(logger, file_rules)
-
-            # Merge rules from this file into master rules dict.
-            if args.rule_ids is None:
-                rule_ids = None
-            else:
-                rule_ids = args.rule_ids.split(",")
-            for rule_id, rule in file_rules.items():
-                if (
-                    (rule_ids is None or rule_id in rule_ids) and
-                    "disabled" not in rule
-                ):
-                    rules[rule_id] = rule
-
-    # Create a connection to CoreCommerce.
-    cc_browser = cctools.CCBrowser(
-        config.get("website", "host"),
-        config.get("website", "site"),
-        config.get("website", "username"),
-        config.get("website", "password"),
-        clean=args.clean,
-        cache_ttl=0 if args.refresh_cache else args.cache_ttl
-    )
-
-    # Run checks.
-    errors = run_checks(logger, eval_locals, cc_browser, rules)
-
-    # Display errors.
-    for error in errors:
-        # pylint: disable=W0142
-        print("{0} '{1}' {2} {3}".format(*error))
-
-    logger.info("Checks complete")
     return 0
 
 
