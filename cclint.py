@@ -30,8 +30,6 @@ contain member variable references like "{SKU}".
 TODO
 ----
 
-* recheck should flush cache
-* in GUI, display message box when checking
 * create href link to item
   * http://effbot.org/zone/tkinter-text-hyperlink.htm
   * multiline CLI output
@@ -222,6 +220,18 @@ class AppUI(object):
                     ):
                         self.rules[rule_id] = rule
 
+    def notify_checks_starting(self):
+        """Notify user that time consuming checks are starting."""
+        pass
+
+    def notify_checks_completed(self):
+        """Notify user that time consuming checks are complete."""
+        pass
+
+    def clear_error_list(self):
+        """Clear error list."""
+        pass
+
     def check_item(self, itemtype, item, item_name):
         """Check item for problems."""
 
@@ -259,6 +269,9 @@ class AppUI(object):
     def run_checks(self):
         """Run all checks, returning a list of errors."""
 
+        self.clear_error_list()
+        self.notify_checks_starting()
+
         errors = []
 
         # Create a connection to CoreCommerce.
@@ -270,6 +283,11 @@ class AppUI(object):
             clean=self.args.clean,
             cache_ttl=0 if self.args.refresh_cache else self.args.cache_ttl
         )
+
+        # Any subsequent calls should ignore the cache.  If the user
+        # clicks the Refresh button, it would be because they changed
+        # something in CoreCommerce.
+        self.args.refresh_cache = True
 
         # Check category list.
         categories = cc_browser.get_categories()
@@ -309,6 +327,8 @@ class AppUI(object):
                     variant_display_name(variant)
                 )
             )
+
+        self.notify_checks_completed()
 
         # Display errors.
         self.display_errors(errors)
@@ -362,6 +382,7 @@ class AppGUI(AppUI):
     def __init__(self, args, root):
         AppUI.__init__(self, args)
         self.root = root
+        self.in_progress_window = None
         self.frame = Tkinter.Frame(root)
         self.frame.pack(fill="both", expand=True)
 
@@ -461,6 +482,25 @@ class AppGUI(AppUI):
 
         self.run_checks()
 
+    def notify_checks_starting(self):
+        """Notify user that time consuming checks are starting."""
+        self.in_progress_window = Tkinter.Toplevel(self.root)
+        Tkinter.Label(
+            self.in_progress_window,
+            text="Downloading data from CoreCommerce..."
+        ).pack()
+        self.in_progress_window.update()
+
+    def notify_checks_completed(self):
+        """Notify user that time consuming checks are complete."""
+        self.in_progress_window.destroy()
+        self.in_progress_window = None
+
+    def clear_error_list(self):
+        """Clear error list."""
+        for child in self.tree.get_children():
+            self.tree.delete(child)
+
     def error(self, msg):
         """Display an error message."""
         tkMessageBox.showerror("Error", msg)
@@ -477,10 +517,6 @@ class AppGUI(AppUI):
 
     def display_errors(self, errors):
         """Display errors in table."""
-
-        # Delete existing items in table.
-        for child in self.tree.get_children():
-            self.tree.delete(child)
 
         # Determine the minimum width of the Item column.
         item_col_width = tkFont.Font().measure("Item")
