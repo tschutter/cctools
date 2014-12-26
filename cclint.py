@@ -33,12 +33,15 @@ TODO
 * recheck should flush cache
 * in GUI, display message box when checking
 * create href link to item
+  * http://effbot.org/zone/tkinter-text-hyperlink.htm
   * multiline CLI output
   * itemtype itemname
   *   message
   *   link
 * fix width determination of item column
-* freeze width of item and rule columns
+* change rule file format from JSON to YAML
+  * http://wikipedia.org/wiki/YAML
+  * http://pyyaml.org/wiki/PyYAMLDocumentation
 * enable GUI scrollbars
 * sort by column if column header clicked
 * specify SKU uniqueness check as a rule
@@ -373,13 +376,19 @@ class AppGUI(AppUI):
 
         # Configure first (tree) column
         self.tree.heading("#0", text="Item")
+        # Setting the width dynamically in display_errors() doesn't
+        # work, so set it explicitly here.
         self.tree.column("#0", width=350)
 
         # Define data columns.
         # fix width for rule column
         self.tree["columns"] = ["Rule", "Problem"]
         self.tree.heading("Rule", text="Rule")
-        self.tree.column("Rule", width=tkFont.Font().measure("Rule"))
+        self.tree.column(
+            "Rule",
+            width=tkFont.Font().measure("Rule"),
+            stretch=False
+        )
         self.tree.heading("Problem", text="Problem")
         self.tree.column("Problem", width=750)
             #sortable columns
@@ -505,9 +514,8 @@ class AppGUI(AppUI):
                         item_col_width = width
 
         # Set width of the Item column.
-        # FIXME, doesn't work
-        #self.tree.column("#0", width=item_col_width)
-        #self.tree.pack(side=Tkinter.TOP, fill="both", expand=True)
+        # This doesn't work, it makes the column too wide.
+        # self.tree.column("#0", width=item_col_width)
 
 
 class AppCLI(AppUI):
