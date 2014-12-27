@@ -31,17 +31,18 @@ TODO
 ----
 
 * create href link to item
-  * http://effbot.org/zone/tkinter-text-hyperlink.htm
-  * multiline CLI output
-  * itemtype itemname
-  *   message
-  *   link
-* fix width determination of item column
+* guess Product Id for product
+  * variant values
+    * "Product Id": "###",
+    * "Product Name": "name",
+    * "Product SKU": "#####",
+* change messages to the form "item is not ..."
 * change rule file format from JSON to YAML
   * http://wikipedia.org/wiki/YAML
   * http://pyyaml.org/wiki/PyYAMLDocumentation
 * enable GUI scrollbars
 * sort by column if column header clicked
+* fix width determination of item column
 * specify SKU uniqueness check as a rule
 """
 
@@ -101,7 +102,51 @@ def variant_display_name(variant):
     return display_name.strip()
 
 
-def check_skus(products):
+def item_edit_url(config, itemtype, item):
+    """Create an URL for editing an item."""
+    base_url = "https://{}/~{}/admin/index.php".format(
+        config.get("website", "host"),
+        config.get("website", "site")
+    )
+
+    if itemtype == "category":
+        url = "{}?m=edit_category&catID={}".format(
+            base_url,
+            item["Category Id"]
+        )
+
+    elif itemtype == "product":
+        # CoreCommerce does not report the Product Id; it is guessed
+        # by cctools.  have a pID.
+        if "Product Id" in item:
+            url = "{}?m=edit_product&pID={}".format(
+                base_url,
+                item["Product Id"]
+            )
+        elif len(item["SKU"]) > 0:
+            url = "{}?m=products_browse&search={}".format(
+                base_url,
+                item["SKU"]
+            )
+        else:
+            url = "{}?m=products_browse&search={}".format(
+                base_url,
+                item["Product Name"]
+            )
+
+    elif itemtype == "variant":
+        question_id = item["Question ID|Answer ID"].split("|")[0]
+        url = "{}?m=edit_product_personalizations&pID={}&persId={}".format(
+            base_url,
+            item["Product Id"],
+            question_id
+        )
+    else:
+        url = base_url
+    return url
+
+
+def check_skus(config, products):
     """Check SKUs for uniqueness."""
     errors = []
     skus = dict()
@@ -110,11 +155,13 @@ def check_skus(products):
         sku = product["SKU"]
         if sku != "":
             if sku in skus:
+                url = item_edit_url(config, "product", product)
                 error = (
                     "product",
                     display_name,
                     "P00",
-                    "SKU already used by '{}'".format(skus[sku])
+                    "SKU already used by '{}'".format(skus[sku]),
+                    url
                 )
                 errors.append(error)
             else:
@@ -261,7 +308,8 @@ class AppUI(object):
                     message = rule["message"].format(**item)
                 except Exception:
                     message = rule["message"]
-                error = (itemtype, item_name, rule_id, message)
+                url = item_edit_url(self.config, itemtype, item)
+                error = (itemtype, item_name, rule_id, message, url)
                 errors.append(error)
 
         return errors
@@ -304,7 +352,7 @@ class AppUI(object):
         # Check products list.
         products = cc_browser.get_products()
         self.eval_locals["items"] = products
-        errors.extend(check_skus(products))
+        errors.extend(check_skus(self.config, products))
         for product in products:
             for key in ["Teaser"]:
                 product[key] = cctools.html_to_plain_text(product[key])
@@ -353,7 +401,7 @@ class AppUI(object):
         # pylint: disable=no-self-use
         for error in errors:
             # pylint: disable=W0142
-            print("{0} '{1}' {2} {3}".format(*error))
+            print("{0} '{1}'\n    {2}: {3}\n    {4}".format(*error))
 
 
 #def sortby(tree, col, descending):
@@ -374,6 +422,10 @@ class AppUI(object):
 
 class AppGUI(AppUI):
     """Application graphical user interface."""
+    # http://www.tkdocs.com/tutorial
+    # http://www.tkdocs.com/tutorial/tree.html
+    # https://www.daniweb.com/software-development/\
+    #   python/threads/350266/creating-table-in-python
 
     # Width of filename text entry boxes.
     FILENAME_WIDTH = 95
@@ -383,17 +435,12 @@ class AppGUI(AppUI):
         AppUI.__init__(self, args)
         self.root = root
         self.in_progress_window = None
+        self.error_urls = {}
         self.frame = Tkinter.Frame(root)
         self.frame.pack(fill="both", expand=True)
 
-        # http://www.tkdocs.com/tutorial/tree.html
-        # https://www.daniweb.com/software-development/\
-        #   python/threads/350266/creating-table-in-python
         # Create treeview.
-        self.tree = ttk.Treeview(self.frame)
-        # selectmode, "browse" single select
-        # tree.tag_bind('ttk', '<1>', itemClicked);
-        # item clicked is tree.focus()
+        self.tree = ttk.Treeview(self.frame, selectmode="browse")
 
         # Configure first (tree) column
         self.tree.heading("#0", text="Item")
@@ -412,14 +459,13 @@ class AppGUI(AppUI):
         )
         self.tree.heading("Problem", text="Problem")
         self.tree.column("Problem", width=750)
-            #sortable columns
-            #self.tree.heading(
-            #    column,
-            #    text=column,
-            #    command=lambda c=column: sortby(self.tree, c, 0)
-            #)
+        #sortable columns
+        #self.tree.heading(
+        #    column,
+        #    text=column,
+        #    command=lambda c=column: sortby(self.tree, c, 0)
+        #)
 
-#        self.tree.tag_configure("ttk")
         self.tree.pack(side=Tkinter.TOP, fill="both", expand=True)
 
 # scrollbars
@@ -461,6 +507,15 @@ class AppGUI(AppUI):
 #        self.qif_entry = Tkinter.Entry(qif_group, width=AppGUI.FILENAME_WIDTH)
 #        self.qif_entry.pack(side=Tkinter.LEFT)
 
+        # Edit Item button
+        self.edit_item_button = Tkinter.Button(
+            self.frame,
+            text="Edit Item",
+            command=self.edit_item,
+            default=Tkinter.ACTIVE
+        )
+        self.edit_item_button.pack(side=Tkinter.LEFT, padx=5, pady=5)
+
         # Recheck button
         self.recheck_button = Tkinter.Button(
             self.frame,
@@ -498,6 +553,7 @@ class AppGUI(AppUI):
 
     def clear_error_list(self):
         """Clear error list."""
+        self.error_urls = {}
         for child in self.tree.get_children():
             self.tree.delete(child)
 
@@ -514,6 +570,13 @@ class AppGUI(AppUI):
     def warning(self, msg):
         """Display a warning message."""
         tkMessageBox.showwarning("Warning", msg)
+
+    def edit_item(self):
+        selected = self.tree.focus()
+        if selected in self.error_urls:
+            print(self.error_urls[selected])
+        else:
+            self.error("URL for item {} not found.".format(selected))
 
     def display_errors(self, errors):
         """Display errors in table."""
@@ -538,13 +601,15 @@ class AppGUI(AppUI):
             # Insert items of the same itemtype.
             for error in errors:
                 if error[0] == itemtype:
-                    self.tree.insert(
+                    item_id = self.tree.insert(
                         error[0],
                         "end",
                         "",
                         text=error[1],
-                        values=(error[2], error[3])
+                        values=(error[2], error[3]),
+                        tags=('errortag',)
                     )
+                    self.error_urls[item_id] = error[4]
                     width = tkFont.Font().measure(error[1])
                     if item_col_width < width:
                         item_col_width = width
