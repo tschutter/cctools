@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 
-r"""Detects problems in CoreCommerce product data.
+r"""
+Detects problems in CoreCommerce product data.
 
 Requires a [website] section in config file for login info.
 
@@ -25,13 +26,9 @@ YAML format.  The schema is:
 The message is formatted using message.format(current_item), so it can
 contain member variable references like "{SKU}".
 
-See:
+For YAML syntax, see:
 * http://wikipedia.org/wiki/YAML
 * http://pyyaml.org/wiki/PyYAMLDocumentation
-
-----
-TODO
-* specify SKU uniqueness check as a rule
 """
 
 from __future__ import print_function
@@ -49,19 +46,19 @@ import webbrowser
 import yaml  # sudo pip install pyyaml
 
 
-#def dupe_checking_hook(pairs):
-#    """
-#    An object_pairs_hook for json.load() that raises a KeyError on
-#    duplicate or blank keys.
-#    """
-#    result = dict()
-#    for key, val in pairs:
-#        if key.strip() == "":
-#            raise KeyError("Blank key specified")
-#        if key in result:
-#            raise KeyError("Duplicate key specified: %s" % key)
-#        result[key] = val
-#    return result
+# def dupe_checking_hook(pairs):
+#     """
+#     An object_pairs_hook for json.load() that raises a KeyError on
+#     duplicate or blank keys.
+#     """
+#     result = dict()
+#     for key, val in pairs:
+#         if key.strip() == "":
+#             raise KeyError("Blank key specified")
+#         if key in result:
+#             raise KeyError("Duplicate key specified: %s" % key)
+#         result[key] = val
+#     return result
 
 
 def load_constants(constants, eval_locals):
@@ -238,7 +235,7 @@ class AppUI(object):
                 )
             if "rules" in constants_and_rules:
                 file_rules = constants_and_rules["rules"]
-                #print(yaml.dump(file_rules, default_flow_style=False))
+                # print(yaml.dump(file_rules, default_flow_style=False))
                 self.validate_rules(rulesfile, file_rules)
 
                 # Merge rules from this file into master rules dict.
@@ -395,22 +392,6 @@ class AppUI(object):
         for error in errors:
             # pylint: disable=W0142
             print("{0} '{1}'\n    {2}: {3}\n    {4}".format(*error))
-
-
-#def sortby(tree, col, descending):
-#    """Sort tree contents when a column header is clicked on."""
-#    # grab values to sort
-#    data = [(tree.set(child, col), child) \
-#        for child in tree.get_children('')]
-#    # if the data to be sorted is numeric change to float
-#    #data =  change_numeric(data)
-#    # now sort the data in place
-#    data.sort(reverse=descending)
-#    for index, item in enumerate(data):
-#        tree.move(item[1], '', index)
-#    # switch the heading so it will sort in the opposite direction
-#    tree.heading(col, command=lambda col=col: sortby(tree, col, \
-#        int(not descending)))
 
 
 class AppGUI(AppUI):
