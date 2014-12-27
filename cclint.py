@@ -31,7 +31,6 @@ See:
 
 ----
 TODO
-* fix width determination of item column
 * specify SKU uniqueness check as a rule
 """
 
@@ -442,9 +441,7 @@ class AppGUI(AppUI):
 
         # Configure first (tree) column
         self.tree.heading("#0", text="Item")
-        # Setting the width dynamically in display_errors() doesn't
-        # work, so set it explicitly here.
-        self.tree.column("#0", width=350, minwidth=350, stretch=False)
+        self.tree.column("#0", stretch=False)
 
         # Define data columns.
         # fix width for rule column
@@ -561,8 +558,11 @@ class AppGUI(AppUI):
     def display_errors(self, errors):
         """Display errors in table."""
 
-        # Determine the minimum width of the Item column.
-        item_col_width = tkFont.Font().measure("Item")
+        # Starting minimum width of the Item column.
+        item_col_width = 100
+
+        # Second level items are indented.
+        tree_indent = 38
 
         # Insert errors in table.
         for itemtype in ("category", "product", "variant"):
@@ -574,9 +574,6 @@ class AppGUI(AppUI):
                 text=itemtype,
                 open=True
             )
-            width = tkFont.Font().measure(itemtype)
-            if item_col_width < width:
-                item_col_width = width
 
             # Insert items of the same itemtype.
             for error in errors:
@@ -589,13 +586,18 @@ class AppGUI(AppUI):
                         values=(error[2], error[3])
                     )
                     self.error_urls[item_id] = error[4]
-                    width = tkFont.Font().measure(error[1])
+                    # Width returned by measure() appears to be 2
+                    # pixels too wide for each character.
+                    width = (
+                        tkFont.Font().measure(error[1])
+                        - 2 * len(error[1])
+                        + tree_indent
+                    )
                     if item_col_width < width:
                         item_col_width = width
 
         # Set width of the Item column.
-        # This doesn't work, it makes the column too wide.
-        # self.tree.column("#0", width=item_col_width)
+        self.tree.column("#0", width=item_col_width)
 
 
 class AppCLI(AppUI):
