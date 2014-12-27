@@ -536,6 +536,40 @@ class CCBrowser(object):
             variant["Answer Sort Order"]
         )
 
+    def guess_product_ids(self):
+        """
+        The product list returned by CoreCommerce does not include product
+        IDs.  Guess the ones we can.
+        """
+
+        # Download products and variants.
+        self.get_products()
+        self.get_variants()
+
+        # Guess an ID for each product.
+        for product in self._products:
+            # Check to see if the product already has an ID.  As of
+            # 2014-12-27, a product never has a Product Id, but maybe
+            # that will change in the future.
+            if "Product Id" in product and product["Product Id"] != "":
+                continue
+
+            # Find a variant that matches in name and SKU.
+            product_id = ""
+            name = product["Product Name"]
+            sku = product["SKU"]
+            for variant in self._variants:
+                if (
+                    variant["Product Name"] == name and
+                    variant["Product SKU"] == sku
+                ):
+                    product_id = variant["Product Id"]
+                    break
+
+            # Assign the guessed ID to the product.
+            product["Product Id"] = product_id
+
+
 _HTML_TO_PLAIN_TEXT_DICT = {
     "&quot;": "\"",
     "&amp;": "&",
