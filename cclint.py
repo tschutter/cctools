@@ -30,8 +30,7 @@ contain member variable references like "{SKU}".
 TODO
 ----
 
-* create href link to item
-* guess Product Id for product
+* guess Product Id for product in cctools.py guess_product_ids()
   * variant values
     * "Product Id": "###",
     * "Product Name": "name",
@@ -58,6 +57,7 @@ import sys
 import tkFont
 import tkMessageBox
 import ttk
+import webbrowser
 
 
 def dupe_checking_hook(pairs):
@@ -237,7 +237,6 @@ class AppUI(object):
                     object_pairs_hook=dupe_checking_hook
                 )
             except Exception as ex:
-                # FIXME
                 self.fatal(
                     "Error loading rules file {}:\n  {}".format(
                         rulesfile,
@@ -520,8 +519,7 @@ class AppGUI(AppUI):
         self.recheck_button = Tkinter.Button(
             self.frame,
             text="Recheck",
-            command=self.run_checks,
-            default=Tkinter.ACTIVE
+            command=self.run_checks
         )
         self.recheck_button.pack(side=Tkinter.LEFT, padx=5, pady=5)
 
@@ -572,9 +570,11 @@ class AppGUI(AppUI):
         tkMessageBox.showwarning("Warning", msg)
 
     def edit_item(self):
+        """Display the selected item in a web browser."""
         selected = self.tree.focus()
         if selected in self.error_urls:
-            print(self.error_urls[selected])
+            url = self.error_urls[selected]
+            webbrowser.open(url)
         else:
             self.error("URL for item {} not found.".format(selected))
 
