@@ -36,6 +36,7 @@ import ConfigParser
 import Tkinter
 import argparse
 import cctools
+import logging
 import os
 import re
 import sys
@@ -250,11 +251,7 @@ class AppUI(object):
                     ):
                         self.rules[rule_id] = rule
 
-    def notify_checks_starting(self):
-        """Notify user that time consuming checks are starting."""
-        pass
-
-    def notify_checks_completed(self):
+    def checks_completed(self):
         """Notify user that time consuming checks are complete."""
         pass
 
@@ -301,7 +298,6 @@ class AppUI(object):
         """Run all checks, returning a list of errors."""
 
         self.clear_error_list()
-        self.notify_checks_starting()
 
         errors = []
 
@@ -366,7 +362,7 @@ class AppUI(object):
                 )
             )
 
-        self.notify_checks_completed()
+        self.checks_completed()
 
         # Display errors.
         self.display_errors(errors)
@@ -408,7 +404,6 @@ class AppGUI(AppUI):
     def __init__(self, args, root):
         AppUI.__init__(self, args)
         self.root = root
-        self.in_progress_window = None
         self.error_urls = {}
         self.frame = Tkinter.Frame(root)
         self.frame.pack(fill="both", expand=True)
@@ -476,6 +471,10 @@ class AppGUI(AppUI):
         )
         self.quit_button.pack(side=Tkinter.LEFT, padx=5, pady=5)
 
+        # Logging label
+        logging_label = Tkinter.Label(buttons_frame)
+        logging_label.pack(side=Tkinter.LEFT, padx=5, pady=5)
+
         # Configure window resizing.
         self.root.minsize(
             1000,  # width not including window border
@@ -483,6 +482,12 @@ class AppGUI(AppUI):
         )
         sizegrip = ttk.Sizegrip(self.frame)
         sizegrip.grid(row=2, column=1, sticky="se")
+
+        # Configure logging.
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger()
+        self.label_logging_handler = self.LabelLoggingHandler(logging_label)
+        logger.addHandler(self.label_logging_handler)
 
         self.load_config_and_rules()
 
@@ -493,19 +498,26 @@ class AppGUI(AppUI):
 
         self.run_checks()
 
-    def notify_checks_starting(self):
-        """Notify user that time consuming checks are starting."""
-        self.in_progress_window = Tkinter.Toplevel(self.root)
-        Tkinter.Label(
-            self.in_progress_window,
-            text="Downloading data from CoreCommerce..."
-        ).pack()
-        self.in_progress_window.update()
+    class LabelLoggingHandler(logging.Handler):
+        """A logging Handler that displays records in a main window label."""
+        def __init__(self, logging_label):
+            logging.Handler.__init__(self, level=logging.INFO)
+            self.setFormatter(logging.Formatter('%(msg)s'))
+            self.logging_label = logging_label
 
-    def notify_checks_completed(self):
+        def emit(self, record):
+            """Override the default handler's emit method."""
+            message = self.format(record)
+            self.logging_label.configure(text=message)
+            self.logging_label.update()
+
+        def blank(self):
+            self.logging_label.configure(text="")
+            self.logging_label.update()
+
+    def checks_completed(self):
         """Notify user that time consuming checks are complete."""
-        self.in_progress_window.destroy()
-        self.in_progress_window = None
+        self.label_logging_handler.blank()
 
     def clear_error_list(self):
         """Clear error list."""
