@@ -30,7 +30,6 @@ contain member variable references like "{SKU}".
 TODO
 ----
 
-* change messages to the form "item is not ..."
 * change rule file format from JSON to YAML
   * http://wikipedia.org/wiki/YAML
   * http://pyyaml.org/wiki/PyYAMLDocumentation
@@ -363,7 +362,10 @@ class AppUI(object):
             )
 
         # Check variants list.
-        variants = cc_browser.get_variants()
+        variants = sorted(
+            cc_browser.get_variants(),
+            key=cc_browser.variant_key_by_cat_product
+        )
         self.eval_locals["items"] = variants
         for variant in variants:
             errors.extend(
