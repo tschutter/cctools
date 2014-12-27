@@ -30,7 +30,6 @@ contain member variable references like "{SKU}".
 TODO
 ----
 
-* sort products
 * change messages to the form "item is not ..."
 * change rule file format from JSON to YAML
   * http://wikipedia.org/wiki/YAML
@@ -345,8 +344,11 @@ class AppUI(object):
             )
 
         # Check products list.
-        products = cc_browser.get_products()
         cc_browser.guess_product_ids()
+        products = sorted(
+            cc_browser.get_products(),
+            key=cc_browser.product_key_by_cat_and_name
+        )
         self.eval_locals["items"] = products
         errors.extend(check_skus(self.config, products))
         for product in products:
@@ -701,7 +703,6 @@ def main():
         root.title("cclint")
         AppGUI(args, root)
         root.mainloop()
-        root.destroy()
     else:
         AppCLI(args)
 
