@@ -30,11 +30,7 @@ contain member variable references like "{SKU}".
 TODO
 ----
 
-* guess Product Id for product in cctools.py guess_product_ids()
-  * variant values
-    * "Product Id": "###",
-    * "Product Name": "name",
-    * "Product SKU": "#####",
+* sort products
 * change messages to the form "item is not ..."
 * change rule file format from JSON to YAML
   * http://wikipedia.org/wiki/YAML
@@ -118,7 +114,7 @@ def item_edit_url(config, itemtype, item):
     elif itemtype == "product":
         # CoreCommerce does not report the Product Id; it is guessed
         # by cctools.  have a pID.
-        if "Product Id" in item:
+        if "Product Id" in item and item["Product Id"] != "":
             url = "{}?m=edit_product&pID={}".format(
                 base_url,
                 item["Product Id"]
@@ -350,6 +346,7 @@ class AppUI(object):
 
         # Check products list.
         products = cc_browser.get_products()
+        cc_browser.guess_product_ids()
         self.eval_locals["items"] = products
         errors.extend(check_skus(self.config, products))
         for product in products:
