@@ -536,6 +536,38 @@ class CCBrowser(object):
             variant["Answer Sort Order"]
         )
 
+    def variant_key_by_cat_product(self, variant):
+        """Return a key for a variant dictionary used to sort by
+        category, product_name, question, answer.
+        """
+        if self._category_sort is None:
+            self._init_category_sort()
+        self.get_products()
+
+        category = None
+        product_sort_key = None
+        for product in self._products:
+            if (
+                product["Product Name"] == variant["Product Name"] and
+                product["SKU"] == variant["Product SKU"]
+            ):
+                category = product["Category"]
+                if category in self._category_sort:
+                    category_sort_key = "{:05d}".format(
+                        self._category_sort[category]
+                    )
+                else:
+                    category_sort_key = category
+                product_sort_key = product["Product Name"]
+                break
+
+        return (
+            category_sort_key,
+            product_sort_key,
+            variant["Question Sort Order"],
+            variant["Answer Sort Order"]
+        )
+
     def guess_product_ids(self):
         """
         The product list returned by CoreCommerce does not include product
