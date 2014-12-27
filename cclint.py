@@ -33,8 +33,6 @@ TODO
 * change rule file format from JSON to YAML
   * http://wikipedia.org/wiki/YAML
   * http://pyyaml.org/wiki/PyYAMLDocumentation
-* enable GUI scrollbars
-* sort by column if column header clicked
 * fix width determination of item column
 * specify SKU uniqueness check as a rule
 """
@@ -442,11 +440,15 @@ class AppGUI(AppUI):
         # Create treeview.
         self.tree = ttk.Treeview(self.frame, selectmode="browse")
 
+        # Allow the tree cell to resize when the window is resized.
+        self.frame.columnconfigure(0, weight=1)
+        self.frame.rowconfigure(0, weight=1)
+
         # Configure first (tree) column
         self.tree.heading("#0", text="Item")
         # Setting the width dynamically in display_errors() doesn't
         # work, so set it explicitly here.
-        self.tree.column("#0", width=350)
+        self.tree.column("#0", width=350, minwidth=350, stretch=False)
 
         # Define data columns.
         # fix width for rule column
@@ -459,57 +461,26 @@ class AppGUI(AppUI):
         )
         self.tree.heading("Problem", text="Problem")
         self.tree.column("Problem", width=750)
-        #sortable columns
-        #self.tree.heading(
-        #    column,
-        #    text=column,
-        #    command=lambda c=column: sortby(self.tree, c, 0)
-        #)
 
-        self.tree.pack(side=Tkinter.TOP, fill="both", expand=True)
+        # Vertical scrollbar.
+        # http://stackoverflow.com/questions/14359906
+        # http://stackoverflow.com/questions/16746387/tkinter-treeview-widget
+        ysb = ttk.Scrollbar(
+            self.frame,
+            orient="vertical",
+            command=self.tree.yview
+        )
+        self.tree.configure(yscroll=ysb.set)
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        ysb.grid(row=0, column=1, sticky="ns")
 
-# scrollbars
-# http://stackoverflow.com/questions/16746387/tkinter-treeview-widget
-#        ysb = ttk.Scrollbar(self, orient='vertical', command=self.tree.yview)
-#        xsb = ttk.Scrollbar(self, orient='horizontal',
-#             command=self.tree.xview)
-#        self.tree.configure(yscroll=ysb.set, xscroll=xsb.set)
-#        self.tree.heading('#0', text='Path', anchor='w')
-#
-#        abspath = os.path.abspath(path)
-#        root_node = self.tree.insert('', 'end', text=abspath, open=True)
-#        self.process_directory(root_node, abspath)
-#
-#        self.tree.grid(row=0, column=0)
-#        ysb.grid(row=0, column=1, sticky='ns')
-#        xsb.grid(row=1, column=0, sticky='ew')
-#        self.grid()
-
-#        # CSV file
-#        csv_group = Tkinter.LabelFrame(
-#            self.frame,
-#            text="CSV file",
-#            padx=5,
-#            pady=5
-#        )
-#        csv_group.pack(padx=10, pady=10)
-#        self.csv_entry = Tkinter.Entry(csv_group, width=AppGUI.FILENAME_WIDTH)
-#        self.csv_entry.pack(side=Tkinter.LEFT)
-#
-#        # QIF file
-#        qif_group = Tkinter.LabelFrame(
-#            self.frame,
-#            text="QIF file",
-#            padx=5,
-#            pady=5
-#        )
-#        qif_group.pack(padx=10, pady=10)
-#        self.qif_entry = Tkinter.Entry(qif_group, width=AppGUI.FILENAME_WIDTH)
-#        self.qif_entry.pack(side=Tkinter.LEFT)
+        # Buttons frame.
+        buttons_frame = Tkinter.Frame(self.frame)
+        buttons_frame.grid(row=2, column=0, sticky="w")
 
         # Edit Item button
         self.edit_item_button = Tkinter.Button(
-            self.frame,
+            buttons_frame,
             text="Edit Item",
             command=self.edit_item,
             default=Tkinter.ACTIVE
@@ -518,7 +489,7 @@ class AppGUI(AppUI):
 
         # Recheck button
         self.recheck_button = Tkinter.Button(
-            self.frame,
+            buttons_frame,
             text="Recheck",
             command=self.run_checks
         )
@@ -526,11 +497,16 @@ class AppGUI(AppUI):
 
         # Quit button
         self.quit_button = Tkinter.Button(
-            self.frame,
+            buttons_frame,
             text="Quit",
             command=self.frame.quit
         )
         self.quit_button.pack(side=Tkinter.LEFT, padx=5, pady=5)
+
+        # Configure window resizing.
+        self.root.minsize(600, 300)
+        sizegrip = ttk.Sizegrip(self.frame)
+        sizegrip.grid(row=2, column=1, sticky="se")
 
         self.load_config_and_rules()
 
@@ -607,8 +583,7 @@ class AppGUI(AppUI):
                         "end",
                         "",
                         text=error[1],
-                        values=(error[2], error[3]),
-                        tags=('errortag',)
+                        values=(error[2], error[3])
                     )
                     self.error_urls[item_id] = error[4]
                     width = tkFont.Font().measure(error[1])
