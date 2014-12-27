@@ -5,34 +5,32 @@ r"""Detects problems in CoreCommerce product data.
 Requires a [website] section in config file for login info.
 
 The rules file (default=cclint.rules) contains product value checks in
-JSON format.  The schema is:
+YAML format.  The schema is:
 
-    {
-        constants: {
-            CONST_NAME1: CONST_VALUE1,
-            CONST_NAME2: [ "CV2_PART1", "CV2_PART2", ... ],
+    constants:
+        CONST_NAME1: CONST_VALUE1
+        CONST_NAME2: CONST_VALUE2
+        ...
+    },
+    rules:
+        RULE1_ID:
+            disabled: message why rule disabled (key optional)
+            itemtype: category|product|variant
+            test: Python predicate, True means test passed
+            message: message output if test returned False
+        RULE2_ID:
             ...
-        },
-        rules: [
-            "uniqueid": {
-                "disabled": "message why rule disabled (key optional)",
-                "itemtype": "category|product|variant",
-                "test": "Python predicate, True means test passed",
-                "message": "message output if test returned False"
-            },
-            ...
-        ]
-    }
+    ]
 
 The message is formatted using message.format(current_item), so it can
 contain member variable references like "{SKU}".
 
-TODO
-----
+See:
+* http://wikipedia.org/wiki/YAML
+* http://pyyaml.org/wiki/PyYAMLDocumentation
 
-* change rule file format from JSON to YAML
-  * http://wikipedia.org/wiki/YAML
-  * http://pyyaml.org/wiki/PyYAMLDocumentation
+----
+TODO
 * fix width determination of item column
 * specify SKU uniqueness check as a rule
 """
@@ -42,7 +40,6 @@ import ConfigParser
 import Tkinter
 import argparse
 import cctools
-import json
 import os
 import re
 import sys
@@ -50,21 +47,22 @@ import tkFont
 import tkMessageBox
 import ttk
 import webbrowser
+import yaml  # sudo pip install pyyaml
 
 
-def dupe_checking_hook(pairs):
-    """
-    An object_pairs_hook for json.load() that raises a KeyError on
-    duplicate or blank keys.
-    """
-    result = dict()
-    for key, val in pairs:
-        if key.strip() == "":
-            raise KeyError("Blank key specified")
-        if key in result:
-            raise KeyError("Duplicate key specified: %s" % key)
-        result[key] = val
-    return result
+#def dupe_checking_hook(pairs):
+#    """
+#    An object_pairs_hook for json.load() that raises a KeyError on
+#    duplicate or blank keys.
+#    """
+#    result = dict()
+#    for key, val in pairs:
+#        if key.strip() == "":
+#            raise KeyError("Blank key specified")
+#        if key in result:
+#            raise KeyError("Duplicate key specified: %s" % key)
+#        result[key] = val
+#    return result
 
 
 def load_constants(constants, eval_locals):
@@ -199,8 +197,7 @@ class AppUI(object):
                 )
                 failed = True
             else:
-                if isinstance(rule["test"], list):
-                    rule["test"] = " ".join(rule["test"])
+                rule["test"] = rule["test"].strip()
 
             if "message" not in rule:
                 self.error(
@@ -210,6 +207,8 @@ class AppUI(object):
                     )
                 )
                 failed = True
+            else:
+                rule["message"] = rule["message"].strip()
 
         if failed:
             sys.exit(1)
@@ -224,19 +223,15 @@ class AppUI(object):
         # Read rules files.
         for rulesfile in self.args.rules:
             try:
-                constants_and_rules = json.load(
-                    open(rulesfile),
-                    object_pairs_hook=dupe_checking_hook
-                )
+                constants_and_rules = yaml.load(open(rulesfile))
             except Exception as ex:
                 self.fatal(
                     "Error loading rules file {}:\n  {}".format(
                         rulesfile,
-                        ex.message
+                        str(ex).replace("\n", "\n  ")
                     )
                 )
 
-            #print(json.dumps(rules, indent=4, sort_keys=True))
             if "constants" in constants_and_rules:
                 load_constants(
                     constants_and_rules["constants"],
@@ -244,6 +239,7 @@ class AppUI(object):
                 )
             if "rules" in constants_and_rules:
                 file_rules = constants_and_rules["rules"]
+                #print(yaml.dump(file_rules, default_flow_style=False))
                 self.validate_rules(rulesfile, file_rules)
 
                 # Merge rules from this file into master rules dict.

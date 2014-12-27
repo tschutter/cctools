@@ -1,77 +1,77 @@
-{
-    "constants": {
-        "QA_TO_SKU_MAP": [
-            "{",
-            " 'Color|Black': 'BK',",
-            " 'Color|White': 'WT',",
-            " 'Size|Small': 'SM',",
-            " 'Size|Medium': 'MD',",
-            " 'Size|Large': 'LG'",
-            "}"
-        ]
-    },
-    "rules": {
-        "C01": {
-            "itemtype": "category",
-            "test": "4 <= len(item['Category Name']) <= 30",
-            "message": "'Category Name' length is not between 4 and 30"
-        },
-        "C02": {
-            "itemtype": "category",
-            "test": "len(item['Thumbnail']) > 0",
-            "message": "'Thumbnail' is blank"
-        },
-        "P01": {
-            "itemtype": "product",
-            "test": "10 <= len(item['Teaser']) <= 60",
-            "message": "'Teaser' length is not between 10 and 60 (Teaser={Teaser})"
-        },
-        "P02": {
-            "itemtype": "product",
-            "test": "re.match('^Y|N$', item['Discontinued Item'])",
-            "message": "'Discontinued Item' is not 'Y' or 'N' (Discontinued Item={Discontinued Item})"
-        },
-        "P03": {
-            "itemtype": "product",
-            "test": "0 < len(item['Category'])",
-            "message": "'Category' is blank"
-        },
-        "P04": {
-            "itemtype": "product",
-            "test": "re.match('^Y|N$', item['Available'])",
-            "message": "'Available' is not 'Y' or 'N' (Available={Available})"
-        },
-        "P05": {
-            "itemtype": "product",
-            "test": "re.match('^[0-9]+\\.[0-9]{2}$', item['Cost'])",
-            "message": "'Cost' is not a positive number (Cost={Cost})"
-        },
-        "P06": {
-            "itemtype": "product",
-            "test": "re.match('^[0-9]+\\.[0-9]{2}$', item['Price'])",
-            "message": "'Price' is not a positive number (Price={Price})"
-        },
-        "V01": {
-            "itemtype": "variant",
-            "test": [
-                "item['Question|Answer'] not in QA_TO_SKU_MAP.keys()",
-                "or QA_TO_SKU_MAP[item['Question|Answer']] == item['SKU']"
-            ],
-            "message": "'SKU' does not match 'Question|Answer' (SKU={SKU}, {Question|Answer})"
-        },
-        "V02": {
-            "itemtype": "variant",
-            "test": [
-                "item['Default'] == 'Y' or len(",
-                " [i for i in items",
-                "  if i['Product Id'] == item['Product Id'] and (",
-                "   '|'.split(i['Question ID|Answer ID'])[0] ==",
-                "   '|'.split(item['Question ID|Answer ID'])[0]",
-                "  ) and i['Answer Enabled'] == 'Y'",
-                " ]",
-                ") > 1"
-            ],
-            "message": "'Default' for the only enabled variant is not 'Y' (Default={Default})"
-        }
-    }
-}
+constants:
+    QA_TO_SKU_MAP:
+        "Color|Black": "BK"
+        "Color|White": "WT"
+        "Size|Small": "SM"
+        "Size|Medium": "MD"
+        "Size|Large": "LG"
+
+rules:
+    C01:
+        itemtype: category
+        test: 4 <= len(item['Category Name']) <= 30
+        message: >
+            Length of 'Category Name' is not between 4 and 30
+            (Category Name={Category Name})
+
+    C02:
+        itemtype: category
+        test: len(item['Thumbnail']) > 0
+        message: "'Thumbnail' is blank"
+
+    P01:
+        itemtype: product
+        test: 10 <= len(item['Teaser']) <= 60
+        message: >
+            Length of 'Teaser' is not between 10 and 60 (Teaser={Teaser})
+
+    P02:
+        itemtype: product
+        test: re.match('^Y|N$', item['Discontinued Item'])
+        message: >
+            'Discontinued Item' is not 'Y' or 'N'
+            (Discontinued Item={Discontinued Item})
+
+    P03:
+        itemtype: product
+        test: 0 < len(item['Category'])
+        message: "'Category' is blank"
+
+    P04:
+        itemtype: product
+        test: re.match('^Y|N$', item['Available'])
+        message: "'Available' is not 'Y' or 'N' (Available={Available})"
+
+    P05:
+        itemtype: product
+        test: re.match('^[0-9]+\\.[0-9]{2}$', item['Cost'])
+        message: "'Cost' is not a positive number (Cost={Cost})"
+
+    P06:
+        itemtype: product
+        test: re.match('^[0-9]+\\.[0-9]{2}$', item['Price'])
+        message: "'Price' is not a positive number (Price={Price})"
+
+    V01:
+        itemtype: variant
+        test: >
+            item['Question|Answer'] not in QA_TO_SKU_MAP.keys()
+            or QA_TO_SKU_MAP[item['Question|Answer']] == item['SKU']
+        message: >
+            'SKU' does not match 'Question|Answer'
+            (SKU={SKU {Question|Answer})
+
+    V02:
+        itemtype: variant
+        test: >
+            item['Default'] == 'Y' or len(
+                [i for i in items
+                    if i['Product Id'] == item['Product Id'] and (
+                        '|'.split(i['Question ID|Answer ID'])[0] ==
+                        '|'.split(item['Question ID|Answer ID'])[0]
+                    ) and i['Answer Enabled'] == 'Y'
+                ]
+            ) > 1
+        message: >
+            'Default' for the only enabled variant
+            is not 'Y' (Default={Default})
