@@ -456,7 +456,6 @@ class AppGUI(AppUI):
             stretch=False
         )
         self.tree.heading("Problem", text="Problem")
-        self.tree.column("Problem", width=750)
 
         # Vertical scrollbar.
         # http://stackoverflow.com/questions/14359906
@@ -500,11 +499,19 @@ class AppGUI(AppUI):
         self.quit_button.pack(side=Tkinter.LEFT, padx=5, pady=5)
 
         # Configure window resizing.
-        self.root.minsize(600, 300)
+        self.root.minsize(
+            1000,  # width not including window border
+            600    # height not including window border and title bar
+        )
         sizegrip = ttk.Sizegrip(self.frame)
         sizegrip.grid(row=2, column=1, sticky="se")
 
         self.load_config_and_rules()
+
+        # Set window title.
+        self.root.title(
+            "cclint - {}".format(self.config.get("website", "site"))
+        )
 
         self.run_checks()
 
