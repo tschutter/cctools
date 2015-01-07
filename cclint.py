@@ -385,9 +385,16 @@ class AppUI(object):
     def display_errors(self, errors):
         """Print errors to stdout."""
         # pylint: disable=no-self-use
+        first = True
         for error in errors:
             # pylint: disable=W0142
-            print("{0} '{1}'\n    {2}: {3}\n    {4}".format(*error))
+            print(
+                "{0}{1} '{2}'\n    {3}: {4}\n    {5}".format(
+                    "" if first else "\n",
+                    *error
+                )
+            )
+            first = False
 
 
 class AppGUI(AppUI):
@@ -396,9 +403,6 @@ class AppGUI(AppUI):
     # http://www.tkdocs.com/tutorial/tree.html
     # https://www.daniweb.com/software-development/\
     #   python/threads/350266/creating-table-in-python
-
-    # Width of filename text entry boxes.
-    FILENAME_WIDTH = 95
 
     # pylint: disable=no-self-use
     def __init__(self, args, root):
@@ -512,6 +516,7 @@ class AppGUI(AppUI):
             self.logging_label.update()
 
         def blank(self):
+            """Clear the displayed text."""
             self.logging_label.configure(text="")
             self.logging_label.update()
 
