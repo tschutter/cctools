@@ -294,7 +294,7 @@ class AppUI(object):
 
         return errors
 
-    def run_checks(self):
+    def run_checks_core(self):
         """Run all checks, returning a list of errors."""
 
         self.clear_error_list()
@@ -364,8 +364,15 @@ class AppUI(object):
 
         self.checks_completed()
 
-        # Display errors.
-        self.display_errors(errors)
+        return errors
+
+    def run_checks(self):
+        """Run all checks, displaying errors."""
+        try:
+            errors = self.run_checks_core()
+            self.display_errors(errors)
+        except Exception as ex:
+            self.fatal(ex)
 
     def error(self, msg):
         """Display an error message."""
