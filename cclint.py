@@ -135,7 +135,7 @@ def item_edit_url(config, itemtype, item):
 
 def check_skus(config, products):
     """Check SKUs for uniqueness."""
-    errors = []
+    findings = []
     skus = dict()
     for product in products:
         display_name = product_display_name(product)
@@ -143,17 +143,23 @@ def check_skus(config, products):
         if sku != "":
             if sku in skus:
                 url = item_edit_url(config, "product", product)
-                error = (
+                finding = (
                     "product",
                     display_name,
                     "P00",
                     "SKU already used by '{}'".format(skus[sku]),
                     url
                 )
-                errors.append(error)
+                findings.append(finding)
             else:
                 skus[sku] = display_name
-    return errors
+    return findings
+
+
+def finding_to_string(finding):
+    """Create a string representation of a finding."""
+    # pylint: disable=W0142
+    return "{0} '{1}'\n    {2}: {3}\n    {4}".format(*finding)
 
 
 class AppUI(object):
@@ -198,7 +204,7 @@ class AppUI(object):
 
             if "message" not in rule:
                 self.error(
-                    "ERROR: Rule {} does not specify a message in {}.".format(
+                    "Rule {} does not specify a message in {}.".format(
                         rule_id,
                         rulesfile
                     )
@@ -255,14 +261,14 @@ class AppUI(object):
         """Notify user that time consuming checks are complete."""
         pass
 
-    def clear_error_list(self):
-        """Clear error list."""
+    def clear_finding_list(self):
+        """Clear finding list."""
         pass
 
     def check_item(self, itemtype, item, item_name):
         """Check item for problems."""
 
-        errors = []
+        findings = []
         eval_globals = {"__builtins__": {"len": len, "re": re}}
         self.eval_locals["item"] = item
 
@@ -289,17 +295,17 @@ class AppUI(object):
                 except Exception:
                     message = rule["message"]
                 url = item_edit_url(self.config, itemtype, item)
-                error = (itemtype, item_name, rule_id, message, url)
-                errors.append(error)
+                finding = (itemtype, item_name, rule_id, message, url)
+                findings.append(finding)
 
-        return errors
+        return findings
 
     def run_checks_core(self):
-        """Run all checks, returning a list of errors."""
+        """Run all checks, returning a list of findings."""
 
-        self.clear_error_list()
+        self.clear_finding_list()
 
-        errors = []
+        findings = []
 
         # Create a connection to CoreCommerce.
         cc_browser = cctools.CCBrowser(
@@ -320,7 +326,7 @@ class AppUI(object):
         categories = cc_browser.get_categories()
         self.eval_locals["items"] = categories
         for category in categories:
-            errors.extend(
+            findings.extend(
                 self.check_item(
                     "category",
                     category,
@@ -335,11 +341,11 @@ class AppUI(object):
             key=cc_browser.product_key_by_cat_and_name
         )
         self.eval_locals["items"] = products
-        errors.extend(check_skus(self.config, products))
+        findings.extend(check_skus(self.config, products))
         for product in products:
             for key in ["Teaser"]:
                 product[key] = cctools.html_to_plain_text(product[key])
-            errors.extend(
+            findings.extend(
                 self.check_item(
                     "product",
                     product,
@@ -354,7 +360,7 @@ class AppUI(object):
         )
         self.eval_locals["items"] = variants
         for variant in variants:
-            errors.extend(
+            findings.extend(
                 self.check_item(
                     "variant",
                     variant,
@@ -364,13 +370,13 @@ class AppUI(object):
 
         self.checks_completed()
 
-        return errors
+        return findings
 
     def run_checks(self):
-        """Run all checks, displaying errors."""
+        """Run all checks, displaying findings."""
         try:
-            errors = self.run_checks_core()
-            self.display_errors(errors)
+            findings = self.run_checks_core()
+            self.display_findings(findings)
         except Exception as ex:
             self.fatal(ex)
 
@@ -389,16 +395,15 @@ class AppUI(object):
         # pylint: disable=no-self-use
         print("WARNING: {}".format(msg), file=sys.stderr)
 
-    def display_errors(self, errors):
-        """Print errors to stdout."""
+    def display_findings(self, findings):
+        """Print findings to stdout."""
         # pylint: disable=no-self-use
         first = True
-        for error in errors:
-            # pylint: disable=W0142
+        for finding in findings:
             print(
-                "{0}{1} '{2}'\n    {3}: {4}\n    {5}".format(
+                "{0}{1}".format(
                     "" if first else "\n",
-                    *error
+                    finding_to_string(finding)
                 )
             )
             first = False
@@ -415,7 +420,7 @@ class AppGUI(AppUI):
     def __init__(self, args, root):
         AppUI.__init__(self, args)
         self.root = root
-        self.error_urls = {}
+        self.tree_item_finding = {}
         self.frame = Tkinter.Frame(root)
         self.frame.pack(fill="both", expand=True)
 
@@ -502,6 +507,10 @@ class AppGUI(AppUI):
 
         self.load_config_and_rules()
 
+        # Setup key bindings.
+        self.root.bind_all("<Control-c>", self.copy_to_clipboard)
+        self.root.bind_all("<Alt-w>", self.copy_to_clipboard)
+
         # Set window title.
         self.root.title(
             "cclint - {}".format(self.config.get("website", "site"))
@@ -527,13 +536,21 @@ class AppGUI(AppUI):
             self.logging_label.configure(text="")
             self.logging_label.update()
 
+    def copy_to_clipboard(self, _):
+        """Copy selected finding to clipboard."""
+        selected = self.tree.focus()
+        if selected in self.tree_item_finding:
+            finding = self.tree_item_finding[selected]
+            self.root.clipboard_clear()
+            self.root.clipboard_append(finding_to_string(finding) + "\n")
+
     def checks_completed(self):
         """Notify user that time consuming checks are complete."""
         self.label_logging_handler.blank()
 
-    def clear_error_list(self):
-        """Clear error list."""
-        self.error_urls = {}
+    def clear_finding_list(self):
+        """Clear finding list."""
+        self.tree_item_finding = {}
         for child in self.tree.get_children():
             self.tree.delete(child)
 
@@ -554,14 +571,15 @@ class AppGUI(AppUI):
     def edit_item(self):
         """Display the selected item in a web browser."""
         selected = self.tree.focus()
-        if selected in self.error_urls:
-            url = self.error_urls[selected]
+        if selected in self.tree_item_finding:
+            finding = self.tree_item_finding[selected]
+            url = finding[4]
             webbrowser.open(url)
         else:
             self.error("URL for item {} not found.".format(selected))
 
-    def display_errors(self, errors):
-        """Display errors in table."""
+    def display_findings(self, findings):
+        """Display findings in a tree view."""
 
         # Starting minimum width of the Item column.
         item_col_width = 100
@@ -569,7 +587,7 @@ class AppGUI(AppUI):
         # Second level items are indented.
         tree_indent = 38
 
-        # Insert errors in table.
+        # Insert findings into tree view.
         for itemtype in ("category", "product", "variant"):
             # Insert an itemtype branch.
             self.tree.insert(
@@ -580,22 +598,22 @@ class AppGUI(AppUI):
                 open=True
             )
 
-            # Insert items of the same itemtype.
-            for error in errors:
-                if error[0] == itemtype:
+            # Insert findings of the same itemtype.
+            for finding in findings:
+                if finding[0] == itemtype:
                     item_id = self.tree.insert(
-                        error[0],
+                        finding[0],
                         "end",
                         "",
-                        text=error[1],
-                        values=(error[2], error[3])
+                        text=finding[1],
+                        values=(finding[2], finding[3])
                     )
-                    self.error_urls[item_id] = error[4]
+                    self.tree_item_finding[item_id] = finding
                     # Width returned by measure() appears to be 2
                     # pixels too wide for each character.
                     width = (
-                        tkFont.Font().measure(error[1])
-                        - 2 * len(error[1])
+                        tkFont.Font().measure(finding[1])
+                        - 2 * len(finding[1])
                         + tree_indent
                     )
                     if item_col_width < width:
