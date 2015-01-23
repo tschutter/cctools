@@ -53,7 +53,7 @@ fi
 #
 # SKU 10001 = Test Product
 # SKU 30001 = All other Earrings
-"${SCRIPTDIR}/gen-po-invoice.py"\
+"${SCRIPTDIR}/gen-po-comm-invoice.py"\
     --number="${NUMBER}"\
     --outfile="${FILENAME}"\
     --exclude-sku=10001\

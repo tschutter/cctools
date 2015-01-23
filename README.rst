@@ -22,7 +22,7 @@ gen-art-mart-checkin.py
 gen-inventory.py
     Generates an inventory report in spreadsheet form.
 
-gen-po-invoice.py
+gen-po-comm-invoice.py
     Generates a Purchase Order / Commercial Invoice in XLSX form.
 
 gen-price-list.py
