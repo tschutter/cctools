@@ -13,8 +13,10 @@ the same price list can be used in multiple jurisdictions.  Because
 the result is rounded to the nearest dollar, the exact sales tax rate
 is not significant.
 
-TODO: page orientation
-
+TODO:
+  fix blank first page if --add-teaser
+  --add-size?  what is the real field name?
+page orientation
 """
 
 import ConfigParser
@@ -170,44 +172,63 @@ def generate_pdf(
         + args.avg_tax_percent / 100.0
     )
 
-    # Group products by category.
+    # Setup styles.
     body_fontsize = float(config.get("price_list", "body_fontsize"))
+    base_styles = [
+        ("FONTSIZE", (0, 0), (-1, -1), body_fontsize),
+        ("ALIGN", (0, 0), (0, -1), "LEFT"),
+        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ("FONT", (1, 0), (1, -1), "Courier-Bold"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        # ("GRID", (0, 0), (-1, -1), 1.0, reportlab.lib.colors.black)
+    ]
+
+    # Group products by category.
     for _, product_group in itertools.groupby(
         products,
         key=cc_browser.product_key_by_category
     ):
-        # TableStyle cell formatting commands.
-        styles = [
-            ("FONTSIZE", (0, 0), (-1, -1), body_fontsize),
-            ("ALIGN", (0, 0), (0, -1), "LEFT"),
-            ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-            ("FONT", (1, 0), (1, -1), "Courier-Bold"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 3),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-            # ("GRID", (0, 0), (-1, -1), 1.0, reportlab.lib.colors.black)
-        ]
+        # Assemble table data for the product_group.
         table_data = list()
         for product in product_group:
             category = product["Category"]
-            product_name = cctools.plain_text_to_html(product["Product Name"])
+            product_name = product["Product Name"]
             price = calc_price_inc_tax(
                 product["Price"],
                 price_multiplier
             )
-            if args.display_sku:
+            if args.add_sku:
                 row = ("{} ({})".format(product_name, product["SKU"]), price)
             else:
                 row = (product_name, price)
             table_data.append(row)
+            if args.add_teaser:
+                # Strip HTML formatting.
+                product_teaser = cctools.html_to_plain_text(product["Teaser"])
+                # TODO: indentation?
+                row = ("    " + product_teaser, "")
+                table_data.append(row)
         if len(table_data) == 0:
             continue
+
+        # TableStyle cell formatting commands.
+        styles = list(base_styles)
         if args.greybar_interval > 1:
-            for row in range(0, len(table_data), args.greybar_interval):
-                styles.append(
-                    ("BACKGROUND", (0, row), (1, row), greybar_color)
-                )
+            if args.add_teaser:
+                rows_per_product = 2
+            else:
+                rows_per_product = 1
+            interval = args.greybar_interval * rows_per_product
+            for start_row in range(0, len(table_data), interval):
+                for sub_row in range(0, rows_per_product):
+                    row = start_row + sub_row
+                    styles.append(
+                        ("BACKGROUND", (0, row), (1, row), greybar_color)
+                    )
+
         table = reportlab.platypus.Table(
             data=table_data,
             colWidths=col_widths,
@@ -215,10 +236,7 @@ def generate_pdf(
         )
         story.append(
             reportlab.platypus.KeepTogether([
-                reportlab.platypus.Paragraph(
-                    cctools.plain_text_to_html(category),
-                    category_style
-                ),
+                reportlab.platypus.Paragraph(category, category_style),
                 reportlab.platypus.Indenter(left=table_indent),
                 table,
                 reportlab.platypus.Indenter(left=-table_indent)
@@ -303,30 +321,32 @@ def main():
     )
     arg_parser.add_argument(
         "--pdf-file",
-        dest="pdf_file",
         metavar="PDF_FILE",
         default="PriceListRetailTaxInc.pdf",
         help="output PDF filename (default=%(default)s)"
     )
     arg_parser.add_argument(
-        "--display-sku",
+        "--add-sku",
         action="store_true",
-        dest="display_sku",
         default=False,
-        help="display SKU with product name"
+        help="append SKU to product name"
+    )
+    arg_parser.add_argument(
+        "--add-teaser",
+        action="store_true",
+        default=False,
+        help="add teaser line"
     )
     arg_parser.add_argument(
         "--ncols",
         type=int,
-        dest="ncols",
         metavar="N",
-        default=2,
-        help="number of report columns (default=%(default)i)"
+        default=None,
+        help="number of report columns (default=2)"
     )
     arg_parser.add_argument(
         "--greybar-interval",
         type=int,
-        dest="greybar_interval",
         metavar="N",
         default=2,
         help="greybar interval (default=%(default)i)"
@@ -358,6 +378,11 @@ def main():
     args = arg_parser.parse_args()
     if args.categories and args.exclude_categories:
         arg_parser.error("--category and --exclude-category specified")
+    if args.ncols is None:
+        if args.add_teaser:
+            args.ncols = 1
+        else:
+            args.ncols = 2
 
     # Configure logging.
     logging.basicConfig(
