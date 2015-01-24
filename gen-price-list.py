@@ -187,6 +187,7 @@ def generate_pdf(
     ]
 
     # Group products by category.
+    first = True
     for _, product_group in itertools.groupby(
         products,
         key=cc_browser.product_key_by_category
@@ -216,11 +217,20 @@ def generate_pdf(
 
         # TableStyle cell formatting commands.
         styles = list(base_styles)
+        if args.add_teaser:
+            rows_per_product = 2
+        else:
+            rows_per_product = 1
+
+        # Prevent page splitting in the middle of a product.
+        if rows_per_product > 1:
+            for row in range(0, len(table_data), rows_per_product):
+                styles.append(
+                    ("NOSPLIT", (0, row), (0, row + rows_per_product -1))
+                )
+
+        # Grey background color to highlight alternate products.
         if args.greybar_interval > 1:
-            if args.add_teaser:
-                rows_per_product = 2
-            else:
-                rows_per_product = 1
             interval = args.greybar_interval * rows_per_product
             for start_row in range(0, len(table_data), interval):
                 for sub_row in range(0, rows_per_product):
@@ -229,19 +239,32 @@ def generate_pdf(
                         ("BACKGROUND", (0, row), (1, row), greybar_color)
                     )
 
+        # Create the table.
         table = reportlab.platypus.Table(
             data=table_data,
             colWidths=col_widths,
             style=styles
         )
-        story.append(
-            reportlab.platypus.KeepTogether([
-                reportlab.platypus.Paragraph(category, category_style),
-                reportlab.platypus.Indenter(left=table_indent),
-                table,
-                reportlab.platypus.Indenter(left=-table_indent)
-            ])
-        )
+
+        # Create a group of the category name and the products.
+        category_group = [
+            reportlab.platypus.Paragraph(category, category_style),
+            reportlab.platypus.Indenter(left=table_indent),
+            table,
+            reportlab.platypus.Indenter(left=-table_indent)
+        ]
+        # There is a bug in platypus where if a KeepTogether is at
+        # the top of a page and the KeepTogether is longer than a
+        # page, then a blank page will be emitted.  We can't always
+        # know when this will happen, but we know for certain it will
+        # happen for the first category group.
+        if first:
+            for flowable in category_group:
+                story.append(flowable)
+            first = False
+        else:
+            story.append(reportlab.platypus.KeepTogether(category_group))
+
     doc.build(story)
 
 
