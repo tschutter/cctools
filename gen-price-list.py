@@ -192,8 +192,16 @@ def generate_pdf(
         products,
         key=cc_browser.product_key_by_category
     ):
+        # Make a new styles instance just for this table.
+        styles = list(base_styles)
+        if args.add_teaser:
+            rows_per_product = 2
+        else:
+            rows_per_product = 1
+
         # Assemble table data for the product_group.
         table_data = list()
+        row = 0
         for product in product_group:
             category = product["Category"]
             product_name = product["Product Name"]
@@ -202,31 +210,30 @@ def generate_pdf(
                 price_multiplier
             )
             if args.add_sku:
-                row = ("{} ({})".format(product_name, product["SKU"]), price)
+                row_data = (
+                    "{} ({})".format(product_name, product["SKU"]),
+                    price
+                )
             else:
-                row = (product_name, price)
-            table_data.append(row)
+                row_data = (product_name, price)
+            table_data.append(row_data)
+            row += 1
             if args.add_teaser:
                 # Strip HTML formatting.
                 product_teaser = cctools.html_to_plain_text(product["Teaser"])
-                # TODO: indentation?
-                row = ("    " + product_teaser, "")
-                table_data.append(row)
+                row_data = (product_teaser,)
+                table_data.append(row_data)
+                # Indent the teaser.
+                styles.append(("LEFTPADDING", (0, row), (0, row), 18))
+                row += 1
         if len(table_data) == 0:
             continue
-
-        # TableStyle cell formatting commands.
-        styles = list(base_styles)
-        if args.add_teaser:
-            rows_per_product = 2
-        else:
-            rows_per_product = 1
 
         # Prevent page splitting in the middle of a product.
         if rows_per_product > 1:
             for row in range(0, len(table_data), rows_per_product):
                 styles.append(
-                    ("NOSPLIT", (0, row), (0, row + rows_per_product -1))
+                    ("NOSPLIT", (0, row), (0, row + rows_per_product - 1))
                 )
 
         # Grey background color to highlight alternate products.
