@@ -686,8 +686,6 @@ def add_invoice(args, config, cc_browser, worksheet):
     # Create list of unique HTSUS numbers.
     htsus_numbers = []
     for product in products:
-        if product["HTSUS No"] == "9999.99.9999":
-            print("{}: {}".format(product["SKU"], product["Teaser"]))
         if product["HTSUS No"] not in htsus_numbers:
             htsus_numbers.append(product["HTSUS No"])
 
