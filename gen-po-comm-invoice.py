@@ -586,19 +586,29 @@ def add_summary(
     row += 1
 
     for htsus_no in sorted(htsus_numbers):
-        if htsus_no == "":
-            continue
-        total_formula = "=SUMIF({}{}:{}{}, \"{}\", {}{}:{}{})".format(
-            col_letter(COL_HTSUS_NO),
-            row_number(first_product_row),
-            col_letter(COL_HTSUS_NO),
-            row_number(last_product_row),
-            htsus_no,
+        total_range = "{0}{1}:{0}{2}".format(
             col_letter(COL_TOTAL),
             row_number(first_product_row),
-            col_letter(COL_TOTAL),
             row_number(last_product_row)
         )
+        htsus_no_range = "{0}{1}:{0}{2}".format(
+            col_letter(COL_HTSUS_NO),
+            row_number(first_product_row),
+            row_number(last_product_row)
+        )
+        if htsus_no == "":
+            htsus_no = "Not assigned"
+            # SUMIF() with "" test does not work.
+            total_formula = "=SUMPRODUCT({}, {}=\"\")".format(
+                total_range,
+                htsus_no_range
+            )
+        else:
+            total_formula = "=SUMIF({}, \"{}\", {})".format(
+                htsus_no_range,
+                htsus_no,
+                total_range,
+            )
         style = set_cell(worksheet, row, COL_TOTAL, total_formula).style
         style.number_format.format_code = NUMBER_FORMAT_USD
         set_cell(worksheet, row, COL_HTSUS_NO, htsus_no)
