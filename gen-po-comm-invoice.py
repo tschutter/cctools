@@ -284,7 +284,8 @@ def add_variant(
     )
     style = set_cell(worksheet, row, COL_TOTAL, total_formula).style
     style.number_format.format_code = NUMBER_FORMAT_USD
-    set_cell(worksheet, row, COL_HTSUS_NO, htsus_no)
+    if htsus_no is not None:
+        set_cell(worksheet, row, COL_HTSUS_NO, htsus_no)
 
 
 def get_product_variants(variants, sku):
@@ -301,7 +302,10 @@ def add_product(worksheet, row, lineno, product, variants):
     sku = product["SKU"]
     teaser = cctools.html_to_plain_text(product["Teaser"])
     cost = product["Cost"]
-    htsus_no = product["HTSUS No"]
+    if "HTSUS No" in product:
+        htsus_no = product["HTSUS No"]
+    else:
+        htsus_no = None
     product_variants = get_product_variants(variants, sku)
     if len(product_variants) == 0:
         description = "{}: {}".format(
@@ -345,7 +349,7 @@ def add_product(worksheet, row, lineno, product, variants):
     return row, lineno
 
 
-def add_products(worksheet, row, cc_browser, products):
+def add_products(worksheet, row, cc_browser, products, has_htsus_no):
     """Add row for each product."""
 
     # Add header row.
@@ -390,13 +394,14 @@ def add_products(worksheet, row, cc_browser, products):
         bold=True,
         alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
     )
-    set_cell(
-        worksheet,
-        row,
-        COL_HTSUS_NO,
-        "HTSUS No",
-        bold=True
-    )
+    if has_htsus_no:
+        set_cell(
+            worksheet,
+            row,
+            COL_HTSUS_NO,
+            "HTSUS No",
+            bold=True
+        )
     set_cell(
         worksheet,
         row,
@@ -441,7 +446,8 @@ def add_products(worksheet, row, cc_browser, products):
     worksheet.column_dimensions[col_letter(COL_PRICE)].width = 7
     worksheet.column_dimensions[col_letter(COL_QTY)].width = 5
     worksheet.column_dimensions[col_letter(COL_TOTAL)].width = 10
-    worksheet.column_dimensions[col_letter(COL_HTSUS_NO)].width = 13
+    if has_htsus_no:
+        worksheet.column_dimensions[col_letter(COL_HTSUS_NO)].width = 13
     worksheet.column_dimensions[col_letter(COL_INSTRUCTIONS)].width = 30
 
     return row, first_product_row, last_product_row
@@ -659,12 +665,16 @@ def add_invoice(args, config, cc_browser, worksheet):
     # Sort products by category, product_name.
     products = sorted(products, key=cc_browser.product_key_by_cat_and_name)
 
+    # Determine if products include HTSUS number.
+    has_htsus_no = len(products) > 0 and "HTSUS No" in products[0]
+
     # Add products.
     row, first_product_row, last_product_row = add_products(
         worksheet,
         row,
         cc_browser,
-        products
+        products,
+        has_htsus_no
     )
 
     # Blank row.
@@ -683,20 +693,21 @@ def add_invoice(args, config, cc_browser, worksheet):
     # Blank row.
     row += 1
 
-    # Create list of unique HTSUS numbers.
-    htsus_numbers = []
-    for product in products:
-        if product["HTSUS No"] not in htsus_numbers:
-            htsus_numbers.append(product["HTSUS No"])
+    if has_htsus_no:
+        # Create list of unique HTSUS numbers.
+        htsus_numbers = []
+        for product in products:
+            if product["HTSUS No"] not in htsus_numbers:
+                htsus_numbers.append(product["HTSUS No"])
 
-    # Add summary by HTSUS.
-    row = add_summary(
-        worksheet,
-        row,
-        first_product_row,
-        last_product_row,
-        htsus_numbers
-    )
+        # Add summary by HTSUS.
+        row = add_summary(
+            worksheet,
+            row,
+            first_product_row,
+            last_product_row,
+            htsus_numbers
+        )
 
     # Add special instructions.
     add_special_instructions(worksheet, row_number(row))
