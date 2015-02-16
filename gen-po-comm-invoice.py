@@ -316,10 +316,10 @@ def add_product(worksheet, row, lineno, product, variants):
         row += 1
         lineno += 1
     else:
-        various_variant_exists = False
+        any_variant_exists = False
         for variant in product_variants:
-            if variant["SKU"] == "VAR":
-                various_variant_exists = True
+            if variant["SKU"] == "ANY" or variant["SKU"] == "VAR":
+                any_variant_exists = True
             variant_sku = "{}-{}".format(sku, variant["SKU"])
             answer = variant["Question|Answer"].split("|")[1]
             description = "{} ({}): {}".format(
@@ -338,9 +338,9 @@ def add_product(worksheet, row, lineno, product, variants):
             )
             row += 1
             lineno += 1
-        if not various_variant_exists:
+        if not any_variant_exists:
             logging.getLogger().warning(
-                "No 'Variety' variant exists for {} {}".format(
+                "No 'Any' or 'Variety' variant exists for {} {}".format(
                     sku,
                     product["Product Name"]
                 )
