@@ -125,7 +125,7 @@ def output_table(records, fields, header_map=None):
     for record in records:
         for col, field in enumerate(fields):
             # Left align the column if any value is not a number.
-            value = record.get(field)
+            value = record.get(field, "")
             if value.startswith("(err) "):
                 value = value[6:]  # strip error prefix
             if value != "":
