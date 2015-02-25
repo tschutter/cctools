@@ -29,8 +29,8 @@ rules:
         itemtype: product
         test: re.match('^Y|N$', item['Discontinued Item'])
         message: >
-            'Discontinued Item' is not 'Y' or 'N'
-            (Discontinued Item={Discontinued Item})
+            'Discontinued Item'='{Discontinued Item}'
+            is not 'Y' or 'N'
 
     P03:
         itemtype: product
@@ -40,17 +40,17 @@ rules:
     P04:
         itemtype: product
         test: re.match('^Y|N$', item['Available'])
-        message: "'Available' is not 'Y' or 'N' (Available={Available})"
+        message: "'Available'='{Available}' is not 'Y' or 'N'"
 
     P05:
         itemtype: product
         test: re.match('^[0-9]+\\.[0-9]{2}$', item['Cost'])
-        message: "'Cost' is not a positive number (Cost={Cost})"
+        message: "'Cost'='{Cost}' is not a positive number"
 
     P06:
         itemtype: product
         test: re.match('^[0-9]+\\.[0-9]{2}$', item['Price'])
-        message: "'Price' is not a positive number (Price={Price})"
+        message: "'Price'='{Price}' is not a positive number"
 
     V01:
         itemtype: variant
@@ -58,8 +58,8 @@ rules:
             item['Question|Answer'] not in QA_TO_SKU_MAP.keys()
             or QA_TO_SKU_MAP[item['Question|Answer']] == item['SKU']
         message: >
-            'SKU' does not match 'Question|Answer'
-            (SKU={SKU {Question|Answer})
+            'SKU'='{SKU}' does not match
+            'Question|Answer'='{Question|Answer}'
 
     V02:
         itemtype: variant
@@ -73,5 +73,5 @@ rules:
                 ]
             ) > 1
         message: >
-            'Default' for the only enabled variant
-            is not 'Y' (Default={Default})
+            'Default'='{Default}' for the only enabled variant
+            is not 'Y'
