@@ -81,13 +81,34 @@ def product_display_name(product):
 
 def variant_display_name(variant):
     """Construct a display name for a variant."""
-    display_name = "{} {} {}".format(
+    display_name = "{}: {}: {}".format(
         variant["Product SKU"],
         variant["Product Name"],
         variant["Question|Answer"]
     )
     return display_name.strip()
 
+
+def add_is_first_answer_flag(variants):
+    """
+    Set _is_first_answer to True for the first answer seen for a
+    product: question.  This allows us to make checks per
+    product: question.
+    """
+    print("add_is_first_answer_flag entry")
+    prev_product_id = None
+    prev_question_id = None
+    for variant in variants:
+        product_id = variant['Product Id']
+        question_id = '|'.split(variant['Question ID|Answer ID'])[0]
+        variant['_is_first_answer'] = (
+            product_id != prev_product_id or
+            question_id != prev_question_id
+        )
+        if variant['_is_first_answer']:
+            prev_product_id = product_id
+            prev_question_id = question_id
+    print("add_is_first_answer_flag exit")
 
 def item_edit_url(config, itemtype, item):
     """Create an URL for editing an item."""
@@ -358,6 +379,7 @@ class AppUI(object):
             cc_browser.get_variants(),
             key=cc_browser.variant_key_by_cat_product
         )
+        add_is_first_answer_flag(variants)
         self.eval_locals["items"] = variants
         for variant in variants:
             findings.extend(
