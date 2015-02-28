@@ -95,7 +95,6 @@ def add_is_first_answer_flag(variants):
     product: question.  This allows us to make checks per
     product: question.
     """
-    print("add_is_first_answer_flag entry")
     prev_product_id = None
     prev_question_id = None
     for variant in variants:
@@ -108,7 +107,6 @@ def add_is_first_answer_flag(variants):
         if variant['_is_first_answer']:
             prev_product_id = product_id
             prev_question_id = question_id
-    print("add_is_first_answer_flag exit")
 
 def item_edit_url(config, itemtype, item):
     """Create an URL for editing an item."""
