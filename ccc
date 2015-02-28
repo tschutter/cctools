@@ -19,13 +19,15 @@ import signal
 import sys
 
 # Define canonical object types.
-PRODUCT = "product"
 CATEGORY = "category"
+PRODUCT = "product"
+QUESTION = "question"
 VARIANT = "variant"
 
 # Specify abbreviations for object types.
-PRODUCT_ABBREVS = [PRODUCT, "products", "prod"]
 CATEGORY_ABBREVS = [CATEGORY, "categories", "cat"]
+PRODUCT_ABBREVS = [PRODUCT, "products", "prod"]
+QUESTION_ABBREVS = [QUESTION, "questions", "quest"]
 VARIANT_ABBREVS = [VARIANT, "variants", "var"]
 
 
@@ -33,6 +35,7 @@ VARIANT_ABBREVS = [VARIANT, "variants", "var"]
 # to have abbreviated column headers.  This is true especially for
 # boolean values like "Available" and "Discontinued Item".
 HEADER_MAP = {
+    "_n_answers": "NAnswers",
     "Available": "Avail",
     "Discontinued Item": "Discd",
     "Track Inventory": "TrkInv",
@@ -125,7 +128,7 @@ def output_table(records, fields, header_map=None):
     for record in records:
         for col, field in enumerate(fields):
             # Left align the column if any value is not a number.
-            value = record.get(field, "")
+            value = str(record.get(field, ""))
             if value.startswith("(err) "):
                 value = value[6:]  # strip error prefix
             if value != "":
@@ -135,10 +138,7 @@ def output_table(records, fields, header_map=None):
                     col_aligns[col] = "<"  # align left
 
             # Update the column width.
-            col_widths[col] = max(
-                col_widths[col],
-                len(str(record.get(field, "")))
-            )
+            col_widths[col] = max(col_widths[col], len(value))
 
     # Pretty print the records to the output.
     output_table_divider(col_widths)
@@ -147,7 +147,7 @@ def output_table(records, fields, header_map=None):
     for record in records:
         output_table_row(
             [
-                cctools.html_to_plain_text(record.get(field, ""))
+                cctools.html_to_plain_text(str(record.get(field, "")))
                 for field in fields
             ],
             col_aligns,
@@ -204,7 +204,10 @@ def get_default_fields(args, config):
                     for x in value.split(",")
                 ]
 
-    if args.obj_type == PRODUCT:
+    if args.obj_type == CATEGORY:
+        return ["Sort", "Category Name", "Thumbnail"]
+
+    elif args.obj_type == PRODUCT:
         return [
             "Category",
             "Product Name",
@@ -219,8 +222,18 @@ def get_default_fields(args, config):
             "Teaser"
         ]
 
-    elif args.obj_type == CATEGORY:
-        return ["Sort", "Category Name", "Thumbnail"]
+    elif args.obj_type == QUESTION:
+        return [
+            "Product SKU",
+            "Product Name",
+            "Question Sort Order",
+            "Question",
+            "Question Enabled",
+            "Required",
+            "Track Inventory",
+            "Answer Input Type",
+            "_n_answers"
+        ]
 
     elif args.obj_type == VARIANT:
         return [
@@ -261,11 +274,14 @@ def get_output_fields(args, config, objects):
 
 def get_objects(args, cc_browser):
     """Get and filter objects from the cc_browser."""
-    if args.obj_type == PRODUCT:
+    if args.obj_type == CATEGORY:
+        objects = cc_browser.get_categories()
+
+    elif args.obj_type == PRODUCT:
         objects = cc_browser.get_products()
 
-    elif args.obj_type == CATEGORY:
-        objects = cc_browser.get_categories()
+    elif args.obj_type == QUESTION:
+        objects = cc_browser.get_questions()
 
     elif args.obj_type == VARIANT:
         objects = cc_browser.get_variants()
@@ -316,6 +332,11 @@ def action_list(args, config, cc_browser):
             objects,
             key=cc_browser.variant_key
         )
+    elif args.obj_type == QUESTION:
+        objects = sorted(
+            objects,
+            key=cc_browser.question_key
+        )
     else:
         if args.obj_type == PRODUCT and "Variant Inventory Level" in fields:
             calc_var_inv_level(cc_browser, objects)
@@ -328,12 +349,15 @@ def action_list_fields(args, config, cc_browser):
     # W0163(unused-argument) config
     # pylint: disable=W0613
 
-    if args.obj_type == PRODUCT:
-        products = cc_browser.get_products()
-        field_names = sorted(products[0].keys())
-    elif args.obj_type == CATEGORY:
+    if args.obj_type == CATEGORY:
         categories = cc_browser.get_categories()
         field_names = sorted(categories[0].keys())
+    elif args.obj_type == PRODUCT:
+        products = cc_browser.get_products()
+        field_names = sorted(products[0].keys())
+    elif args.obj_type == QUESTION:
+        questions = cc_browser.get_questions()
+        field_names = sorted(questions[0].keys())
     elif args.obj_type == VARIANT:
         variants = cc_browser.get_variants()
         field_names = sorted(variants[0].keys())
@@ -352,12 +376,15 @@ def action_list_fields(args, config, cc_browser):
 
 def find_object(args, cc_browser):
     """Return an object iff there is one object matched by spec."""
-    if args.obj_type == PRODUCT:
-        objects = cc_browser.get_products()
-        keys = ["SKU", "Product Name"]
-    elif args.obj_type == CATEGORY:
+    if args.obj_type == CATEGORY:
         objects = cc_browser.get_categories()
         keys = ["Category Name"]
+    elif args.obj_type == PRODUCT:
+        objects = cc_browser.get_products()
+        keys = ["SKU", "Product Name"]
+    elif args.obj_type == QUESTION:
+        objects = cc_browser.get_questions()
+        keys = ["SKU", "Product Name", "Question"]
     elif args.obj_type == VARIANT:
         objects = cc_browser.get_variants()
         keys = ["Question|Answer"]
@@ -422,13 +449,17 @@ def action_refresh(args, config, cc_browser):
     # W0163(unused-argument) config
     # pylint: disable=W0613
 
+    if not args.obj_type or args.obj_type == CATEGORY:
+        print("Refreshing categories")
+        cc_browser.get_categories()
+
     if not args.obj_type or args.obj_type == PRODUCT:
         print("Refreshing products")
         cc_browser.get_products()
 
-    if not args.obj_type or args.obj_type == CATEGORY:
-        print("Refreshing categories")
-        cc_browser.get_categories()
+    if not args.obj_type or args.obj_type == QUESTION:
+        print("Refreshing questions")
+        cc_browser.get_questions()
 
     if not args.obj_type or args.obj_type == VARIANT:
         print("Refreshing variants")
@@ -456,7 +487,12 @@ def add_obj_type_argument(arg_parser, nargs=None):
     """Add object type argument to arg_parser."""
     arg_parser.add_argument(
         "obj_type",
-        choices=PRODUCT_ABBREVS + CATEGORY_ABBREVS + VARIANT_ABBREVS,
+        choices=(
+            CATEGORY_ABBREVS +
+            PRODUCT_ABBREVS +
+            QUESTION_ABBREVS +
+            VARIANT_ABBREVS
+        ),
         nargs=nargs,
         help="optional object type" if nargs == "?" else "object type"
     )
@@ -467,10 +503,12 @@ def normalize_obj_type(args):
     an object type.
     """
     if args.obj_type:
-        if args.obj_type in PRODUCT_ABBREVS:
-            args.obj_type = PRODUCT
-        elif args.obj_type in CATEGORY_ABBREVS:
+        if args.obj_type in CATEGORY_ABBREVS:
             args.obj_type = CATEGORY
+        elif args.obj_type in PRODUCT_ABBREVS:
+            args.obj_type = PRODUCT
+        elif args.obj_type in QUESTION_ABBREVS:
+            args.obj_type = QUESTION
         elif args.obj_type in VARIANT_ABBREVS:
             args.obj_type = VARIANT
 

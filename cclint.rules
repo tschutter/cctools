@@ -67,8 +67,8 @@ rules:
             item['Default'] == 'Y' or len(
                 [i for i in items
                     if i['Product Id'] == item['Product Id'] and (
-                        '|'.split(i['Question ID|Answer ID'])[0] ==
-                        '|'.split(item['Question ID|Answer ID'])[0]
+                        i['Question ID|Answer ID'].split('|')[0] ==
+                        item['Question ID|Answer ID'].split('|')[0]
                     ) and i['Answer Enabled'] == 'Y'
                 ]
             ) > 1

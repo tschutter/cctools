@@ -100,7 +100,7 @@ def add_is_first_answer_flag(variants):
     prev_question_id = None
     for variant in variants:
         product_id = variant['Product Id']
-        question_id = '|'.split(variant['Question ID|Answer ID'])[0]
+        question_id = variant['Question ID|Answer ID'].split("|")[0]
         variant['_is_first_answer'] = (
             product_id != prev_product_id or
             question_id != prev_question_id

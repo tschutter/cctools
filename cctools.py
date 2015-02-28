@@ -74,6 +74,7 @@ class CCBrowser(object):
             self._browser.set_proxies({"https": proxy})
         self._logged_in = False
         self._variants = None
+        self._questions = None
         self._products = None
         self._categories = None
         self._category_sort = None
@@ -218,6 +219,59 @@ class CCBrowser(object):
 
         return self._variants
 
+    def get_questions(self):
+        """Return a list of per-question dictionaries."""
+
+        # Variant values that are the same for all answers.
+        question_copy_keys = (
+            "Answer Input Type",
+            "Exclude from best seller report",
+            "In Line Help",
+            "Product Name",
+            "Product SKU",
+            "Question Enabled",
+            "Question Sort Order",
+            "Required",
+            "Track Inventory"
+        )
+
+        if self._questions is None:
+            # Process variants sorted by product, question.
+            variants = sorted(
+                self.get_variants(),
+                key=lambda variant: (
+                    variant["Product Id"],
+                    variant["Question ID|Answer ID"].split("|")[0]
+                )
+            )
+
+            self._questions = list()
+            prev_product_id = None
+            prev_question_id = None
+            for variant in variants:
+                product_id = variant["Product Id"]
+                question_id = variant["Question ID|Answer ID"].split("|")[0]
+                is_first_answer = (
+                    product_id != prev_product_id or
+                    question_id != prev_question_id
+                )
+                if is_first_answer:
+                    question = {
+                        "Product Id": product_id,
+                        "Question ID": question_id,
+                        "Question": variant["Question|Answer"].split("|")[0],
+                        "_n_answers": 1
+                    }
+                    for key in question_copy_keys:
+                        question[key] = variant[key]
+                    self._questions.append(question)
+                    prev_product_id = product_id
+                    prev_question_id = question_id
+                else:
+                    self._questions[-1]["_n_answers"] += 1
+
+        return self._questions
+
     def _download_products_csv(self, filename):
         """Download products list to a CSV file."""
 
@@ -348,7 +402,7 @@ class CCBrowser(object):
         # Select first and only form on page.
         self._browser.select_form(nr=0)
 
-        # print [item.name for item in form.find_control('useFile').items]
+        # print [item.name for item in form.find_control("useFile").items]
         # Set the form values.
         # self._browser["instance"] = "product_import"
         # self._browser["xsubmit"] = "true"
@@ -568,6 +622,14 @@ class CCBrowser(object):
             variant["Answer Sort Order"]
         )
 
+    def question_key(self, question):
+        """Return a key to sort questions."""
+        # pylint: disable=R0201
+        return (
+            question["Product SKU"],
+            question["Question Sort Order"]
+        )
+
     def guess_product_ids(self):
         """
         The product list returned by CoreCommerce does not include product
@@ -608,7 +670,7 @@ _HTML_TO_PLAIN_TEXT_DICT = {
     "<p>": " ",
     "</p>": " "
 }
-_HTML_TO_PLAIN_TEXT_RE = re.compile('|'.join(_HTML_TO_PLAIN_TEXT_DICT.keys()))
+_HTML_TO_PLAIN_TEXT_RE = re.compile("|".join(_HTML_TO_PLAIN_TEXT_DICT.keys()))
 
 
 def html_to_plain_text(string):
