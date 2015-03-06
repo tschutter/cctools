@@ -16,11 +16,12 @@ is not significant.
 TODO:
   fix blank first page if --add-teaser
   --add-size?  what is the real field name?
-page orientation
+  page orientation
 """
 
 import ConfigParser
 import argparse
+import calc_price
 import cctools
 import datetime
 import itertools
@@ -35,13 +36,6 @@ import reportlab.platypus
 
 # Convenience constants.
 INCH = reportlab.lib.units.inch
-
-
-def calc_price_inc_tax(price, price_multiplier):
-    """Calculate a price including tax."""
-    price_inc_tax = float(price) * price_multiplier
-    whole_price_inc_tax = max(1.0, math.floor(price_inc_tax + 0.5))
-    return "${:,.0f}".format(whole_price_inc_tax)
 
 
 def on_page(canvas, doc):
@@ -165,13 +159,6 @@ def generate_pdf(
         cc_browser.set_category_sort_order(args.categories)
     products = sorted(products, key=cc_browser.product_key_by_cat_and_name)
 
-    # Determine price multiplier.
-    price_multiplier = (
-        1.0
-        - args.discount_percent / 100.0
-        + args.avg_tax_percent / 100.0
-    )
-
     # Setup styles.
     body_fontsize = float(config.get("price_list", "body_fontsize"))
     base_styles = [
@@ -205,9 +192,10 @@ def generate_pdf(
         for product in product_group:
             category = product["Category"]
             product_name = product["Product Name"]
-            price = calc_price_inc_tax(
+            price = calc_price.calc_event_price(
                 product["Price"],
-                price_multiplier
+                args.discount_percent,
+                args.avg_tax_percent
             )
             if args.add_sku:
                 row_data = (
