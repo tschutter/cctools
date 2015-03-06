@@ -26,7 +26,6 @@ import cctools
 import datetime
 import itertools
 import logging
-import math
 import notify_send_handler
 import os
 import reportlab.lib  # sudo apt-get install python-reportlab
@@ -197,6 +196,8 @@ def generate_pdf(
                 args.discount_percent,
                 args.avg_tax_percent
             )
+            # Format price as whole number string like "$1,234".
+            price = "${:,.0f}".format(price)
             if args.add_sku:
                 row_data = (
                     "{} ({})".format(product_name, product["SKU"]),

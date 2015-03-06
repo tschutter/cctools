@@ -8,6 +8,14 @@ price, adding sales tax, and rounding to the nearest dollar.
 
 Retail prices are calculated by removing sales tax, inverting the
 discount, rounding to the nearest dime, and subtracting a penny.
+
+To generate a table of event to retail prices::
+
+  echo "event,retail";\
+  i=1; while [ "$i" -le 10 ]; do\
+    echo "$i,`./calc_price.py retail $i`";\
+    i=`echo $i+1|bc`;\
+  done
 """
 
 from __future__ import print_function
@@ -27,8 +35,8 @@ def calc_event_price(price, discount_percent, sales_tax_percent):
     # Round to the nearest dollar.
     price = max(1.0, math.floor(price + 0.5))
 
-    # Return as whole number string like "$1,234".
-    return "${:,.0f}".format(price)
+    # Return as a float.
+    return price
 
 
 def calc_retail_price(price, discount_percent, sales_tax_percent):
@@ -43,8 +51,8 @@ def calc_retail_price(price, discount_percent, sales_tax_percent):
     # Round to the nearest dime and subtract a penny.
     price = max(0.01, math.floor(price * 10.0 + 0.5) / 10.0 - 0.01)
 
-    # Return as string like "$1,234.39".
-    return "${:,.2f}".format(price)
+    # Return as a float.
+    return price
 
 
 def main():
@@ -91,13 +99,14 @@ def main():
             args.discount_percent,
             args.avg_tax_percent
         )
+        print("{:,.0f}".format(price))
     else:
         price = calc_retail_price(
             args.price,
             args.discount_percent,
             args.avg_tax_percent
         )
-    print(price)
+        print("{:,.2f}".format(price))
 
     return 0
 
