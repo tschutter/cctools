@@ -227,8 +227,11 @@ def add_products(args, worksheet, row, cc_browser, products):
             )
             set_cell(worksheet, row, col_description, description)
 
-            online_price = product["Price"]
-            rounded_price = math.floor(float(online_price) + 0.5)
+            online_price = float(product["Price"])
+            if online_price > 1.0:
+                rounded_price = math.floor(online_price + 0.5)
+            else:
+                rounded_price = online_price
             wholesale_price = rounded_price * args.wholesale_fraction
             style = set_cell(worksheet, row, col_price, wholesale_price).style
             style.number_format.format_code = NUMBER_FORMAT_USD
