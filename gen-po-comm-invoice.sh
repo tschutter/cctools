@@ -53,11 +53,13 @@ fi
 #
 # SKU 10001 = Test Product
 # SKU 30001 = All other Earrings
+# SKU 70085 = Marketing Materials
 "${SCRIPTDIR}/gen-po-comm-invoice.py"\
     --number="${NUMBER}"\
     --outfile="${FILENAME}"\
     --exclude-sku=10001\
     --exclude-sku=30001\
+    --exclude-sku=70085\
     --verbose\
     ${ARGS}
 
