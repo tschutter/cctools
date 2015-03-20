@@ -4,9 +4,9 @@ cctools
 cctools is a set of utilities that work with CoreCommerce product
 data.
 
-calc-online-price.py
-    Calculates an online price (pre-tax) based upon a tax-included
-    price.
+calc_price.py
+    Converts an event price (tax-included) to a retail price
+   (pre-tax) or vice versa.
 
 ccc
     Core Commerce Command line tool.  Interact with CoreCommerce from
@@ -31,6 +31,9 @@ gen-price-list.py
     amounts.  The intent is to use the price list at fairs and shows
     to avoid the handling of change.  It also makes accounting of cash
     and checks easier because you can deal with round numbers.
+
+gen-wholesale-line-sheet.py
+    Generates a wholesale line sheet in spreadsheet form.
 
 gen-wholesale-order.py
     Generates a wholesale order form in spreadsheet form.
