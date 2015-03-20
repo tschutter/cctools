@@ -38,6 +38,26 @@ gen-wholesale-line-sheet.py
 gen-wholesale-order.py
     Generates a wholesale order form in spreadsheet form.
 
+Installation
+------------
+
+cctools uses the Python mechanize package.  Unfortunately as of
+2015-03-19, mechanize has not been ported to Python3.  Therefore you
+must install Python 2.7.
+
+These tools depend upon a small set of Python packages.  On Linux::
+
+    sudo apt-get install python-lockfile python-mechanize
+    sudo apt-get install python-reportlab python-openpyxl
+
+On Windows if using ActiveState Active Python::
+
+    pypm install python-lockfile python-mechanize
+    pypm install python-reportlab python-openpyxl
+
+Configuration
+-------------
+
 All of these tools use a common cctools.cfg configuration file.  The
 configuration file uses `INI syntax
 <http://docs.python.org/2/library/configparser.html>`_.  The config
