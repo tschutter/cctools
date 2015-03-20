@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 """
-Converts an event price to a retail price or vice versa.
+Converts an event price (tax-included) to a retail price (pre-tax)
+or vice versa.
 
 Event prices are calculated by applying a discount to the online
 price, adding sales tax, and rounding to the nearest dollar.
