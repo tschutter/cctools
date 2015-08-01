@@ -20,7 +20,7 @@ try:
 except ImportError:
     # xdg not available on all platforms
     # pylint: disable=C0103
-    xdg_cache_home = os.path.expanduser("~/.cache")
+    xdg_cache_home = os.path.join(os.path.expanduser("~"), ".cache")
 
 # Notes:
 #
