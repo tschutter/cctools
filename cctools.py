@@ -79,6 +79,16 @@ class CCBrowser(object):
         self._categories = None
         self._category_sort = None
 
+    def _select_form(self, name):
+        """Select a form in the browser."""
+        try:
+            self._browser.select_form(name)
+        except mechanize.FormNotFoundError as ex:
+            forms = []
+            for form in self._browser.forms():
+                forms.append(form.name)
+            raise type(ex)(str(ex) + " in {}".format(forms))
+
     def _login(self):
         """Login to site."""
 
@@ -94,7 +104,7 @@ class CCBrowser(object):
         self._browser.open(self._admin_url)
 
         # Find the login form.
-        self._browser.select_form(name="digiSHOP")
+        self._select_form("digiSHOP")
 
         # Set the form values.
         self._browser["userId"] = self._username
@@ -289,7 +299,7 @@ class CCBrowser(object):
         self._browser.open(url)
 
         # Select form.
-        self._browser.select_form("jsform")
+        self._select_form("jsform")
 
         # Ensure that "All Categories" is selected.
         category_list = self._browser.form.find_control("category")
@@ -298,7 +308,7 @@ class CCBrowser(object):
                 print(
                     " name={} values={}".format(
                         item.name,
-                        str([label.text for label in item.get_labels()])
+                        str(label.text for label in item.get_labels())
                     )
                 )
         category_list.value = [""]  # name where values = ["All Categories"]
