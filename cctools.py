@@ -84,6 +84,11 @@ class CCBrowser(object):
         try:
             self._browser.select_form(name)
         except mechanize.FormNotFoundError as ex:
+            # If the form is not found, and the form list only
+            # contains "digiSHOP", then the hostname is probably
+            # wrong.  "digiSHOP" is on a redirected login page.
+            # Change the requested name to "digiSHOP" and then print
+            # self._browser.form to see clues.
             forms = []
             for form in self._browser.forms():
                 forms.append(form.name)
