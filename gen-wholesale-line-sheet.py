@@ -91,6 +91,12 @@ def add_title(args, config, worksheet):
         set_cell(worksheet, row, 0, cell_text)
         row += 1
 
+    phone = get_optional_option(config, "wholesale_line_sheet", "phone")
+    if phone:
+        cell_text = "Phone: {}".format(phone)
+        set_cell(worksheet, row, 0, cell_text)
+        row += 1
+
     website = get_optional_option(config, "wholesale_line_sheet", "website")
     if website:
         cell_text = "Website: {}".format(website)
