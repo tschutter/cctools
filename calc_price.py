@@ -22,6 +22,8 @@ To generate a table of event to retail prices::
 from __future__ import print_function
 import argparse
 import math
+import Tkinter
+import tkMessageBox
 
 
 def calc_event_price(price, discount_percent, sales_tax_percent):
@@ -56,10 +58,143 @@ def calc_retail_price(price, discount_percent, sales_tax_percent):
     return price
 
 
+class AppGUI(object):
+    """Application graphical user interface."""
+
+    # Width of price text entry boxes.
+    PRICE_WIDTH = 10
+
+    # pylint: disable=no-self-use
+    def __init__(self, args, root):
+        self.args = args
+        self.root = root
+        self.frame = Tkinter.Frame(root)
+        self.frame.pack()
+
+        # Retail price group.
+        retail_group = Tkinter.LabelFrame(
+            self.frame,
+            text="Retail (website) price",
+            padx=5,
+            pady=5
+        )
+        retail_group.pack(padx=10, pady=10)
+        self.retail_entry = Tkinter.Entry(
+            retail_group,
+            width=AppGUI.PRICE_WIDTH
+        )
+        self.retail_entry.bind('<Return>', self.calc_event_price)
+        self.retail_entry.pack(side=Tkinter.LEFT)
+        calc_event_button = Tkinter.Button(
+            retail_group,
+            text="Calc event",
+            command=self.calc_event_price
+        )
+        calc_event_button.bind('<Return>', self.calc_event_price)
+        calc_event_button.pack(side=Tkinter.LEFT)
+
+        # Event price group.
+        event_group = Tkinter.LabelFrame(
+            self.frame,
+            text="Event (discounted) price",
+            padx=5,
+            pady=5
+        )
+        event_group.pack(padx=10, pady=10)
+        self.event_entry = Tkinter.Entry(
+            event_group,
+            width=AppGUI.PRICE_WIDTH
+        )
+        self.event_entry.bind('<Return>', self.calc_retail_price)
+        self.event_entry.pack(side=Tkinter.LEFT)
+        calc_retail_button = Tkinter.Button(
+            event_group,
+            text="Calc retail",
+            command=self.calc_retail_price
+        )
+        calc_retail_button.bind('<Return>', self.calc_retail_price)
+        calc_retail_button.pack(side=Tkinter.LEFT)
+
+        # Quit button
+        self.quit_button = Tkinter.Button(
+            self.frame,
+            text="Quit",
+            command=self.frame.quit
+        )
+        self.quit_button.pack(side=Tkinter.LEFT, padx=5, pady=5)
+
+        # Give focus to the retail_entry.
+        self.retail_entry.focus_set()
+
+    def get_price(self, entry, entry_name):
+        """Get float value from text entry box."""
+        price_str = entry.get()
+        if price_str is None:
+            self.error("No {} price specified".format(entry_name))
+            return None
+        try:
+            price_float = float(price_str)
+        except ValueError:
+            self.error(
+                "{} price of '{}' is not a valid number".format(
+                    entry_name,
+                    price_str
+                )
+            )
+            return None
+        return price_float
+
+    def set_price(self, entry, price):
+        """Set price in text entry box."""
+        entry.delete(0, Tkinter.END)
+        entry.insert(0, price)
+
+        # Copy to clipboard.
+        self.root.clipboard_clear()
+        self.root.clipboard_append(price)
+
+    def calc_retail_price(self, _=None):
+        """
+        Calculate retail price action.
+        Second arg is event when called via <Return>.
+        """
+        event_price = self.get_price(self.event_entry, "Event")
+        if event_price is None:
+            return
+        retail_price = calc_retail_price(
+            event_price,
+            self.args.discount_percent,
+            self.args.avg_tax_percent
+        )
+        retail_price = "{:,.2f}".format(retail_price)
+        self.set_price(self.retail_entry, retail_price)
+
+    def calc_event_price(self, _=None):
+        """
+        Calculate event price action.
+        Second arg is event when called via <Return>.
+        """
+        retail_price = self.get_price(self.retail_entry, "Retail")
+        if retail_price is None:
+            return
+        event_price = calc_event_price(
+            retail_price,
+            self.args.discount_percent,
+            self.args.avg_tax_percent
+        )
+        event_price = "{:,.2f}".format(event_price)
+        self.set_price(self.event_entry, event_price)
+
+    def error(self, msg):
+        """Display an error message."""
+        tkMessageBox.showerror("Error", msg)
+
+
 def main():
     """main"""
     arg_parser = argparse.ArgumentParser(
-        description="Calculate pre-tax price based upon tax-included price."
+        description="Calculate pre-tax price based upon tax-included price "
+        "or vice-versa."
     )
     arg_parser.add_argument(
         "--discount",
@@ -77,15 +212,27 @@ def main():
         default=8.3,
         help="average sales tax rate in percent (default=%(default).2f)"
     )
-    arg_parser.add_argument(
-        "operation",
-        choices=("event", "retail"),
-        default="event",
-        help="calculate event price or retail price"
+
+    subparsers = arg_parser.add_subparsers(help='operations')
+
+    subparsers.add_parser("gui", help="display graphical interface")
+
+    event_parser = subparsers.add_parser(
+        "event",
+        help="calculate event price"
     )
-    arg_parser.add_argument(
-        "price",
-        metavar="PRICE",
+    event_parser.add_argument(
+        "retail_price",
+        type=float,
+        help="price"
+    )
+
+    retail_parser = subparsers.add_parser(
+        "retail",
+        help="calculate retail price"
+    )
+    retail_parser.add_argument(
+        "event_price",
         type=float,
         help="price"
     )
@@ -94,20 +241,25 @@ def main():
     args = arg_parser.parse_args()
 
     # Convert and print price.
-    if args.operation == "event":
+    if "retail_price" in args:
         price = calc_event_price(
-            args.price,
+            args.retail_price,
             args.discount_percent,
             args.avg_tax_percent
         )
         print("{:,.0f}".format(price))
-    else:
+    elif "event_price" in args:
         price = calc_retail_price(
-            args.price,
+            args.event_price,
             args.discount_percent,
             args.avg_tax_percent
         )
         print("{:,.2f}".format(price))
+    else:
+        root = Tkinter.Tk()
+        root.title("Calc Product Price")
+        AppGUI(args, root)
+        root.mainloop()
 
     return 0
 
