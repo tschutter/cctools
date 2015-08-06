@@ -20,12 +20,14 @@ import sys
 
 # Define canonical object types.
 CATEGORY = "category"
+OPTION = "option"
 PRODUCT = "product"
 QUESTION = "question"
 VARIANT = "variant"
 
 # Specify abbreviations for object types.
 CATEGORY_ABBREVS = [CATEGORY, "categories", "cat"]
+OPTION_ABBREVS = [OPTION, "options", "opt"]
 PRODUCT_ABBREVS = [PRODUCT, "products", "prod"]
 QUESTION_ABBREVS = [QUESTION, "questions", "quest"]
 VARIANT_ABBREVS = [VARIANT, "variants", "var"]
@@ -40,7 +42,25 @@ HEADER_MAP = {
     "Discontinued Item": "Discd",
     "Track Inventory": "TrkInv",
     "Inventory Level": "InvLvl",
-    "Variant Inventory Level": "VInvLvl",
+    "Variant Inventory Level": "VarInvLvl",
+    "Option Set SKU": "OptSetSKU",
+    "Option Set Price": "OptSetPrice",
+    "Option Set MSRP": "OptSetMSRP",
+    "Option Set Inventory Level": "OptSetInvLvl",
+    "Option Group Id [1]": "OptGrpId1",
+    "Option Group Id [2]": "OptGrpId2",
+    "Option Group Name [1]": "OptGrpName1",
+    "Option Group Name [2]": "OptGrpName2",
+    "Option Id [1]": "OptId1",
+    "Option Id [2]": "OptId2",
+    "Option Name [1]": "OptName1",
+    "Option Name [2]": "OptName2",
+    "Option Sort [1]": "OptSort1",
+    "Option Sort [2]": "OptSort2",
+    "First Option Value [1]": "OptFirstVal1",
+    "First Option Value [2]": "OptFirstVal2",
+    "Use First Option Value [1]": "OptFirstValUse1",
+    "Use First Option Value [2]": "OptFirstValUse2",
     "Category Id": "CatId",
     "Product SKU": "PrdSKU",
     "Required": "QReq",
@@ -207,6 +227,22 @@ def get_default_fields(args, config):
     if args.obj_type == CATEGORY:
         return ["Sort", "Category Name", "Thumbnail"]
 
+    elif args.obj_type == OPTION:
+        return [
+            "Product SKU",
+            "Option Set SKU",
+            "Option Set Price",
+            "Option Set MSRP",
+            "Option Set Inventory Level",
+            "Option Group Id [1]",
+            "Option Group Name [1]",
+            "First Option Value [1]",
+            "Use First Option Value [1]",
+            "Option Id [1]",
+            "Option Name [1]",
+            "Option Sort [1]"
+        ]
+
     elif args.obj_type == PRODUCT:
         return [
             "Category",
@@ -277,6 +313,9 @@ def get_objects(args, cc_browser):
     if args.obj_type == CATEGORY:
         objects = cc_browser.get_categories()
 
+    elif args.obj_type == OPTION:
+        objects = cc_browser.get_options()
+
     elif args.obj_type == PRODUCT:
         objects = cc_browser.get_products()
 
@@ -297,8 +336,9 @@ def get_objects(args, cc_browser):
 
 
 def calc_var_inv_level(cc_browser, objects):
-    """For each product in objects, add the inventory level of the
-    product's variants to the product.
+    """
+    For each product in objects, add the inventory level of the
+    product's options to the product.
     """
 
     variants = cc_browser.get_variants()
@@ -309,7 +349,7 @@ def calc_var_inv_level(cc_browser, objects):
         for variant in variants:
             if variant["Product Name"] == product["Product Name"]:
                 try:
-                    inv_lvl = int(variant["Inventory Level"])
+                    inv_lvl = int(variant["Option Set Inventory Level"])
                 except ValueError:
                     inv_lvl = 0
                     err = True
@@ -317,7 +357,7 @@ def calc_var_inv_level(cc_browser, objects):
                     err = True
                 vinvlvl += inv_lvl
         vinvlvl = "{}{}".format("(err) " if err else "", vinvlvl)
-        product["Variant Inventory Level"] = vinvlvl
+        product["Option Set Inventory Level"] = vinvlvl
 
 
 def action_list(args, config, cc_browser):
@@ -327,7 +367,12 @@ def action_list(args, config, cc_browser):
 
     objects = get_objects(args, cc_browser)
     fields = get_output_fields(args, config, objects)
-    if args.obj_type == VARIANT:
+    if args.obj_type == OPTION:
+        objects = sorted(
+            objects,
+            key=cc_browser.option_key
+        )
+    elif args.obj_type == VARIANT:
         objects = sorted(
             objects,
             key=cc_browser.variant_key
@@ -352,6 +397,9 @@ def action_list_fields(args, config, cc_browser):
     if args.obj_type == CATEGORY:
         categories = cc_browser.get_categories()
         field_names = sorted(categories[0].keys())
+    elif args.obj_type == OPTION:
+        options = cc_browser.get_options()
+        field_names = sorted(options[0].keys())
     elif args.obj_type == PRODUCT:
         products = cc_browser.get_products()
         field_names = sorted(products[0].keys())
@@ -379,6 +427,9 @@ def find_object(args, cc_browser):
     if args.obj_type == CATEGORY:
         objects = cc_browser.get_categories()
         keys = ["Category Name"]
+    elif args.obj_type == OPTION:
+        objects = cc_browser.get_options()
+        keys = ["Option Set SKU"]
     elif args.obj_type == PRODUCT:
         objects = cc_browser.get_products()
         keys = ["SKU", "Product Name"]
@@ -453,6 +504,10 @@ def action_refresh(args, config, cc_browser):
         print("Refreshing categories")
         cc_browser.get_categories()
 
+    if not args.obj_type or args.obj_type == OPTION:
+        print("Refreshing options")
+        cc_browser.get_options()
+
     if not args.obj_type or args.obj_type == PRODUCT:
         print("Refreshing products")
         cc_browser.get_products()
@@ -489,6 +544,7 @@ def add_obj_type_argument(arg_parser, nargs=None):
         "obj_type",
         choices=(
             CATEGORY_ABBREVS +
+            OPTION_ABBREVS +
             PRODUCT_ABBREVS +
             QUESTION_ABBREVS +
             VARIANT_ABBREVS
@@ -499,12 +555,15 @@ def add_obj_type_argument(arg_parser, nargs=None):
 
 
 def normalize_obj_type(args):
-    """Normalize a user-specified object type to a standard name for
+    """
+    Normalize a user-specified object type to a standard name for
     an object type.
     """
     if args.obj_type:
         if args.obj_type in CATEGORY_ABBREVS:
             args.obj_type = CATEGORY
+        elif args.obj_type in OPTION_ABBREVS:
+            args.obj_type = OPTION
         elif args.obj_type in PRODUCT_ABBREVS:
             args.obj_type = PRODUCT
         elif args.obj_type in QUESTION_ABBREVS:

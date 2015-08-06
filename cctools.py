@@ -2,6 +2,9 @@
 
 """
 Web scraper interface to CoreCommerce.
+
+TODO: downloaded option file needs to be split into option_sets and options
+      must synthensize Option Set Id, which is unique per product
 """
 
 from __future__ import print_function
@@ -39,6 +42,42 @@ except ImportError:
 LOGGER = logging.getLogger(__name__)
 
 
+def uniquify_header(line):
+    """Make names unique in a CSV header line."""
+    fields = line.strip().split(",")
+    for i, field in enumerate(fields):
+        if field in fields[i + 1:]:
+            count = 1
+            for j in range(i, len(fields)):
+                if fields[j] == field:
+                    fields[j] = "{} [{}]".format(
+                        field,
+                        count
+                    )
+                    count += 1
+
+    return ",".join(fields) + "\n"
+
+
+def repair_options_csv(fixed_filename, tmp_filename):
+    """
+    Repairs options CSV header which has duplicate keys.  Who exports
+    a CSV file with identical column names?  That is criminal.
+    Each row consists of data about the "option set", followed by
+    groups of data for each option.  The number of groups is
+    probably the maximum number of options seen in any option set.
+    """
+
+    with open(tmp_filename) as tmp_file:
+        with open(fixed_filename, "w") as fixed_file:
+            first = True
+            for line in tmp_file.readlines():
+                if first:
+                    line = uniquify_header(line)
+                    first = False
+                fixed_file.write(line)
+
+
 class CCBrowser(object):
     """Encapsulate mechanize.Browser object."""
     def __init__(
@@ -74,6 +113,7 @@ class CCBrowser(object):
             self._browser.set_proxies({"https": proxy})
         self._logged_in = False
         self._variants = None
+        self._options = None
         self._questions = None
         self._products = None
         self._categories = None
@@ -233,6 +273,62 @@ class CCBrowser(object):
                     self._clean_variants()
 
         return self._variants
+
+    def _download_options_csv(self, filename):
+        """Download option list to a CSV file."""
+
+        # Login if necessary.
+        self._login()
+
+        # Log time consuming step.
+        LOGGER.info("Downloading options")
+
+        # Load export page.
+        url = "{}?{}{}".format(
+            self._admin_url,
+            "m=ajax_export",
+            "&instance=product_options&checkAccess=products"
+        )
+        self._browser.open(url)
+
+        # Call the doExport function.
+        self._do_export(url, filename)
+
+    def _clean_options(self):
+        """Normalize suspect option data."""
+        # Boolean value of "" appears to mean "N".
+        for option in self._options:
+            # Booleans should be Y|N, but we sometimes see "".
+            for key, value in option.items():
+                if key and key.startswith("Use First Option Value"):
+                    if value not in ("Y", "N"):
+                        option[key] = "N"
+
+    def get_options(self):
+        """Return a list of per-option dictionaries."""
+
+        if self._options is None:
+            filename = os.path.join(self._cache_dir, "options.csv")
+
+            with lockfile.FileLock(self._download_lock_filename):
+                # Download products file if it is out of date.
+                if self._is_file_expired(filename):
+                    self._download_options_csv(filename + ".tmp")
+                    repair_options_csv(filename, filename + ".tmp")
+
+                # Read options file.
+                # The header has 47 fields, but each data record has
+                # 48 fields.  By setting restkey to "Extra", we
+                # prevent the extra field from having a key of None.
+                self._options = list(
+                    csv.DictReader(open(filename), restkey="Extra")
+                )
+
+                # Cleanup suspect data.
+                if self._clean:
+                    self._clean_options()
+
+        return self._options
 
     def get_questions(self):
         """Return a list of per-question dictionaries."""
@@ -635,6 +731,46 @@ class CCBrowser(object):
             product_sort_key,
             variant["Question Sort Order"],
             variant["Answer Sort Order"]
+        )
+
+    def option_key(self, option):
+        """Return a key to sort options."""
+        # pylint: disable=R0201
+        return (
+            option["Product SKU"],
+            option["Option Set SKU"]
+        )
+
+    def option_key_by_cat_product(self, option):
+        """
+        Return a key for a option dictionary used to sort by
+        category, product_name, question, answer.
+        """
+        if self._category_sort is None:
+            self._init_category_sort()
+        self.get_products()
+
+        category = None
+        product_sort_key = None
+        for product in self._products:
+            if (
+                product["Product Name"] == option["Product Name"] and
+                product["SKU"] == option["Product SKU"]
+            ):
+                category = product["Category"]
+                if category in self._category_sort:
+                    category_sort_key = "{:05d}".format(
+                        self._category_sort[category]
+                    )
+                else:
+                    category_sort_key = category
+                product_sort_key = product["Product Name"]
+                break
+
+        return (
+            category_sort_key,
+            product_sort_key,
+            option["Option Sort"]
         )
 
     def question_key(self, question):
