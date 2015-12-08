@@ -349,7 +349,7 @@ def calc_var_inv_level(cc_browser, objects):
         for variant in variants:
             if variant["Product Name"] == product["Product Name"]:
                 try:
-                    inv_lvl = int(variant["Option Set Inventory Level"])
+                    inv_lvl = int(variant["Inventory Level"])
                 except ValueError:
                     inv_lvl = 0
                     err = True
@@ -357,7 +357,7 @@ def calc_var_inv_level(cc_browser, objects):
                     err = True
                 vinvlvl += inv_lvl
         vinvlvl = "{}{}".format("(err) " if err else "", vinvlvl)
-        product["Option Set Inventory Level"] = vinvlvl
+        product["Variant Inventory Level"] = vinvlvl
 
 
 def action_list(args, config, cc_browser):
