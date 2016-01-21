@@ -41,9 +41,11 @@ rm -f ${FILENAME}
 # products should be excluded.
 #
 # SKU 30001 = All other Earrings
+# SKU 40078 = Tefula Extra Long Necklace (don't want variants on line sheet)
 "${SCRIPTDIR}/gen-wholesale-line-sheet.py"\
     --outfile="${FILENAME}"\
     --exclude-sku=30001\
+    --exclude-sku=40078\
     --verbose\
     ${ARGS}
 
