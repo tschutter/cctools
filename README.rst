@@ -5,8 +5,8 @@ cctools is a set of utilities that work with CoreCommerce product
 data.
 
 calc_price.py
-    Converts an event price (tax-included) to a retail price
-   (pre-tax) or vice versa.
+    Converts an event price (tax-included) to a retail price (pre-tax)
+    or vice versa.
 
 ccc
     Core Commerce Command line tool.  Interact with CoreCommerce from
