@@ -18,6 +18,8 @@ import notify_send_handler
 import openpyxl  # sudo pip install openpyxl
 import os
 
+CHECK_FOR_LACK_OF_ANY = True
+
 NUMBER_FORMAT_USD = "$#,##0.00;-$#,##0.00"
 
 # Column numbers of product values.
@@ -333,7 +335,7 @@ def add_product(worksheet, row, lineno, product, variants):
             )
             row += 1
             lineno += 1
-        if not any_variant_exists and False:  # eatme debug False
+        if CHECK_FOR_LACK_OF_ANY and not any_variant_exists:
             logging.getLogger().warning(
                 "No 'Any' or 'Variety' variant exists for {} {}".format(
                     sku,
