@@ -422,6 +422,7 @@ def add_products(worksheet, row, cc_browser, products, has_htsus_no):
         category = "unknown"
         category_row = row
         row += 1
+
         # Add product rows.
         for product in product_group:
             row, lineno = add_product(
@@ -432,7 +433,10 @@ def add_products(worksheet, row, cc_browser, products, has_htsus_no):
                 variants
             )
             category = product["Category"]
+
         # Go back and insert category name.
+        if category == "":
+            category = "Uncategorized"
         set_cell(
             worksheet,
             category_row,
