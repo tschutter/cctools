@@ -523,20 +523,33 @@ def add_totals(
     row += 1
 
     # Discount.
-    percent_discount = config.getfloat("invoice", "percent_discount")
-    discount_formula = "={}{} * {}".format(
-        col_letter(col_total),
-        subtotal_row,
-        -percent_discount / 100.0
-    )
+    if config.has_option("invoice", "percent_discount"):
+        percent_discount = config.getfloat("invoice", "percent_discount")
+        discount_formula = "={}{} * {}".format(
+            col_letter(col_total),
+            subtotal_row,
+            -percent_discount / 100.0
+        )
+        set_label_dollar_value(
+            worksheet,
+            row,
+            col_label_start,
+            col_label_end,
+            col_total,
+            "{}% Discount:".format(percent_discount),
+            discount_formula
+        )
+        row += 1
+
+    # Shipping.
     set_label_dollar_value(
         worksheet,
         row,
         col_label_start,
         col_label_end,
         col_total,
-        "{}% Discount:".format(percent_discount),
-        discount_formula
+        "Shipping:",
+        0.0
     )
     row += 1
 
