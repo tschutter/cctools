@@ -18,7 +18,7 @@ import notify_send_handler
 import openpyxl  # sudo pip install openpyxl
 import os
 
-CHECK_FOR_LACK_OF_ANY = True
+CHECK_FOR_LACK_OF_ANY = False  # until most "Any" variants have been added
 
 NUMBER_FORMAT_USD = "$#,##0.00;-$#,##0.00"
 
