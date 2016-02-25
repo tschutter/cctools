@@ -69,7 +69,8 @@ Linux
 1) Install required packages::
 
     sudo apt-get install python-lockfile python-mechanize
-    sudo apt-get install python-reportlab python-openpyxl
+    sudo apt-get install python-reportlab
+    sudo pip install openpyxl
 
 2) Clone the ``cctools`` repository::
 
@@ -89,8 +90,7 @@ Windows
 
 2) Install required packages::
 
-    pip install python-lockfile python-mechanize
-    pip install python-reportlab python-openpyxl
+    pip install lockfile mechanize reportlab openpyxl
 
 3) Download the `ZIP file
    <https://github.com/tschutter/cctools/archive/master.zip>`_ of the

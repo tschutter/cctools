@@ -15,30 +15,20 @@ import datetime
 import itertools
 import logging
 import notify_send_handler
-import openpyxl  # sudo apt-get install python-openpyxl
+import openpyxl  # sudo pip install openpyxl
 import os
 
-# Cell style constants.
-ALIGNMENT_HORIZONTAL_LEFT = openpyxl.style.Alignment.HORIZONTAL_LEFT
-ALIGNMENT_HORIZONTAL_RIGHT = openpyxl.style.Alignment.HORIZONTAL_RIGHT
-ALIGNMENT_VERTICAL_TOP = openpyxl.style.Alignment.VERTICAL_TOP
-NUMBER_FORMAT_USD = openpyxl.style.NumberFormat.FORMAT_CURRENCY_USD_SIMPLE
+NUMBER_FORMAT_USD = "$#,##0.00;-$#,##0.00"
 
 # Column numbers of product values.
-COL_LINE_NO = 0
-COL_SKU = 1
-COL_DESCRIPTION = 2
-COL_PRICE = 3
-COL_QTY = 4
-COL_TOTAL = 5
-COL_HTSUS_NO = 6
-COL_INSTRUCTIONS = 7
-
-
-def has_merge_cells(worksheet):
-    """Determine if Worksheet.merge_cells method exists."""
-    # merge_cells not supported by openpyxl-1.5.6 (Ubuntu 12.04)
-    return hasattr(worksheet, "merge_cells")
+COL_LINE_NO = 1
+COL_SKU = 2
+COL_DESCRIPTION = 3
+COL_PRICE = 4
+COL_QTY = 5
+COL_TOTAL = 6
+COL_HTSUS_NO = 7
+COL_INSTRUCTIONS = 8
 
 
 def set_cell(
@@ -46,43 +36,38 @@ def set_cell(
     row,
     col,
     value,
-    bold=None,
-    alignment_horizontal=None,
-    alignment_vertical=None
+    font_bold=False,
+    font_size=11,
+    alignment_horizontal="general",
+    alignment_vertical="bottom",
+    number_format="General"
 ):
     """Set cell value and style."""
     cell = worksheet.cell(row=row, column=col)
     cell.value = value
-    if bold is not None:
-        cell.style.font.bold = bold
-    if alignment_horizontal is not None:
-        cell.style.alignment.horizontal = alignment_horizontal
-    if alignment_vertical is not None:
-        cell.style.alignment.vertical = alignment_vertical
-    return cell
+    cell.font = openpyxl.styles.Font(bold=font_bold, size=font_size)
+    cell.alignment = openpyxl.styles.Alignment(
+        horizontal=alignment_horizontal,
+        vertical=alignment_vertical
+    )
+    if number_format != "General":
+        cell.number_format = number_format
 
 
 def col_letter(col):
     """Return column letter for given column."""
-    return chr(ord("A") + col)
-
-
-def row_number(row):
-    """Return row number for given row."""
-    return row + 1
+    return chr(ord("A") + col - 1)
 
 
 def add_title(worksheet):
     """Add worksheet title."""
-    style = set_cell(worksheet, 0, 0, "Purchase Order", bold=True).style
-    style.font.size = 20
-    if has_merge_cells(worksheet):
-        worksheet.merge_cells(
-            start_row=0,
-            start_column=0,
-            end_row=0,
-            end_column=2
-        )
+    set_cell(worksheet, 1, 1, "Purchase Order", font_bold=True, font_size=20)
+    worksheet.merge_cells(
+        start_row=1,
+        start_column=1,
+        end_row=1,
+        end_column=3
+    )
     worksheet.row_dimensions[1].height = 25
 
 
@@ -97,7 +82,7 @@ def set_label_value(
     value
 ):
     """Add label: value."""
-    if has_merge_cells(worksheet) and col_label_start != col_label_end:
+    if col_label_start != col_label_end:
         worksheet.merge_cells(
             start_row=row,
             start_column=col_label_start,
@@ -107,10 +92,16 @@ def set_label_value(
         col_label = col_label_start
     else:
         col_label = col_label_end
-    label_style = set_cell(worksheet, row, col_label, label, bold=True).style
-    label_style.alignment.horizontal = ALIGNMENT_HORIZONTAL_RIGHT
+    set_cell(
+        worksheet,
+        row,
+        col_label,
+        label,
+        font_bold=True,
+        alignment_horizontal="right"
+    )
 
-    if has_merge_cells(worksheet) and col_value_start != col_value_end:
+    if col_value_start != col_value_end:
         worksheet.merge_cells(
             start_row=row,
             start_column=col_value_start,
@@ -121,14 +112,14 @@ def set_label_value(
     else:
         col_value = col_value_end
     cell = worksheet.cell(row=row, column=col_value)
-    cell.set_value_explicit(value)  # Force type to be string.
+    cell.set_explicit_value(value)  # Force type to be string.
 
 
 def add_header(args, config, worksheet, row):
     """Add PO/Invoice header."""
 
-    col_label_start = 2
-    col_label_end = 2
+    col_label_start = 3
+    col_label_end = 3
     col_value_start = col_label_end + 1
     col_value_end = col_value_start + 3
 
@@ -269,21 +260,25 @@ def add_variant(
         row,
         COL_SKU,
         sku,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_LEFT
+        alignment_horizontal="left"
     )
     set_cell(worksheet, row, COL_DESCRIPTION, description)
-    style = set_cell(worksheet, row, COL_PRICE, cost).style
-    style.number_format.format_code = NUMBER_FORMAT_USD
+    set_cell(worksheet, row, COL_PRICE, cost, number_format=NUMBER_FORMAT_USD)
     total_formula = "=IF({}{}=\"\", \"\", {}{} * {}{})".format(
         col_letter(COL_QTY),
-        row_number(row),
+        row,
         col_letter(COL_PRICE),
-        row_number(row),
+        row,
         col_letter(COL_QTY),
-        row_number(row)
+        row
     )
-    style = set_cell(worksheet, row, COL_TOTAL, total_formula).style
-    style.number_format.format_code = NUMBER_FORMAT_USD
+    set_cell(
+        worksheet,
+        row,
+        COL_TOTAL,
+        total_formula,
+        number_format=NUMBER_FORMAT_USD
+    )
     if htsus_no is not None:
         set_cell(worksheet, row, COL_HTSUS_NO, htsus_no)
 
@@ -301,7 +296,7 @@ def add_product(worksheet, row, lineno, product, variants):
     """Add row for each variant."""
     sku = product["SKU"]
     teaser = cctools.html_to_plain_text(product["Teaser"])
-    cost = product["Cost"]
+    cost = float(product["Cost"])
     if "HTSUS No" in product:
         htsus_no = product["HTSUS No"]
     else:
@@ -338,7 +333,7 @@ def add_product(worksheet, row, lineno, product, variants):
             )
             row += 1
             lineno += 1
-        if not any_variant_exists:
+        if not any_variant_exists and False:  # eatme debug False
             logging.getLogger().warning(
                 "No 'Any' or 'Variety' variant exists for {} {}".format(
                     sku,
@@ -358,41 +353,41 @@ def add_products(worksheet, row, cc_browser, products, has_htsus_no):
         row,
         COL_LINE_NO,
         "Line No",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
+        font_bold=True,
+        alignment_horizontal="right"
     )
     set_cell(
         worksheet,
         row,
         COL_SKU,
         "SKU",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_LEFT
+        font_bold=True,
+        alignment_horizontal="left"
     )
-    set_cell(worksheet, row, COL_DESCRIPTION, "Description", bold=True)
+    set_cell(worksheet, row, COL_DESCRIPTION, "Description", font_bold=True)
     set_cell(
         worksheet,
         row,
         COL_PRICE,
         "Price",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
+        font_bold=True,
+        alignment_horizontal="right"
     )
     set_cell(
         worksheet,
         row,
         COL_QTY,
         "Qty",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
+        font_bold=True,
+        alignment_horizontal="right"
     )
     set_cell(
         worksheet,
         row,
         COL_TOTAL,
         "Total",
-        bold=True,
-        alignment_horizontal=ALIGNMENT_HORIZONTAL_RIGHT
+        font_bold=True,
+        alignment_horizontal="right"
     )
     if has_htsus_no:
         set_cell(
@@ -400,14 +395,14 @@ def add_products(worksheet, row, cc_browser, products, has_htsus_no):
             row,
             COL_HTSUS_NO,
             "HTSUS No",
-            bold=True
+            font_bold=True
         )
     set_cell(
         worksheet,
         row,
         COL_INSTRUCTIONS,
         "Item Special Instructions",
-        bold=True
+        font_bold=True
     )
     row += 1
 
@@ -436,7 +431,13 @@ def add_products(worksheet, row, cc_browser, products, has_htsus_no):
             )
             category = product["Category"]
         # Go back and insert category name.
-        set_cell(worksheet, category_row, COL_DESCRIPTION, category, bold=True)
+        set_cell(
+            worksheet,
+            category_row,
+            COL_DESCRIPTION,
+            category,
+            font_bold=True
+        )
     last_product_row = row - 1
 
     # Set column widths.
@@ -460,25 +461,32 @@ def set_label_dollar_value(
     col_label_end,
     col_total,
     label,
-    value
+    value,
+    font_bold=False
 ):
     """Add label: value."""
-    if has_merge_cells(worksheet):
-        worksheet.merge_cells(
-            start_row=row,
-            start_column=col_label_start,
-            end_row=row,
-            end_column=col_label_end
-        )
-        col_label = col_label_start
-    else:
-        col_label = col_label_end
-    label_style = set_cell(worksheet, row, col_label, label).style
-    label_style.alignment.horizontal = ALIGNMENT_HORIZONTAL_RIGHT
-
-    value_style = set_cell(worksheet, row, col_total, value).style
-    value_style.number_format.format_code = NUMBER_FORMAT_USD
-    return(label_style, value_style)
+    worksheet.merge_cells(
+        start_row=row,
+        start_column=col_label_start,
+        end_row=row,
+        end_column=col_label_end
+    )
+    set_cell(
+        worksheet,
+        row,
+        col_label_start,
+        label,
+        font_bold=font_bold,
+        alignment_horizontal="right"
+    )
+    set_cell(
+        worksheet,
+        row,
+        col_total,
+        value,
+        number_format=NUMBER_FORMAT_USD,
+        font_bold=font_bold
+    )
 
 
 def add_totals(
@@ -497,9 +505,9 @@ def add_totals(
     # Subtotal.
     subtotal_formula = "=SUM({}{}:{}{})".format(
         col_letter(col_total),
-        row_number(first_product_row),
+        first_product_row,
         col_letter(col_total),
-        row_number(last_product_row)
+        last_product_row
     )
     set_label_dollar_value(
         worksheet,
@@ -511,13 +519,14 @@ def add_totals(
         subtotal_formula
     )
     subtotal_row = row
+    last_adjustment_row = row
     row += 1
 
     # Discount.
     percent_discount = config.getfloat("invoice", "percent_discount")
     discount_formula = "={}{} * {}".format(
         col_letter(col_total),
-        row_number(subtotal_row),
+        subtotal_row,
         -percent_discount / 100.0
     )
     set_label_dollar_value(
@@ -529,10 +538,10 @@ def add_totals(
         "{}% Discount:".format(percent_discount),
         discount_formula
     )
-    last_adjustment_row = row
     row += 1
 
     # Adjustments.
+    last_adjustment_row = row - 1
     for key, value in config.items("invoice"):
         if key.startswith("adjustment"):
             set_label_dollar_value(
@@ -550,9 +559,9 @@ def add_totals(
     # Total.
     total_formula = "=SUM({}{}:{}{})".format(
         col_letter(col_total),
-        row_number(subtotal_row),
+        subtotal_row,
         col_letter(col_total),
-        row_number(last_adjustment_row)
+        last_adjustment_row
     )
     set_label_dollar_value(
         worksheet,
@@ -587,20 +596,20 @@ def add_summary(
         row,
         COL_DESCRIPTION,
         "Summary by HTSUS number:",
-        bold=True
+        font_bold=True
     )
     row += 1
 
     for htsus_no in sorted(htsus_numbers):
         total_range = "{0}{1}:{0}{2}".format(
             col_letter(COL_TOTAL),
-            row_number(first_product_row),
-            row_number(last_product_row)
+            first_product_row,
+            last_product_row
         )
         htsus_no_range = "{0}{1}:{0}{2}".format(
             col_letter(COL_HTSUS_NO),
-            row_number(first_product_row),
-            row_number(last_product_row)
+            first_product_row,
+            last_product_row
         )
         if htsus_no == "":
             htsus_no = "Not assigned"
@@ -615,8 +624,13 @@ def add_summary(
                 htsus_no,
                 total_range,
             )
-        style = set_cell(worksheet, row, COL_TOTAL, total_formula).style
-        style.number_format.format_code = NUMBER_FORMAT_USD
+        set_cell(
+            worksheet,
+            row,
+            COL_TOTAL,
+            total_formula,
+            number_format=NUMBER_FORMAT_USD
+        )
         set_cell(worksheet, row, COL_HTSUS_NO, htsus_no)
         row += 1
 
@@ -625,7 +639,7 @@ def add_summary(
 
 def add_special_instructions(worksheet, row):
     """Add special instructions."""
-    col_value_name = 2
+    col_value_name = 3
 
     # Special instructions.
     set_cell(
@@ -633,7 +647,7 @@ def add_special_instructions(worksheet, row):
         row,
         col_value_name,
         "General Special Instructions:",
-        bold=True
+        font_bold=True
     )
 
 
@@ -647,7 +661,7 @@ def add_invoice(args, config, cc_browser, worksheet):
     add_title(worksheet)
 
     # Add header.
-    row = 2
+    row = 3
     row = add_header(args, config, worksheet, row)
 
     # Blank row.
@@ -710,7 +724,7 @@ def add_invoice(args, config, cc_browser, worksheet):
         )
 
     # Add special instructions.
-    add_special_instructions(worksheet, row_number(row))
+    add_special_instructions(worksheet, row)
 
 
 def add_instructions(config, worksheet):
@@ -718,8 +732,8 @@ def add_instructions(config, worksheet):
 
     # Prepare worksheet.
     worksheet.title = "Instructions"
-    col_instruction = 0
-    row = 0
+    col_instruction = 1
+    row = 1
 
     # Add instructions.
     for key, value in config.items("invoice"):
@@ -731,9 +745,7 @@ def add_instructions(config, worksheet):
             if value.startswith("[BOLD]"):
                 bold = True
                 value = value[6:]
-            cell = set_cell(worksheet, row, col_instruction, value)
-            if bold:
-                cell.style.font.bold = bold
+            set_cell(worksheet, row, col_instruction, value, font_bold=bold)
             row += 1
 
     # Set column widths.

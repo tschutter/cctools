@@ -10,7 +10,7 @@ import cctools
 import itertools
 import logging
 import notify_send_handler
-import openpyxl  # sudo apt-get install python-openpyxl
+import openpyxl  # sudo pip install openpyxl
 import os
 import datetime
 
@@ -29,7 +29,7 @@ def add_product_dict(args, cc_browser, products, worksheet):
         ]
 
     # Add product rows, grouped by category.
-    row = 0
+    row = 1
     for _, product_group in itertools.groupby(
         products,
         key=cc_browser.product_key_by_category
@@ -42,9 +42,9 @@ def add_product_dict(args, cc_browser, products, worksheet):
                 product["Product Name"],
                 cctools.html_to_plain_text(product["Teaser"])
             )
-            worksheet.cell(row=row, column=0).value = product["SKU"]
-            worksheet.cell(row=row, column=1).value = description
-            worksheet.cell(row=row, column=2).value = product["HTSUS No"]
+            worksheet.cell(row=row, column=1).value = product["SKU"]
+            worksheet.cell(row=row, column=2).value = description
+            worksheet.cell(row=row, column=3).value = product["HTSUS No"]
             row += 1
 
     # Set column widths.

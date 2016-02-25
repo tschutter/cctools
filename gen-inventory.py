@@ -10,7 +10,7 @@ import cctools
 import datetime
 import logging
 import notify_send_handler
-import openpyxl  # sudo apt-get install python-openpyxl
+import openpyxl  # sudo pip install openpyxl
 import os
 
 
@@ -19,20 +19,19 @@ def set_cell(
     row,
     col,
     value,
-    bold=None,
-    alignment_horizontal=None,
-    alignment_vertical=None
+    font_bold=False,
+    font_size=11,
+    alignment_horizontal="general",
+    alignment_vertical="bottom"
 ):
     """Set cell value and style."""
     cell = worksheet.cell(row=row, column=col)
     cell.value = value
-    if bold is not None:
-        cell.style.font.bold = bold
-    if alignment_horizontal is not None:
-        cell.style.alignment.horizontal = alignment_horizontal
-    if alignment_vertical is not None:
-        cell.style.alignment.vertical = alignment_vertical
-    return cell
+    cell.font = openpyxl.styles.Font(bold=font_bold, size=font_size)
+    cell.alignment = openpyxl.styles.Alignment(
+        horizontal=alignment_horizontal,
+        vertical=alignment_vertical
+    )
 
 
 def generate_xlsx(args, inventory):
@@ -46,38 +45,34 @@ def generate_xlsx(args, inventory):
     worksheet.title = "Inventory"
 
     # Create header row.
-    set_cell(worksheet, 0, 0, "SKU", bold=True)
+    set_cell(worksheet, 1, 1, "SKU", font_bold=True)
     worksheet.column_dimensions["A"].width = 14
     set_cell(
         worksheet,
-        0,
         1,
+        2,
         "Level",
-        bold=True,
-        alignment_horizontal=openpyxl.style.Alignment.HORIZONTAL_RIGHT
+        font_bold=True,
+        alignment_horizontal="right"
     )
     worksheet.column_dimensions["B"].width = 6
-    set_cell(worksheet, 0, 2, "Product Name", bold=True)
+    set_cell(worksheet, 1, 3, "Product Name", font_bold=True)
     worksheet.column_dimensions["C"].width = 50
-    set_cell(worksheet, 0, 3, "Enabled", bold=True)
+    set_cell(worksheet, 1, 4, "Enabled", font_bold=True)
     worksheet.column_dimensions["D"].width = 8
-    set_cell(worksheet, 0, 4, "Main Photo", bold=True)
+    set_cell(worksheet, 1, 5, "Main Photo", font_bold=True)
     worksheet.column_dimensions["E"].width = 11
 
     # Create data rows.
     for itemid, (sku, level, name, enabled, main_photo) in enumerate(
         inventory
     ):
-        row = itemid + 1
-        style = set_cell(worksheet, row, 0, sku).style
-        style.alignment.horizontal =\
-            openpyxl.style.Alignment.HORIZONTAL_LEFT
-        style.number_format.format_code =\
-            openpyxl.style.NumberFormat.FORMAT_TEXT
-        set_cell(worksheet, row, 1, level)
-        set_cell(worksheet, row, 2, name)
-        set_cell(worksheet, row, 3, enabled)
-        set_cell(worksheet, row, 4, main_photo)
+        row = itemid + 2
+        set_cell(worksheet, row, 1, sku, alignment_horizontal="left")
+        set_cell(worksheet, row, 2, int(level))
+        set_cell(worksheet, row, 3, name)
+        set_cell(worksheet, row, 4, enabled)
+        set_cell(worksheet, row, 5, main_photo)
 
     # Write to file.
     workbook.save(args.xlsx_filename)
