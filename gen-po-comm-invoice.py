@@ -610,10 +610,16 @@ def add_summary(
     """
 
     # Section title.
+    worksheet.merge_cells(
+        start_row=row,
+        start_column=COL_PRICE,
+        end_row=row,
+        end_column=COL_HTSUS_NO
+    )
     set_cell(
         worksheet,
         row,
-        COL_DESCRIPTION,
+        COL_PRICE,
         "Summary by HTSUS number:",
         font_bold=True
     )
@@ -741,6 +747,9 @@ def add_invoice(args, config, cc_browser, worksheet):
             last_product_row,
             htsus_numbers
         )
+
+        # Blank row.
+        row += 1
 
     # Add special instructions.
     add_special_instructions(worksheet, row)
