@@ -222,10 +222,10 @@ def add_products(args, worksheet, row, cc_browser, products):
 
     # Set column widths.
     worksheet.column_dimensions[col_letter(col_category)].width = 21
-    worksheet.column_dimensions[col_letter(col_description)].width = 70
+    worksheet.column_dimensions[col_letter(col_description)].width = 95
     worksheet.column_dimensions[col_letter(col_price)].width = 9
     worksheet.column_dimensions[col_letter(col_msrp)].width = 9
-    worksheet.column_dimensions[col_letter(col_size)].width = 24
+    worksheet.column_dimensions[col_letter(col_size)].width = 28
     worksheet.column_dimensions[col_letter(col_sku)].width = 6
 
 
