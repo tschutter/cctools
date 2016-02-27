@@ -21,12 +21,11 @@ NUMBER_FORMAT_USD = "$#,##0.00;-$#,##0.00"
 
 # Column numbers of product values.
 COL_LINE_NO = 1
-COL_CATEGORY = 2
-COL_DESCRIPTION = 3
-COL_PRICE = 4
-COL_MSRP = 5
-COL_SIZE = 6
-COL_SKU = 7
+COL_DESCRIPTION = 2
+COL_PRICE = 3
+COL_MSRP = 4
+COL_SIZE = 5
+COL_SKU = 6
 
 
 def set_cell(
@@ -118,7 +117,7 @@ def add_title(args, config, worksheet):
             start_row=merge_row,
             start_column=1,
             end_row=merge_row,
-            end_column=3
+            end_column=2
         )
 
     return row
@@ -128,7 +127,6 @@ def add_variant(
     worksheet,
     row,
     lineno,
-    category,
     size,
     sku,
     description,
@@ -138,7 +136,6 @@ def add_variant(
     """Add a row for a variant."""
 
     set_cell(worksheet, row, COL_LINE_NO, lineno)
-    set_cell(worksheet, row, COL_CATEGORY, category)
     set_cell(worksheet, row, COL_DESCRIPTION, description)
     set_cell(
         worksheet,
@@ -178,7 +175,6 @@ def calc_wholesale_price(args, price):
 
 def add_product(args, worksheet, row, lineno, product, variants):
     """Add row for each variant."""
-    category = product["Category"]
     size = product["Size"]
     product_name = product["Product Name"]
     sku = product["SKU"]
@@ -192,7 +188,6 @@ def add_product(args, worksheet, row, lineno, product, variants):
             worksheet,
             row,
             lineno,
-            category,
             size,
             sku,
             description,
@@ -214,7 +209,6 @@ def add_product(args, worksheet, row, lineno, product, variants):
                 worksheet,
                 row,
                 lineno,
-                category,
                 size,
                 variant_sku,
                 description,
@@ -245,13 +239,6 @@ def add_products(args, worksheet, row, cc_browser, products):
         "Line No",
         font_bold=True,
         alignment_horizontal="right"
-    )
-    set_cell(
-        worksheet,
-        row,
-        COL_CATEGORY,
-        "Category",
-        font_bold=True
     )
     set_cell(worksheet, row, COL_DESCRIPTION, "Description", font_bold=True)
     set_cell(
@@ -299,11 +286,17 @@ def add_products(args, worksheet, row, cc_browser, products):
     variants = cc_browser.get_variants()
 
     # Group products by category.
+    first_product_row = row
     lineno = 1
     for _, product_group in itertools.groupby(
         products,
         key=cc_browser.product_key_by_category
     ):
+        # Leave a row for the category name.
+        category = "unknown"
+        category_row = row
+        row += 1
+
         # Add product rows.
         for product in product_group:
             if product["Available"] != "Y":
@@ -317,10 +310,21 @@ def add_products(args, worksheet, row, cc_browser, products):
                 product,
                 variants
             )
+            category = product["Category"]
+
+        # Go back and insert category name.
+        if category == "":
+            category = "Uncategorized"
+        set_cell(
+            worksheet,
+            category_row,
+            COL_DESCRIPTION,
+            category,
+            font_bold=True
+        )
 
     # Set column widths.
     worksheet.column_dimensions[col_letter(COL_LINE_NO)].width = 8
-    worksheet.column_dimensions[col_letter(COL_CATEGORY)].width = 21
     worksheet.column_dimensions[col_letter(COL_DESCRIPTION)].width = 100
     worksheet.column_dimensions[col_letter(COL_PRICE)].width = 8
     worksheet.column_dimensions[col_letter(COL_MSRP)].width = 8
