@@ -296,6 +296,7 @@ def get_product_variants(variants, sku):
 
 def add_product(worksheet, row, lineno, product, variants):
     """Add row for each variant."""
+    product_name = product["Product Name"]
     sku = product["SKU"]
     teaser = cctools.html_to_plain_text(product["Teaser"])
     cost = float(product["Cost"])
@@ -305,10 +306,7 @@ def add_product(worksheet, row, lineno, product, variants):
         htsus_no = None
     product_variants = get_product_variants(variants, sku)
     if len(product_variants) == 0:
-        description = "{}: {}".format(
-            product["Product Name"],
-            teaser
-        )
+        description = "{}: {}".format(product_name, teaser)
         add_variant(worksheet, row, lineno, sku, description, cost, htsus_no)
         row += 1
         lineno += 1
@@ -318,19 +316,16 @@ def add_product(worksheet, row, lineno, product, variants):
             if variant["SKU"] == "ANY" or variant["SKU"] == "VAR":
                 any_variant_exists = True
             variant_sku = "{}-{}".format(sku, variant["SKU"])
+            variant_cost = float(variant["Cost"])
             answer = variant["Question|Answer"].split("|")[1]
-            description = "{} ({}): {}".format(
-                product["Product Name"],
-                answer,
-                teaser
-            )
+            description = "{} ({}): {}".format(product_name, answer, teaser)
             add_variant(
                 worksheet,
                 row,
                 lineno,
                 variant_sku,
                 description,
-                cost,
+                cost + variant_cost,
                 htsus_no
             )
             row += 1
@@ -339,7 +334,7 @@ def add_product(worksheet, row, lineno, product, variants):
             logging.getLogger().warning(
                 "No 'Any' or 'Variety' variant exists for {} {}".format(
                     sku,
-                    product["Product Name"]
+                    product_name
                 )
             )
 
