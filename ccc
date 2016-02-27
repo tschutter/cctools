@@ -575,7 +575,7 @@ def normalize_obj_type(args):
 def main():
     """main"""
     default_config = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
+        os.path.dirname(os.path.realpath(os.path.abspath(__file__))),
         "cctools.cfg"
     )
 
