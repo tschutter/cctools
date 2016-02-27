@@ -15,7 +15,18 @@ import notify_send_handler
 import openpyxl  # sudo pip install openpyxl
 import os
 
+CHECK_FOR_LACK_OF_ANY = False  # until most "Any" variants have been added
+
 NUMBER_FORMAT_USD = "$#,##0.00;-$#,##0.00"
+
+# Column numbers of product values.
+COL_LINE_NO = 1
+COL_CATEGORY = 2
+COL_DESCRIPTION = 3
+COL_PRICE = 4
+COL_MSRP = 5
+COL_SIZE = 6
+COL_SKU = 7
 
 
 def set_cell(
@@ -107,34 +118,146 @@ def add_title(args, config, worksheet):
             start_row=merge_row,
             start_column=1,
             end_row=merge_row,
-            end_column=2
+            end_column=3
         )
 
     return row
 
 
+def add_variant(
+    worksheet,
+    row,
+    lineno,
+    category,
+    size,
+    sku,
+    description,
+    wholesale_price,
+    price
+):
+    """Add a row for a variant."""
+
+    set_cell(worksheet, row, COL_LINE_NO, lineno)
+    set_cell(worksheet, row, COL_CATEGORY, category)
+    set_cell(worksheet, row, COL_DESCRIPTION, description)
+    set_cell(
+        worksheet,
+        row,
+        COL_PRICE,
+        wholesale_price,
+        number_format=NUMBER_FORMAT_USD
+    )
+    set_cell(
+        worksheet,
+        row,
+        COL_MSRP,
+        price,
+        number_format=NUMBER_FORMAT_USD
+    )
+    set_cell(worksheet, row, COL_SIZE, size)
+    set_cell(worksheet, row, COL_SKU, sku)
+
+
+def get_product_variants(variants, sku):
+    """Returns a list of variants for a product."""
+    product_variants = [
+        variant for variant in variants if variant["Product SKU"] == sku
+    ]
+    product_variants.sort(key=lambda variant: variant["Answer Sort Order"])
+    return product_variants
+
+
+def calc_wholesale_price(args, price):
+    """Calculate wholesale price based on retail price."""
+    if price > 1.0:
+        rounded_price = math.floor(price + 0.5)
+    else:
+        rounded_price = price
+    return rounded_price * args.wholesale_fraction
+
+
+def add_product(args, worksheet, row, lineno, product, variants):
+    """Add row for each variant."""
+    category = product["Category"]
+    size = product["Size"]
+    product_name = product["Product Name"]
+    sku = product["SKU"]
+    teaser = cctools.html_to_plain_text(product["Teaser"])
+    price = float(product["Price"])
+
+    product_variants = get_product_variants(variants, sku)
+    if len(product_variants) == 0:
+        description = "{}: {}".format(product_name, teaser)
+        add_variant(
+            worksheet,
+            row,
+            lineno,
+            category,
+            size,
+            sku,
+            description,
+            calc_wholesale_price(args, price),
+            price
+        )
+        row += 1
+        lineno += 1
+    else:
+        any_variant_exists = False
+        for variant in product_variants:
+            if variant["SKU"] == "ANY" or variant["SKU"] == "VAR":
+                any_variant_exists = True
+            variant_sku = "{}-{}".format(sku, variant["SKU"])
+            variant_price = float(variant["Price"])
+            answer = variant["Question|Answer"].split("|")[1]
+            description = "{} ({}): {}".format(product_name, answer, teaser)
+            add_variant(
+                worksheet,
+                row,
+                lineno,
+                category,
+                size,
+                variant_sku,
+                description,
+                calc_wholesale_price(args, price + variant_price),
+                price + variant_price
+            )
+            row += 1
+            lineno += 1
+        if CHECK_FOR_LACK_OF_ANY and not any_variant_exists:
+            logging.getLogger().warning(
+                "No 'Any' or 'Variety' variant exists for {} {}".format(
+                    sku,
+                    product_name
+                )
+            )
+
+    return row, lineno
+
+
 def add_products(args, worksheet, row, cc_browser, products):
     """Add row for each product."""
-    col_category = 1
-    col_description = 2
-    col_price = 3
-    col_msrp = 4
-    col_size = 5
-    col_sku = 6
 
     # Add header row.
     set_cell(
         worksheet,
         row,
-        col_category,
-        "Category",
-        font_bold=True
+        COL_LINE_NO,
+        "Line No",
+        font_bold=True,
+        alignment_horizontal="right"
     )
-    set_cell(worksheet, row, col_description, "Description", font_bold=True)
     set_cell(
         worksheet,
         row,
-        col_price,
+        COL_CATEGORY,
+        "Category",
+        font_bold=True
+    )
+    set_cell(worksheet, row, COL_DESCRIPTION, "Description", font_bold=True)
+    set_cell(
+        worksheet,
+        row,
+        COL_PRICE,
         "Price",
         font_bold=True,
         alignment_horizontal="right"
@@ -142,7 +265,7 @@ def add_products(args, worksheet, row, cc_browser, products):
     set_cell(
         worksheet,
         row,
-        col_msrp,
+        COL_MSRP,
         "MSRP",
         font_bold=True,
         alignment_horizontal="right"
@@ -150,17 +273,16 @@ def add_products(args, worksheet, row, cc_browser, products):
     set_cell(
         worksheet,
         row,
-        col_size,
+        COL_SIZE,
         "Size",
         font_bold=True
     )
     set_cell(
         worksheet,
         row,
-        col_sku,
+        COL_SKU,
         "SKU",
-        font_bold=True,
-        alignment_horizontal="right"
+        font_bold=True
     )
     row += 1
 
@@ -173,7 +295,11 @@ def add_products(args, worksheet, row, cc_browser, products):
     # Sort products by category, product_name.
     products = sorted(products, key=cc_browser.product_key_by_cat_and_name)
 
+    # Fetch variants list.
+    variants = cc_browser.get_variants()
+
     # Group products by category.
+    lineno = 1
     for _, product_group in itertools.groupby(
         products,
         key=cc_browser.product_key_by_category
@@ -183,50 +309,23 @@ def add_products(args, worksheet, row, cc_browser, products):
             if product["Available"] != "Y":
                 continue
 
-            set_cell(worksheet, row, col_category, product["Category"])
-
-            description = "{}: {}".format(
-                product["Product Name"],
-                cctools.html_to_plain_text(product["Teaser"])
-            )
-            set_cell(worksheet, row, col_description, description)
-
-            online_price = float(product["Price"])
-            if online_price > 1.0:
-                rounded_price = math.floor(online_price + 0.5)
-            else:
-                rounded_price = online_price
-            wholesale_price = rounded_price * args.wholesale_fraction
-
-            set_cell(
+            row, lineno = add_product(
+                args,
                 worksheet,
                 row,
-                col_price,
-                wholesale_price,
-                number_format=NUMBER_FORMAT_USD
+                lineno,
+                product,
+                variants
             )
-
-            set_cell(
-                worksheet,
-                row,
-                col_msrp,
-                online_price,
-                number_format=NUMBER_FORMAT_USD
-            )
-
-            set_cell(worksheet, row, col_size, product["Size"])
-
-            set_cell(worksheet, row, col_sku, product["SKU"])
-
-            row += 1
 
     # Set column widths.
-    worksheet.column_dimensions[col_letter(col_category)].width = 21
-    worksheet.column_dimensions[col_letter(col_description)].width = 95
-    worksheet.column_dimensions[col_letter(col_price)].width = 9
-    worksheet.column_dimensions[col_letter(col_msrp)].width = 9
-    worksheet.column_dimensions[col_letter(col_size)].width = 28
-    worksheet.column_dimensions[col_letter(col_sku)].width = 6
+    worksheet.column_dimensions[col_letter(COL_LINE_NO)].width = 8
+    worksheet.column_dimensions[col_letter(COL_CATEGORY)].width = 21
+    worksheet.column_dimensions[col_letter(COL_DESCRIPTION)].width = 100
+    worksheet.column_dimensions[col_letter(COL_PRICE)].width = 8
+    worksheet.column_dimensions[col_letter(COL_MSRP)].width = 8
+    worksheet.column_dimensions[col_letter(COL_SIZE)].width = 28
+    worksheet.column_dimensions[col_letter(COL_SKU)].width = 14
 
 
 def add_line_sheet(args, config, cc_browser, products, worksheet):
