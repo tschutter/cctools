@@ -586,6 +586,26 @@ def add_totals(
         "Total:",
         total_formula
     )
+
+    # Create a data-validation object with list validation.
+    in_accounting_choices = [
+        "Not in accounting system",
+        "Entered into accounting system"
+    ]
+    validator = openpyxl.worksheet.datavalidation.DataValidation(
+        type="list",
+        formula1="\"{}\"".format(",".join(in_accounting_choices)),
+        allow_blank=False
+    )
+
+    # Add the data-validation object to the worksheet.
+    worksheet.add_data_validation(validator)
+
+    # Set the cell and add to the data-validation object.
+    cell = worksheet.cell(row=row, column=col_total+2)
+    cell.value = in_accounting_choices[0]
+    validator.add(cell)
+
     row += 1
 
     return row
