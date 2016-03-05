@@ -10,13 +10,15 @@ again, then just don't order it.  Or use the --exclude-sku option.
 from __future__ import print_function
 import ConfigParser
 import argparse
-import cctools
 import datetime
 import itertools
 import logging
-import notify_send_handler
-import openpyxl  # sudo pip install openpyxl
 import os
+
+import openpyxl  # sudo pip install openpyxl
+
+import cctools
+import notify_send_handler
 
 CHECK_FOR_LACK_OF_ANY = False  # until most "Any" variants have been added
 
@@ -288,9 +290,10 @@ def add_variant(
 def get_product_variants(variants, sku):
     """Returns a list of variants for a product."""
     product_variants = [
-        variant for variant in variants if variant["Product SKU"] == sku
+        variant for variant in variants
+        if variant["Product SKU"] == sku and variant["Variant Enabled"] == "Y"
     ]
-    product_variants.sort(key=lambda variant: variant["Answer Sort Order"])
+    product_variants.sort(key=lambda variant: variant["Variant Sort"])
     return product_variants
 
 
@@ -313,19 +316,24 @@ def add_product(worksheet, row, lineno, product, variants):
     else:
         any_variant_exists = False
         for variant in product_variants:
-            if variant["SKU"] == "ANY" or variant["SKU"] == "VAR":
+            variant_sku = variant["Variant SKU"]
+            if variant_sku == "ANY" or variant_sku == "VAR":
                 any_variant_exists = True
-            variant_sku = "{}-{}".format(sku, variant["SKU"])
-            variant_cost = float(variant["Cost"])
-            answer = variant["Question|Answer"].split("|")[1]
-            description = "{} ({}): {}".format(product_name, answer, teaser)
+            variant_sku = "{}-{}".format(sku, variant_sku)
+            variant_add_cost = float(variant["Variant Add Cost"])
+            variant_name = variant["Variant Name"]
+            description = "{} ({}): {}".format(
+                product_name,
+                variant_name,
+                teaser
+            )
             add_variant(
                 worksheet,
                 row,
                 lineno,
                 variant_sku,
                 description,
-                cost + variant_cost,
+                cost + variant_add_cost,
                 htsus_no
             )
             row += 1
@@ -602,7 +610,7 @@ def add_totals(
     worksheet.add_data_validation(validator)
 
     # Set the cell and add to the data-validation object.
-    cell = worksheet.cell(row=row, column=col_total+2)
+    cell = worksheet.cell(row=row, column=col_total + 2)
     cell.value = in_accounting_choices[0]
     validator.add(cell)
 

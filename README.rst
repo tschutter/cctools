@@ -9,9 +9,12 @@ data.
     or vice versa.
 
 ``ccc``
+
     Core Commerce Command line tool.  Interact with CoreCommerce from
-    the command line.  List categories, products, and variants
-    (personalizations).
+    the command line.  List and search for categories, products,
+    product personalizations, and product options.  List and search
+    for synthetic data like product question/answers, and product
+    variants (personalizations and/or options).
 
 ``cclint.py``
     Detects problems in CoreCommerce product data.

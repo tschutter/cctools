@@ -6,21 +6,23 @@ Generates a wholesale line sheet in spreadsheet form.
 
 import ConfigParser
 import argparse
-import cctools
 import datetime
 import itertools
 import logging
 import math
-import notify_send_handler
-import openpyxl  # sudo pip install openpyxl
 import os
+
+import openpyxl  # sudo pip install openpyxl
+
+import cctools
+import notify_send_handler
 
 CHECK_FOR_LACK_OF_ANY = False  # until most "Any" variants have been added
 
 NUMBER_FORMAT_USD = "$#,##0.00;-$#,##0.00"
 
 # Column numbers of product values.
-COL_LINE_NO = 1
+COL_ITEM_NO = 1
 COL_DESCRIPTION = 2
 COL_PRICE = 3
 COL_MSRP = 4
@@ -112,7 +114,7 @@ def add_title(args, config, worksheet):
         set_cell(worksheet, row, 1, cell_text)
         row += 1
 
-    for merge_row in range(row):
+    for merge_row in range(1, row):
         worksheet.merge_cells(
             start_row=merge_row,
             start_column=1,
@@ -126,7 +128,7 @@ def add_title(args, config, worksheet):
 def add_variant(
     worksheet,
     row,
-    lineno,
+    item_no,
     size,
     sku,
     description,
@@ -135,7 +137,7 @@ def add_variant(
 ):
     """Add a row for a variant."""
 
-    set_cell(worksheet, row, COL_LINE_NO, lineno)
+    set_cell(worksheet, row, COL_ITEM_NO, item_no)
     set_cell(worksheet, row, COL_DESCRIPTION, description)
     set_cell(
         worksheet,
@@ -158,9 +160,10 @@ def add_variant(
 def get_product_variants(variants, sku):
     """Returns a list of variants for a product."""
     product_variants = [
-        variant for variant in variants if variant["Product SKU"] == sku
+        variant for variant in variants
+        if variant["Product SKU"] == sku and variant["Variant Enabled"] == "Y"
     ]
-    product_variants.sort(key=lambda variant: variant["Answer Sort Order"])
+    product_variants.sort(key=lambda variant: variant["Variant Sort"])
     return product_variants
 
 
@@ -173,7 +176,7 @@ def calc_wholesale_price(args, price):
     return rounded_price * args.wholesale_fraction
 
 
-def add_product(args, worksheet, row, lineno, product, variants):
+def add_product(args, worksheet, row, item_no, product, variants):
     """Add row for each variant."""
     size = product["Size"]
     product_name = product["Product Name"]
@@ -187,7 +190,7 @@ def add_product(args, worksheet, row, lineno, product, variants):
         add_variant(
             worksheet,
             row,
-            lineno,
+            item_no,
             size,
             sku,
             description,
@@ -195,28 +198,33 @@ def add_product(args, worksheet, row, lineno, product, variants):
             price
         )
         row += 1
-        lineno += 1
+        item_no += 1
     else:
         any_variant_exists = False
         for variant in product_variants:
-            if variant["SKU"] == "ANY" or variant["SKU"] == "VAR":
+            variant_sku = variant["Variant SKU"]
+            if variant_sku == "ANY" or variant_sku == "VAR":
                 any_variant_exists = True
-            variant_sku = "{}-{}".format(sku, variant["SKU"])
-            variant_price = float(variant["Price"])
-            answer = variant["Question|Answer"].split("|")[1]
-            description = "{} ({}): {}".format(product_name, answer, teaser)
+            variant_sku = "{}-{}".format(sku, variant_sku)
+            variant_add_price = float(variant["Variant Add Price"])
+            variant_name = variant["Variant Name"]
+            description = "{} ({}): {}".format(
+                product_name,
+                variant_name,
+                teaser
+            )
             add_variant(
                 worksheet,
                 row,
-                lineno,
+                item_no,
                 size,
                 variant_sku,
                 description,
-                calc_wholesale_price(args, price + variant_price),
-                price + variant_price
+                calc_wholesale_price(args, price + variant_add_price),
+                price + variant_add_price
             )
             row += 1
-            lineno += 1
+            item_no += 1
         if CHECK_FOR_LACK_OF_ANY and not any_variant_exists:
             logging.getLogger().warning(
                 "No 'Any' or 'Variety' variant exists for {} {}".format(
@@ -225,7 +233,7 @@ def add_product(args, worksheet, row, lineno, product, variants):
                 )
             )
 
-    return row, lineno
+    return row, item_no
 
 
 def add_products(args, worksheet, row, cc_browser, products):
@@ -235,8 +243,8 @@ def add_products(args, worksheet, row, cc_browser, products):
     set_cell(
         worksheet,
         row,
-        COL_LINE_NO,
-        "Line No",
+        COL_ITEM_NO,
+        "Item No",
         font_bold=True,
         alignment_horizontal="right"
     )
@@ -286,8 +294,7 @@ def add_products(args, worksheet, row, cc_browser, products):
     variants = cc_browser.get_variants()
 
     # Group products by category.
-    first_product_row = row
-    lineno = 1
+    item_no = 1
     for _, product_group in itertools.groupby(
         products,
         key=cc_browser.product_key_by_category
@@ -302,11 +309,11 @@ def add_products(args, worksheet, row, cc_browser, products):
             if product["Available"] != "Y":
                 continue
 
-            row, lineno = add_product(
+            row, item_no = add_product(
                 args,
                 worksheet,
                 row,
-                lineno,
+                item_no,
                 product,
                 variants
             )
@@ -324,7 +331,7 @@ def add_products(args, worksheet, row, cc_browser, products):
         )
 
     # Set column widths.
-    worksheet.column_dimensions[col_letter(COL_LINE_NO)].width = 8
+    worksheet.column_dimensions[col_letter(COL_ITEM_NO)].width = 8
     worksheet.column_dimensions[col_letter(COL_DESCRIPTION)].width = 100
     worksheet.column_dimensions[col_letter(COL_PRICE)].width = 8
     worksheet.column_dimensions[col_letter(COL_MSRP)].width = 8

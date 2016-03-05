@@ -37,7 +37,7 @@ if [ "${OUTPUT_DIR}" ]; then
 fi
 rm -f ${FILENAME}
 
-FIELDS="Category,Product Name,SKU,Avail,Discd,InvLvl,VInvLvl"
+FIELDS="Category,Product Name,SKU,Avail,Discd,InvLvl" #,VInvLvl
 
 echo "Products that are viewable online and cannot be purchased online, but are available at shows:" >> "${FILENAME}"
 "${SCRIPTDIR}/ccc" --notify-send list prod --fields "${FIELDS}" --filter Avail=Y --filter Discd=Y >> "${FILENAME}" ${ARGS}

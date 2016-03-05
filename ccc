@@ -8,28 +8,37 @@ Command line tool for CoreCommerce access.
 from __future__ import print_function
 import ConfigParser
 import argparse
-import cctools
 import json
 import logging
-import notify_send_handler
 import operator
 import os
 import re
 import signal
 import sys
 
+import cctools
+import notify_send_handler
+
 # Define canonical object types.
 CATEGORY = "category"
+PRODUCT_OPTION = "product_option"
+OPTION_SET = "option_set"
+OPTION_GROUP = "option_group"
 OPTION = "option"
 PRODUCT = "product"
 QUESTION = "question"
+PERSONALIZATION = "personalization"
 VARIANT = "variant"
 
 # Specify abbreviations for object types.
 CATEGORY_ABBREVS = [CATEGORY, "categories", "cat"]
-OPTION_ABBREVS = [OPTION, "options", "opt"]
+PRODUCT_OPTION_ABBREVS = [PRODUCT_OPTION, "product_options", "prod_opt"]
+OPTION_SET_ABBREVS = [OPTION_SET, "op_set"]
+OPTION_GROUP_ABBREVS = [OPTION_GROUP, "op_grp"]
+OPTION_ABBREVS = [OPTION, "op"]
 PRODUCT_ABBREVS = [PRODUCT, "products", "prod"]
 QUESTION_ABBREVS = [QUESTION, "questions", "quest"]
+PERSONALIZATION_ABBREVS = [PERSONALIZATION, "personalizations", "pers"]
 VARIANT_ABBREVS = [VARIANT, "variants", "var"]
 
 
@@ -42,21 +51,32 @@ HEADER_MAP = {
     "Discontinued Item": "Discd",
     "Track Inventory": "TrkInv",
     "Inventory Level": "InvLvl",
+    "Notify Level": "NoteLvl",
     "Variant Inventory Level": "VarInvLvl",
-    "Option Set SKU": "OptSetSKU",
-    "Option Set Price": "OptSetPrice",
-    "Option Set MSRP": "OptSetMSRP",
-    "Option Set Inventory Level": "OptSetInvLvl",
+    "Option Set SKU": "OpSetSKU",
+    "Option Set Price": "OpSetPrice",
+    "Option Set Cost": "OpSetCost",
+    "Option Set MSRP": "OpSetMSRP",
+    "Option Set Inventory Level": "OpSetInvLvl",
+    "Option Set Notify Level": "OpSetNoteLvl",
     "Option Group Id [1]": "OptGrpId1",
     "Option Group Id [2]": "OptGrpId2",
     "Option Group Name [1]": "OptGrpName1",
     "Option Group Name [2]": "OptGrpName2",
-    "Option Id [1]": "OptId1",
-    "Option Id [2]": "OptId2",
-    "Option Name [1]": "OptName1",
-    "Option Name [2]": "OptName2",
-    "Option Sort [1]": "OptSort1",
-    "Option Sort [2]": "OptSort2",
+    "Option Id [1]": "OpId1",
+    "Option Id [2]": "OpId2",
+    "Option Id [3]": "OpId3",
+    "Option Id [4]": "OpId4",
+    "Option Id [5]": "OpId5",
+    "Option Id [6]": "OpId6",
+    "Option Name [1]": "OpName1",
+    "Option Name [2]": "OpName2",
+    "Option Name [3]": "OpName3",
+    "Option Name [4]": "OpName4",
+    "Option Name [5]": "OpName5",
+    "Option Name [6]": "OpName6",
+    "Option Sort [1]": "OpSort1",
+    "Option Sort [2]": "OpSort2",
     "First Option Value [1]": "OptFirstVal1",
     "First Option Value [2]": "OptFirstVal2",
     "Use First Option Value [1]": "OptFirstValUse1",
@@ -67,7 +87,13 @@ HEADER_MAP = {
     "Question Enabled": "QEnab",
     "Question Sort Order": "QSort",
     "Answer Sort Order": "ASort",
-    "Answer Input Type": "AnsType"
+    "Answer Input Type": "AnsType",
+    "Variant Add Cost": "VarAddCost",
+    "Variant Add Price": "VarAddPrice",
+    "Variant Enabled": "VarEnab",
+    "Variant SKU": "VarSKU",
+    "Variant Size": "VarSize",
+    "Variant Sort": "VarSort"
 }
 
 
@@ -227,20 +253,56 @@ def get_default_fields(args, config):
     if args.obj_type == CATEGORY:
         return ["Sort", "Category Name", "Thumbnail"]
 
-    elif args.obj_type == OPTION:
+    elif args.obj_type == PRODUCT_OPTION:
         return [
             "Product SKU",
             "Option Set SKU",
             "Option Set Price",
-            "Option Set MSRP",
+            "Option Set Cost",
             "Option Set Inventory Level",
             "Option Group Id [1]",
             "Option Group Name [1]",
             "First Option Value [1]",
             "Use First Option Value [1]",
-            "Option Id [1]",
             "Option Name [1]",
-            "Option Sort [1]"
+            "Option Name [2]",
+            "Option Name [3]",
+            "Option Name [4]",
+            "Option Name [5]",
+            "Option Name [6]"
+        ]
+
+    elif args.obj_type == OPTION_SET:
+        return [
+            "Product SKU",
+            "Product Name",
+            "Option Set SKU",
+            "Option Set Price",
+            "Option Set Cost",
+            "Option Set Inventory Level",
+            # "Option Group Ids"
+        ]
+
+    elif args.obj_type == OPTION_GROUP:
+        return [
+            "Product SKU",
+            "Product Name",
+            "Option Group Name",
+            "Option Group Id",
+            "First Option Value",
+            "Use First Option Value",
+            # "Option Ids"
+        ]
+
+    elif args.obj_type == OPTION:
+        return [
+            "Product SKU",
+            "Product Name",
+            "Option Group Name",
+            "Option Group Id",
+            "Option Name",
+            "Option Id",
+            "Option Sort"
         ]
 
     elif args.obj_type == PRODUCT:
@@ -271,7 +333,7 @@ def get_default_fields(args, config):
             "_n_answers"
         ]
 
-    elif args.obj_type == VARIANT:
+    elif args.obj_type == PERSONALIZATION:
         return [
             "Product SKU",
             "SKU",
@@ -283,6 +345,20 @@ def get_default_fields(args, config):
             "Question Enabled",
             "Required",
             "Answer Input Type"
+        ]
+
+    elif args.obj_type == VARIANT:
+        return [
+            "Product SKU",
+            "Variant SKU",
+            "Product Name",
+            "Variant Name",
+            "Variant Group",
+            "Variant Add Price",
+            "Variant Add Cost",
+            "Variant Enabled",
+            "Variant Inventory Level",
+            "Variant Type"
         ]
 
 
@@ -313,6 +389,15 @@ def get_objects(args, cc_browser):
     if args.obj_type == CATEGORY:
         objects = cc_browser.get_categories()
 
+    elif args.obj_type == PRODUCT_OPTION:
+        objects = cc_browser.get_product_options()
+
+    elif args.obj_type == OPTION_SET:
+        objects = cc_browser.get_option_sets()
+
+    elif args.obj_type == OPTION_GROUP:
+        objects = cc_browser.get_option_groups()
+
     elif args.obj_type == OPTION:
         objects = cc_browser.get_options()
 
@@ -321,6 +406,9 @@ def get_objects(args, cc_browser):
 
     elif args.obj_type == QUESTION:
         objects = cc_browser.get_questions()
+
+    elif args.obj_type == PERSONALIZATION:
+        objects = cc_browser.get_personalizations()
 
     elif args.obj_type == VARIANT:
         objects = cc_browser.get_variants()
@@ -338,7 +426,8 @@ def get_objects(args, cc_browser):
 def calc_var_inv_level(cc_browser, objects):
     """
     For each product in objects, add the inventory level of the
-    product's options to the product.
+    product's variants to the product.
+    TODO: do product_sets as well
     """
 
     variants = cc_browser.get_variants()
@@ -356,21 +445,41 @@ def calc_var_inv_level(cc_browser, objects):
                 if inv_lvl < 0:
                     err = True
                 vinvlvl += inv_lvl
-        vinvlvl = "{}{}".format("(err) " if err else "", vinvlvl)
-        product["Variant Inventory Level"] = vinvlvl
+        product["Variant Inventory Level"] = "{}{}".format(
+            "(err) " if err else "",
+            vinvlvl
+        )
 
 
 def action_list(args, config, cc_browser):
     """List objects of a type."""
-    # W0142(star-args) Used * or ** magic
-    # pylint: disable=W0142
 
     objects = get_objects(args, cc_browser)
     fields = get_output_fields(args, config, objects)
-    if args.obj_type == OPTION:
+    if args.obj_type == PRODUCT_OPTION:
+        objects = sorted(
+            objects,
+            key=cc_browser.product_option_key
+        )
+    elif args.obj_type == OPTION_SET:
+        objects = sorted(
+            objects,
+            key=cc_browser.option_set_key
+        )
+    elif args.obj_type == OPTION_GROUP:
+        objects = sorted(
+            objects,
+            key=cc_browser.option_group_key
+        )
+    elif args.obj_type == OPTION:
         objects = sorted(
             objects,
             key=cc_browser.option_key
+        )
+    elif args.obj_type == PERSONALIZATION:
+        objects = sorted(
+            objects,
+            key=cc_browser.personalization_key
         )
     elif args.obj_type == VARIANT:
         objects = sorted(
@@ -397,6 +506,15 @@ def action_list_fields(args, config, cc_browser):
     if args.obj_type == CATEGORY:
         categories = cc_browser.get_categories()
         field_names = sorted(categories[0].keys())
+    elif args.obj_type == PRODUCT_OPTION:
+        product_options = cc_browser.get_product_options()
+        field_names = sorted(product_options[0].keys())
+    elif args.obj_type == OPTION_SET:
+        option_sets = cc_browser.get_option_sets()
+        field_names = sorted(option_sets[0].keys())
+    elif args.obj_type == OPTION_GROUP:
+        option_groups = cc_browser.get_option_groups()
+        field_names = sorted(option_groups[0].keys())
     elif args.obj_type == OPTION:
         options = cc_browser.get_options()
         field_names = sorted(options[0].keys())
@@ -406,6 +524,9 @@ def action_list_fields(args, config, cc_browser):
     elif args.obj_type == QUESTION:
         questions = cc_browser.get_questions()
         field_names = sorted(questions[0].keys())
+    elif args.obj_type == PERSONALIZATION:
+        personalizations = cc_browser.get_personalizations()
+        field_names = sorted(personalizations[0].keys())
     elif args.obj_type == VARIANT:
         variants = cc_browser.get_variants()
         field_names = sorted(variants[0].keys())
@@ -427,18 +548,30 @@ def find_object(args, cc_browser):
     if args.obj_type == CATEGORY:
         objects = cc_browser.get_categories()
         keys = ["Category Name"]
+    elif args.obj_type == PRODUCT_OPTION:
+        objects = cc_browser.get_product_options()
+        keys = ["Option Set SKU"]
+    elif args.obj_type == OPTION_SET:
+        objects = cc_browser.get_option_sets()
+        keys = ["Option Set SKU"]
+    elif args.obj_type == OPTION_GROUP:
+        objects = cc_browser.get_option_groups()
+        keys = ["Option Group Id"]
     elif args.obj_type == OPTION:
         objects = cc_browser.get_options()
-        keys = ["Option Set SKU"]
+        keys = ["Option Id"]
     elif args.obj_type == PRODUCT:
         objects = cc_browser.get_products()
         keys = ["SKU", "Product Name"]
     elif args.obj_type == QUESTION:
         objects = cc_browser.get_questions()
         keys = ["SKU", "Product Name", "Question"]
+    elif args.obj_type == PERSONALIZATION:
+        objects = cc_browser.get_personalizations()
+        keys = ["Question|Answer"]
     elif args.obj_type == VARIANT:
         objects = cc_browser.get_variants()
-        keys = ["Question|Answer"]
+        keys = ["Product Name", "SKU"]
 
     found_obj = None
     for obj in objects:
@@ -504,6 +637,18 @@ def action_refresh(args, config, cc_browser):
         print("Refreshing categories")
         cc_browser.get_categories()
 
+    if not args.obj_type or args.obj_type == PRODUCT_OPTION:
+        print("Refreshing product_options")
+        cc_browser.get_product_options()
+
+    if not args.obj_type or args.obj_type == OPTION_SET:
+        print("Refreshing option_sets")
+        cc_browser.get_option_sets()
+
+    if not args.obj_type or args.obj_type == OPTION_GROUP:
+        print("Refreshing option_groups")
+        cc_browser.get_option_groups()
+
     if not args.obj_type or args.obj_type == OPTION:
         print("Refreshing options")
         cc_browser.get_options()
@@ -515,6 +660,10 @@ def action_refresh(args, config, cc_browser):
     if not args.obj_type or args.obj_type == QUESTION:
         print("Refreshing questions")
         cc_browser.get_questions()
+
+    if not args.obj_type or args.obj_type == PERSONALIZATION:
+        print("Refreshing personalizations")
+        cc_browser.get_personalizations()
 
     if not args.obj_type or args.obj_type == VARIANT:
         print("Refreshing variants")
@@ -544,9 +693,13 @@ def add_obj_type_argument(arg_parser, nargs=None):
         "obj_type",
         choices=(
             CATEGORY_ABBREVS +
+            PRODUCT_OPTION_ABBREVS +
+            OPTION_SET_ABBREVS +
+            OPTION_GROUP_ABBREVS +
             OPTION_ABBREVS +
             PRODUCT_ABBREVS +
             QUESTION_ABBREVS +
+            PERSONALIZATION_ABBREVS +
             VARIANT_ABBREVS
         ),
         nargs=nargs,
@@ -562,12 +715,20 @@ def normalize_obj_type(args):
     if args.obj_type:
         if args.obj_type in CATEGORY_ABBREVS:
             args.obj_type = CATEGORY
+        elif args.obj_type in PRODUCT_OPTION_ABBREVS:
+            args.obj_type = PRODUCT_OPTION
+        elif args.obj_type in OPTION_SET_ABBREVS:
+            args.obj_type = OPTION_SET
+        elif args.obj_type in OPTION_GROUP_ABBREVS:
+            args.obj_type = OPTION_GROUP
         elif args.obj_type in OPTION_ABBREVS:
             args.obj_type = OPTION
         elif args.obj_type in PRODUCT_ABBREVS:
             args.obj_type = PRODUCT
         elif args.obj_type in QUESTION_ABBREVS:
             args.obj_type = QUESTION
+        elif args.obj_type in PERSONALIZATION_ABBREVS:
+            args.obj_type = PERSONALIZATION
         elif args.obj_type in VARIANT_ABBREVS:
             args.obj_type = VARIANT
 

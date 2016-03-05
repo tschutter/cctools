@@ -3,20 +3,44 @@
 """
 Web scraper interface to CoreCommerce.
 
-TODO: downloaded option file needs to be split into option_sets and options
-      must synthensize Option Set Id, which is unique per product
+Product Variants
+================
+
+Product variants are a combination of personalizations and options.
+Both can exist simultaneously.
+
+Product Options
+---------------
+
+Product options are downloaded as a single CSV file, even though there
+should be 8 separate tables.  If the schema was truly normalized,
+those tables would probably be:
+
+*) Option (OptionId, OptionName, OptionSort)
+*) OptionGroup (
+       OptionGroupId, OptionGrouopName,
+       FirstOptionValue, UseFirstOptionValue
+   )
+*) OptionSet (ProductId, OptionSetSKU, Price, Cost, other?)
+*) OptionXOptionGroup (OptionId, OptionGroupId)
+*) OptionXOptionSet (OptionId, ProductId)
+*) OptionSetXOptionGroup (ProductId, OptionGroupId)
+
+There can only be one OptionSet per Product, so the ProductId is
+equivalent to a OptionSetId.
 """
 
 from __future__ import print_function
 import csv
 import json
-import lockfile  # sudo apt-get install python-lockfile
 import logging
-import mechanize  # sudo apt-get install python-mechanize
 import os
 import re
 import tempfile
 import time
+
+import lockfile  # sudo apt-get install python-lockfile
+import mechanize  # sudo apt-get install python-mechanize
 try:
     # pylint: disable=F0401
     from xdg.BaseDirectory import xdg_cache_home
@@ -29,12 +53,6 @@ except ImportError:
 #
 # http://wwwsearch.sourceforge.net/mechanize/
 # https://views.scraperwiki.com/run/python_mechanize_cheat_sheet/?
-#
-# CoreCommerce is schizophrenic regarding personalizations
-# vs. variants.  Most likely they were originally called
-# personalizations and were later renamed to variants.  Except they
-# didn't change all of the references on the web site.  I chose to
-# call them variants here.
 
 # pylint seems to be confused by calling methods via self._browser.
 # pylint: disable=E1102
@@ -59,13 +77,14 @@ def uniquify_header(line):
     return ",".join(fields) + "\n"
 
 
-def repair_options_csv(fixed_filename, tmp_filename):
+def repair_product_options_csv(fixed_filename, tmp_filename):
     """
-    Repairs options CSV header which has duplicate keys.  Who exports
-    a CSV file with identical column names?  That is criminal.
-    Each row consists of data about the "option set", followed by
-    groups of data for each option.  The number of groups is
-    probably the maximum number of options seen in any option set.
+    Repairs product_options CSV header which has duplicate keys.  Who exports
+    a CSV file with identical column names?  That is criminal.  Each
+    row consists of data about the "option set", followed by a number
+    of option groups.  Each option group has 4 fields for the group,
+    followed by 3 fields for the option that is in the option set and
+    the option group.
     """
 
     with open(tmp_filename) as tmp_file:
@@ -112,8 +131,12 @@ class CCBrowser(object):
         if proxy is not None:
             self._browser.set_proxies({"https": proxy})
         self._logged_in = False
-        self._variants = None
+        self._personalizations = None
+        self._product_options = None
+        self._option_sets = None
+        self._option_groups = None
         self._options = None
+        self._variants = None
         self._questions = None
         self._products = None
         self._categories = None
@@ -217,14 +240,14 @@ class CCBrowser(object):
         url = self._admin_url + "?m=ajax_export_send"
         self._browser.retrieve(url, filename)
 
-    def _download_variants_csv(self, filename):
-        """Download variant list to a CSV file."""
+    def _download_personalizations_csv(self, filename):
+        """Download personalization list to a CSV file."""
 
         # Login if necessary.
         self._login()
 
         # Log time consuming step.
-        LOGGER.info("Downloading variants")
+        LOGGER.info("Downloading personalizations")
 
         # Load export page.
         url = "{}?{}{}".format(
@@ -237,8 +260,8 @@ class CCBrowser(object):
         # Call the doExport function.
         self._do_export(url, filename)
 
-    def _clean_variants(self):
-        """Normalize suspect variant data."""
+    def _clean_personalizations(self):
+        """Normalize suspect personalization data."""
         # Boolean value of "" appears to mean "N".
         booleans = [
             "Answer Enabled",
@@ -248,40 +271,40 @@ class CCBrowser(object):
             "Required",
             "Track Inventory"
         ]
-        for variant in self._variants:
+        for personalization in self._personalizations:
             # Booleans should be Y|N, but we sometimes see "".
             for boolean in booleans:
-                if not variant[boolean] in ("Y", "N"):
-                    variant[boolean] = "N"
+                if not personalization[boolean] in ("Y", "N"):
+                    personalization[boolean] = "N"
 
-    def get_variants(self):
-        """Return a list of per-variant dictionaries."""
+    def get_personalizations(self):
+        """Return a list of per-personalization dictionaries."""
 
-        if self._variants is None:
-            filename = os.path.join(self._cache_dir, "variants.csv")
+        if self._personalizations is None:
+            filename = os.path.join(self._cache_dir, "personalizations.csv")
 
             with lockfile.FileLock(self._download_lock_filename):
                 # Download products file if it is out of date.
                 if self._is_file_expired(filename):
-                    self._download_variants_csv(filename)
+                    self._download_personalizations_csv(filename)
 
-                # Read variants file.
-                self._variants = list(csv.DictReader(open(filename)))
+                # Read personalizations file.
+                self._personalizations = list(csv.DictReader(open(filename)))
 
                 # Cleanup suspect data.
                 if self._clean:
-                    self._clean_variants()
+                    self._clean_personalizations()
 
-        return self._variants
+        return self._personalizations
 
-    def _download_options_csv(self, filename):
-        """Download option list to a CSV file."""
+    def _download_product_options_csv(self, filename):
+        """Download product_option list to a CSV file."""
 
         # Login if necessary.
         self._login()
 
         # Log time consuming step.
-        LOGGER.info("Downloading options")
+        LOGGER.info("Downloading product_options")
 
         # Load export page.
         url = "{}?{}{}".format(
@@ -294,87 +317,394 @@ class CCBrowser(object):
         # Call the doExport function.
         self._do_export(url, filename)
 
-    def _clean_options(self):
-        """Normalize suspect option data."""
+    def _clean_product_options(self):
+        """Normalize suspect product_option data."""
         # Boolean value of "" appears to mean "N".
-        for option in self._options:
+        for product_option in self._product_options:
             # Booleans should be Y|N, but we sometimes see "".
-            for key, value in option.items():
+            for key, value in product_option.items():
                 if key and key.startswith("Use First Option Value"):
                     if value not in ("Y", "N"):
-                        option[key] = "N"
+                        product_option[key] = "N"
 
-    def get_options(self):
-        """Return a list of per-option dictionaries."""
+    def get_product_options(self):
+        """Return a list of per-product_option dictionaries."""
 
-        if self._options is None:
-            filename = os.path.join(self._cache_dir, "options.csv")
+        if self._product_options is None:
+            filename = os.path.join(self._cache_dir, "product_options.csv")
 
             with lockfile.FileLock(self._download_lock_filename):
                 # Download products file if it is out of date.
                 if self._is_file_expired(filename):
-                    self._download_options_csv(filename + ".tmp")
-                    repair_options_csv(filename, filename + ".tmp")
+                    self._download_product_options_csv(filename + ".tmp")
+                    repair_product_options_csv(filename, filename + ".tmp")
 
-                # Read options file.
+                # Read product_options file.
                 # The header has 47 fields, but each data record has
                 # 48 fields.  By setting restkey to "Extra", we
                 # prevent the extra field from having a key of None.
-                self._options = list(
+                self._product_options = list(
                     csv.DictReader(open(filename), restkey="Extra")
                 )
 
                 # Cleanup suspect data.
                 if self._clean:
-                    self._clean_options()
+                    self._clean_product_options()
+
+        return self._product_options
+
+    def get_option_sets(self):
+        """
+        Return a list of option sets.  The list is derived from the
+        product options list.
+        """
+
+        if self._option_sets is None:
+            # Product option values that belong in the option set.
+            copy_keys = (
+                "Product SKU",
+                "Product Id",
+                "Product Name"
+            )
+
+            # Process product options sorted by product, option set sku.
+            product_options = sorted(
+                self.get_product_options(),
+                key=lambda product_option: (
+                    product_option["Product Id"],
+                    product_option["Option Set SKU"]
+                )
+            )
+
+            self._option_sets = []
+            for product_option in product_options:
+                option_set = {}
+                for key, value in product_option.items():
+                    if key in copy_keys or key.startswith("Option Set "):
+                        option_set[key] = value
+                self._option_sets.append(option_set)
+
+        return self._option_sets
+
+    def get_option_groups(self):
+        """
+        Return a list of option groups.  The list is derived from the
+        product options list.
+        """
+
+        if self._option_groups is None:
+            # Product option values that belong in the option group.
+            copy_option_set_keys = (
+                "Product SKU",
+                "Product Id",
+                "Product Name",
+            )
+            copy_option_group_keys = (
+                "Option Group Name",
+                "First Option Value",
+                "Use First Option Value"
+            )
+
+            # Process product options sorted by product, option group sku.
+            product_options = sorted(
+                self.get_product_options(),
+                key=lambda product_option: (
+                    product_option["Product Id"],
+                    product_option["Option Set SKU"]
+                )
+            )
+
+            option_group_ids = []
+            self._option_groups = []
+            for product_option in product_options:
+                for idx in range(1, 10):
+                    group_id_key = "Option Group Id [{}]".format(idx)
+                    if group_id_key not in product_option:
+                        break
+                    option_group_id = product_option[group_id_key]
+                    if option_group_id in option_group_ids:
+                        continue
+                    option_group_ids.append(option_group_id)
+                    option_group = {}
+                    option_group["Option Group Id"] = option_group_id
+                    for key in copy_option_set_keys:
+                        option_group[key] = product_option[key]
+                    for key in copy_option_group_keys:
+                        product_option_key = "{} [{}]".format(key, idx)
+                        option_group[key] = product_option[product_option_key]
+                    self._option_groups.append(option_group)
+
+        return self._option_groups
+
+    def get_options(self):
+        """
+        Return a list of options.  The list is derived from the product
+        options list.
+        """
+
+        if self._options is None:
+            # Product option values that belong in the option group.
+            copy_option_set_keys = (
+                "Product SKU",
+                "Product Id",
+                "Product Name",
+            )
+            copy_option_group_keys = (
+                "Option Group Id",
+                "Option Group Name"
+            )
+            copy_option_keys = (
+                "Option Name",
+                "Option Sort"
+            )
+
+            # Process product options sorted by product, option group sku.
+            product_options = sorted(
+                self.get_product_options(),
+                key=lambda product_option: (
+                    product_option["Product Id"],
+                    product_option["Option Set SKU"]
+                )
+            )
+
+            option_ids = []
+            self._options = []
+            for product_option in product_options:
+                for idx in range(1, 10):
+                    option_id_key = "Option Id [{}]".format(idx)
+                    if option_id_key not in product_option:
+                        break
+                    option_id = product_option[option_id_key]
+                    if option_id in option_ids:
+                        continue
+                    option_ids.append(option_id)
+                    option = {}
+                    option["Option Id"] = option_id
+                    for key in copy_option_set_keys:
+                        option[key] = product_option[key]
+                    for key in copy_option_group_keys:
+                        product_option_key = "{} [{}]".format(key, idx)
+                        option[key] = product_option[product_option_key]
+                    for key in copy_option_keys:
+                        product_option_key = "{} [{}]".format(key, idx)
+                        option[key] = product_option[product_option_key]
+                    self._options.append(option)
 
         return self._options
 
-    def get_questions(self):
-        """Return a list of per-question dictionaries."""
+    def get_variants(self):
+        """Return a list of per-variant dictionaries."""
 
-        # Variant values that are the same for all answers.
-        question_copy_keys = (
-            "Answer Input Type",
-            "Exclude from best seller report",
-            "In Line Help",
-            "Product Name",
-            "Product SKU",
-            "Question Enabled",
-            "Question Sort Order",
-            "Required",
-            "Track Inventory"
-        )
+        if self._variants is None:
+            self._variants = list()
+
+            personalization_keys = {
+                "Product SKU": "Product SKU",
+                "Product Name": "Product Name",
+                # "Question ID|Answer ID",
+                # "Question|Answer",
+                # "Answer Input Type",
+                # "In Line Help",
+                # "Max Characters",
+                # "Required",
+                # "Track Inventory",
+                # "Question Sort Order",
+                # "Exclude from best seller report",
+                # "Required Quantity",
+                "Size": "Variant Size",
+                "Price": "Variant Add Price",
+                "SKU": "Variant SKU",
+                # "Swatch Image",
+                # "Swatch Image Alt / Title Tag",
+                # "Swatch Image Image URL Link",
+                # "Swatch Image Height",
+                # "Swatch Image Width",
+                # "Swatch Image New Window URL",
+                "Main Photo": "Variant Main Photo (Image)",
+                "Main Photo Alt / Title Tag":
+                    "Variant Main Photo (Alt / Title Tag)",
+                "Main Photo Caption": "Variant Main Photo (Caption)",
+                "Main Photo Image URL Link": "Variant Main Photo URL",
+                "Main Photo Height": "Variant Main Photo URL Height",
+                "Main Photo Width": "Variant Main Photo URL Width",
+                "Large Photo": "Variant Large Pop-Up Photo (Image)",
+                "Large Photo Alt / Title Tag":
+                    "Variant Large Pop-Up Photo (Alt / Title Tag)",
+                "Large Photo Image URL Link": "Variant Large Popup Photo URL",
+                "Large Photo Height": "Variant Large Popup Photo URL Height",
+                "Large Photo Width": "Variant Large Popup Photo URL Width",
+                "Default": "Variant Default",
+                # "Price Type",
+                "Inventory Level": "Variant Inventory Level",
+                "Low Inventory Notify Level": "Variant Notify Level",
+                "Weight": "Variant Weight",
+                "Cost": "Variant Add Cost"
+            }
+            product_option_keys = (
+                "Product SKU",
+                "Product Name",
+                "Option Set SKU",
+                "Option Set Price",
+                "Option Set Weight",
+                "Option Set Cost",
+                "Option Set MSRP",
+                "Option Set Main Photo (Image)",
+                "Option Set Main Photo (Caption)",
+                "Option Set Main Photo (Alt / Title Tag)",
+                "Option Set Main Photo URL",
+                "Option Set Main Photo URL Width",
+                "Option Set Main Photo URL Height",
+                "Option Set Large Pop-Up Photo (Image)",
+                "Option Set Large Pop-Up Photo (Alt / Title Tag)",
+                "Option Set Large Popup Photo URL",
+                "Option Set Large Popup Photo URL Width",
+                "Option Set Large Popup Photo URL Height",
+                "Option Set Inventory Level",
+                "Option Set Notify Level"
+            )
+
+            # Get source lists.
+            products = self.get_products()
+            personalizations = self.get_personalizations()
+            product_options = self.get_product_options()
+
+            for product in products:
+                product_name = product["Product Name"]
+                product_sku = product["SKU"]
+
+                # Convert personalizations to variants.
+                relevant_personalizations = [
+                    personalization for personalization in personalizations
+                    if (
+                        personalization["Product Name"] == product_name and
+                        personalization["Product SKU"] == product_sku
+                    )
+                ]
+                if len(relevant_personalizations) > 0:
+                    for personalization in relevant_personalizations:
+                        variant = {
+                            "Variant Type": "Personalization"
+                        }
+                        for p_key, v_key in personalization_keys.items():
+                            variant[v_key] = personalization[p_key]
+                        question_answer = personalization["Question|Answer"]
+                        (
+                            variant["Variant Group"],
+                            variant["Variant Name"]
+                        ) = question_answer.split("|")
+                        variant["Variant Sort"] = personalization[
+                            "Answer Sort Order"
+                        ]
+                        if (
+                            personalization["Answer Enabled"] == "Y" and
+                            personalization["Answer Enabled"] == "Y"
+                        ):
+                            variant["Variant Enabled"] = "Y"
+                        else:
+                            variant["Variant Enabled"] = "N"
+                        self._variants.append(variant)
+
+                # Convert option sets to variants.
+                relevant_product_options = [
+                    product_option for product_option in product_options
+                    if (
+                        product_option["Product Name"] == product_name and
+                        product_option["Product SKU"] == product_sku
+                    )
+                ]
+                if len(relevant_product_options) > 0:
+                    for product_option in relevant_product_options:
+                        variant = {
+                            "Variant Type": "Option"
+                        }
+                        for key in product_option_keys:
+                            variant_key = key.replace(
+                                "Option Set", "Variant"
+                            ).replace(
+                                "Cost", "Add Cost"
+                            ).replace(
+                                "Price", "Add Price"
+                            )
+                            variant[variant_key] = product_option[key]
+                        option_group_names = []
+                        option_names = []
+                        option_sorts = []
+                        for idx in range(1, 10):
+                            option_group_name_key = (
+                                "Option Group Name [{}]".format(idx)
+                            )
+                            if option_group_name_key not in product_option:
+                                break
+                            option_group_names.append(
+                                product_option[option_group_name_key]
+                            )
+                            option_name_key = "Option Name [{}]".format(idx)
+                            option_names.append(
+                                product_option[option_name_key]
+                            )
+                            option_sort_key = "Option Sort [{}]".format(idx)
+                            option_sorts.append(
+                                product_option[option_sort_key]
+                            )
+                        variant["Variant Group"] = ":".join(option_group_names)
+                        variant["Variant Name"] = ":".join(option_names)
+                        variant["Variant Sort"] = ":".join(option_sorts)
+                        variant["Variant Enabled"] = "Y"
+                        self._variants.append(variant)
+
+        return self._variants
+
+    def get_questions(self):
+        """
+        Return a list of per-question dictionaries.  The list is derived
+        from the personalization list.
+        """
 
         if self._questions is None:
-            # Process variants sorted by product, question.
-            variants = sorted(
-                self.get_variants(),
-                key=lambda variant: (
-                    variant["Product Id"],
-                    variant["Question ID|Answer ID"].split("|")[0]
+            # Personalization values that are the same for all answers.
+            question_copy_keys = (
+                "Answer Input Type",
+                "Exclude from best seller report",
+                "In Line Help",
+                "Product Name",
+                "Product SKU",
+                "Question Enabled",
+                "Question Sort Order",
+                "Required",
+                "Track Inventory"
+            )
+
+            # Process personalizations sorted by product, question.
+            personalizations = sorted(
+                self.get_personalizations(),
+                key=lambda personalization: (
+                    personalization["Product Id"],
+                    personalization["Question ID|Answer ID"].split("|")[0]
                 )
             )
 
             self._questions = list()
             prev_product_id = None
             prev_question_id = None
-            for variant in variants:
-                product_id = variant["Product Id"]
-                question_id = variant["Question ID|Answer ID"].split("|")[0]
+            for personalization in personalizations:
+                product_id = personalization["Product Id"]
+                question_id = personalization["Question ID|Answer ID"]
+                question_id = question_id.split("|")[0]
                 is_first_answer = (
                     product_id != prev_product_id or
                     question_id != prev_question_id
                 )
                 if is_first_answer:
+                    question_name = personalization["Question|Answer"]
+                    question_name = question_name.split("|")[0]
                     question = {
                         "Product Id": product_id,
                         "Question ID": question_id,
-                        "Question": variant["Question|Answer"].split("|")[0],
+                        "Question": question_name,
                         "_n_answers": 1
                     }
                     for key in question_copy_keys:
-                        question[key] = variant[key]
+                        question[key] = personalization[key]
                     self._questions.append(question)
                     prev_product_id = product_id
                     prev_question_id = question_id
@@ -692,17 +1022,17 @@ class CCBrowser(object):
         # pylint: disable=R0201
         return product["SKU"]
 
-    def variant_key(self, variant):
-        """Return a key to sort variants."""
+    def personalization_key(self, personalization):
+        """Return a key to sort personalizations."""
         # pylint: disable=R0201
         return (
-            variant["Product SKU"],
-            variant["Question Sort Order"],
-            variant["Answer Sort Order"]
+            personalization["Product SKU"],
+            int(personalization["Question Sort Order"]),
+            int(personalization["Answer Sort Order"])
         )
 
-    def variant_key_by_cat_product(self, variant):
-        """Return a key for a variant dictionary used to sort by
+    def personalization_key_by_cat_product(self, personalization):
+        """Return a key for a personalization dictionary used to sort by
         category, product_name, question, answer.
         """
         if self._category_sort is None:
@@ -713,8 +1043,8 @@ class CCBrowser(object):
         product_sort_key = None
         for product in self._products:
             if (
-                product["Product Name"] == variant["Product Name"] and
-                product["SKU"] == variant["Product SKU"]
+                product["Product Name"] == personalization["Product Name"] and
+                product["SKU"] == personalization["Product SKU"]
             ):
                 category = product["Category"]
                 if category in self._category_sort:
@@ -729,48 +1059,82 @@ class CCBrowser(object):
         return (
             category_sort_key,
             product_sort_key,
-            variant["Question Sort Order"],
-            variant["Answer Sort Order"]
+            int(personalization["Question Sort Order"]),
+            int(personalization["Answer Sort Order"])
+        )
+
+    def product_option_key(self, product_option):
+        """Return a key to sort product_options."""
+        # pylint: disable=R0201
+        return (
+            product_option["Product SKU"],
+            product_option["Option Set SKU"]
+        )
+
+    def product_option_key_by_cat_product(self, product_option):
+        """
+        Return a key for a product_option dictionary used to sort by
+        category, product_name, question, answer.
+        """
+        if self._category_sort is None:
+            self._init_category_sort()
+        self.get_products()
+
+        category = None
+        product_sort_key = None
+        for product in self._products:
+            if (
+                product["Product Name"] == product_option["Product Name"] and
+                product["SKU"] == product_option["Product SKU"]
+            ):
+                category = product["Category"]
+                if category in self._category_sort:
+                    category_sort_key = "{:05d}".format(
+                        self._category_sort[category]
+                    )
+                else:
+                    category_sort_key = category
+                product_sort_key = product["Product Name"]
+                break
+
+        return (
+            category_sort_key,
+            product_sort_key,
+            int(product_option["Option Sort"])
+        )
+
+    def option_set_key(self, option_set):
+        """Return a key to sort option_sets."""
+        # pylint: disable=R0201
+        return (
+            option_set["Product Id"],
+            option_set["Option Set SKU"]
+        )
+
+    def option_group_key(self, option_group):
+        """Return a key to sort option_groups."""
+        # pylint: disable=R0201
+        return (
+            option_group["Product Name"],
+            option_group["Option Group Name"]
         )
 
     def option_key(self, option):
         """Return a key to sort options."""
         # pylint: disable=R0201
         return (
-            option["Product SKU"],
-            option["Option Set SKU"]
+            option["Product Id"],
+            option["Option Group Name"],
+            int(option["Option Sort"])
         )
 
-    def option_key_by_cat_product(self, option):
-        """
-        Return a key for a option dictionary used to sort by
-        category, product_name, question, answer.
-        """
-        if self._category_sort is None:
-            self._init_category_sort()
-        self.get_products()
-
-        category = None
-        product_sort_key = None
-        for product in self._products:
-            if (
-                product["Product Name"] == option["Product Name"] and
-                product["SKU"] == option["Product SKU"]
-            ):
-                category = product["Category"]
-                if category in self._category_sort:
-                    category_sort_key = "{:05d}".format(
-                        self._category_sort[category]
-                    )
-                else:
-                    category_sort_key = category
-                product_sort_key = product["Product Name"]
-                break
-
+    def variant_key(self, variant):
+        """Return a key to sort variants."""
+        # pylint: disable=R0201
         return (
-            category_sort_key,
-            product_sort_key,
-            option["Option Sort"]
+            variant["Product SKU"],
+            variant["Variant Type"],
+            variant["Variant Sort"]
         )
 
     def question_key(self, question):
@@ -778,7 +1142,7 @@ class CCBrowser(object):
         # pylint: disable=R0201
         return (
             question["Product SKU"],
-            question["Question Sort Order"]
+            int(question["Question Sort Order"])
         )
 
     def guess_product_ids(self):
@@ -787,9 +1151,9 @@ class CCBrowser(object):
         IDs.  Guess the ones we can.
         """
 
-        # Download products and variants.
+        # Download products and personalizations.
         self.get_products()
-        self.get_variants()
+        self.get_personalizations()
 
         # Guess an ID for each product.
         for product in self._products:
@@ -799,16 +1163,16 @@ class CCBrowser(object):
             if "Product Id" in product and product["Product Id"] != "":
                 continue
 
-            # Find a variant that matches in name and SKU.
+            # Find a personalization that matches in name and SKU.
             product_id = ""
             name = product["Product Name"]
             sku = product["SKU"]
-            for variant in self._variants:
+            for personalization in self._personalizations:
                 if (
-                    variant["Product Name"] == name and
-                    variant["Product SKU"] == sku
+                    personalization["Product Name"] == name and
+                    personalization["Product SKU"] == sku
                 ):
-                    product_id = variant["Product Id"]
+                    product_id = personalization["Product Id"]
                     break
 
             # Assign the guessed ID to the product.

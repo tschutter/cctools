@@ -6,16 +6,29 @@ Generates a wholesale order form in spreadsheet form.
 
 import ConfigParser
 import argparse
-import cctools
 import datetime
 import itertools
 import logging
 import math
-import notify_send_handler
-import openpyxl  # sudo pip install openpyxl
 import os
 
+import openpyxl  # sudo pip install openpyxl
+
+import cctools
+import notify_send_handler
+
+CHECK_FOR_LACK_OF_ANY = False  # until most "Any" variants have been added
+
 NUMBER_FORMAT_USD = "$#,##0.00;-$#,##0.00"
+
+# Column numbers of product values.
+COL_ITEM_NO = 1
+COL_DESCRIPTION = 2
+COL_PRICE = 3
+COL_QTY = 4
+COL_TOTAL = 5
+COL_SKU = 6
+COL_SIZE = 7
 
 
 def set_cell(
@@ -50,13 +63,7 @@ def add_title(args, config, worksheet):
     """Add worksheet title."""
     row = 1
     doc_title = config.get("wholesale_order", "title")
-    set_cell(worksheet, row, 1, doc_title, font_bold=True)
-    worksheet.merge_cells(
-        start_row=0,
-        start_column=1,
-        end_row=0,
-        end_column=2
-    )
+    set_cell(worksheet, row, 1, doc_title, font_bold=True, font_size=20)
     worksheet.row_dimensions[1].height = 25
     row += 1
 
@@ -73,6 +80,14 @@ def add_title(args, config, worksheet):
     cell_text = "Prices are {:.0%} of retail".format(args.wholesale_fraction)
     set_cell(worksheet, row, 1, cell_text)
     row += 1
+
+    for merge_row in range(1, row):
+        worksheet.merge_cells(
+            start_row=merge_row,
+            start_column=1,
+            end_row=merge_row,
+            end_column=2
+        )
 
     return row
 
@@ -176,29 +191,140 @@ def set_label_dollar_value(
     )
 
 
+def add_variant(
+    worksheet,
+    row,
+    item_no,
+    size,
+    sku,
+    description,
+    wholesale_price
+):
+    """Add a row for a variant."""
+
+    set_cell(worksheet, row, COL_ITEM_NO, item_no)
+    set_cell(worksheet, row, COL_DESCRIPTION, description)
+    set_cell(
+        worksheet,
+        row,
+        COL_PRICE,
+        wholesale_price,
+        number_format=NUMBER_FORMAT_USD
+    )
+    total_formula = "=IF({}{}=\"\", \"\", {}{} * {}{})".format(
+        col_letter(COL_QTY),
+        row,
+        col_letter(COL_PRICE),
+        row,
+        col_letter(COL_QTY),
+        row
+    )
+    set_cell(
+        worksheet,
+        row,
+        COL_TOTAL,
+        total_formula,
+        number_format=NUMBER_FORMAT_USD
+    )
+    set_cell(worksheet, row, COL_SIZE, size)
+    set_cell(worksheet, row, COL_SKU, sku)
+
+
+def get_product_variants(variants, sku):
+    """Returns a list of variants for a product."""
+    product_variants = [
+        variant for variant in variants
+        if variant["Product SKU"] == sku and variant["Variant Enabled"] == "Y"
+    ]
+    product_variants.sort(key=lambda variant: variant["Variant Sort"])
+    return product_variants
+
+
+def calc_wholesale_price(args, price):
+    """Calculate wholesale price based on retail price."""
+    if price > 1.0:
+        rounded_price = math.floor(price + 0.5)
+    else:
+        rounded_price = price
+    return rounded_price * args.wholesale_fraction
+
+
+def add_product(args, worksheet, row, item_no, product, variants):
+    """Add row for each variant."""
+    size = product["Size"]
+    product_name = product["Product Name"]
+    sku = product["SKU"]
+    teaser = cctools.html_to_plain_text(product["Teaser"])
+    price = float(product["Price"])
+
+    product_variants = get_product_variants(variants, sku)
+    if len(product_variants) == 0:
+        description = "{}: {}".format(product_name, teaser)
+        add_variant(
+            worksheet,
+            row,
+            item_no,
+            size,
+            sku,
+            description,
+            calc_wholesale_price(args, price)
+        )
+        row += 1
+        item_no += 1
+    else:
+        any_variant_exists = False
+        for variant in product_variants:
+            variant_sku = variant["Variant SKU"]
+            if variant_sku == "ANY" or variant_sku == "VAR":
+                any_variant_exists = True
+            variant_sku = "{}-{}".format(sku, variant_sku)
+            variant_add_price = float(variant["Variant Add Price"])
+            variant_name = variant["Variant Name"]
+            description = "{} ({}): {}".format(
+                product_name,
+                variant_name,
+                teaser
+            )
+            add_variant(
+                worksheet,
+                row,
+                item_no,
+                size,
+                variant_sku,
+                description,
+                calc_wholesale_price(args, price + variant_add_price)
+            )
+            row += 1
+            item_no += 1
+
+        if CHECK_FOR_LACK_OF_ANY and not any_variant_exists:
+            logging.getLogger().warning(
+                "No 'Any' or 'Variety' variant exists for {} {}".format(
+                    sku,
+                    product_name
+                )
+            )
+
+    return row, item_no
+
+
 def add_products(args, worksheet, row, cc_browser, products):
     """Add row for each product."""
-    col_category = 1
-    col_description = 2
-    col_price = 3
-    col_qty = 4
-    col_total = 5
-    col_sku = 6
-    col_size = 7
 
     # Add header row.
     set_cell(
         worksheet,
         row,
-        col_category,
-        "Category",
-        font_bold=True
+        COL_ITEM_NO,
+        "Item No",
+        font_bold=True,
+        alignment_horizontal="right"
     )
-    set_cell(worksheet, row, col_description, "Description", font_bold=True)
+    set_cell(worksheet, row, COL_DESCRIPTION, "Description", font_bold=True)
     set_cell(
         worksheet,
         row,
-        col_price,
+        COL_PRICE,
         "Price",
         font_bold=True,
         alignment_horizontal="right"
@@ -206,7 +332,7 @@ def add_products(args, worksheet, row, cc_browser, products):
     set_cell(
         worksheet,
         row,
-        col_qty,
+        COL_QTY,
         "Qty",
         font_bold=True,
         alignment_horizontal="right"
@@ -214,7 +340,7 @@ def add_products(args, worksheet, row, cc_browser, products):
     set_cell(
         worksheet,
         row,
-        col_total,
+        COL_TOTAL,
         "Total",
         font_bold=True,
         alignment_horizontal="right"
@@ -222,7 +348,7 @@ def add_products(args, worksheet, row, cc_browser, products):
     set_cell(
         worksheet,
         row,
-        col_sku,
+        COL_SKU,
         "SKU",
         font_bold=True,
         alignment_horizontal="right"
@@ -230,7 +356,7 @@ def add_products(args, worksheet, row, cc_browser, products):
     set_cell(
         worksheet,
         row,
-        col_size,
+        COL_SIZE,
         "Size",
         font_bold=True
     )
@@ -245,72 +371,68 @@ def add_products(args, worksheet, row, cc_browser, products):
     # Sort products by category, product_name.
     products = sorted(products, key=cc_browser.product_key_by_cat_and_name)
 
+    # Fetch variants list.
+    variants = cc_browser.get_variants()
+
     # Group products by category.
     first_product_row = row
+    item_no = 1
     for _, product_group in itertools.groupby(
         products,
         key=cc_browser.product_key_by_category
     ):
+        # Leave a row for the category name.
+        category = "unknown"
+        category_row = row
+        row += 1
+
         # Add product rows.
         for product in product_group:
             if product["Available"] != "Y":
                 continue
-            description = "{}: {}".format(
-                product["Product Name"],
-                cctools.html_to_plain_text(product["Teaser"])
-            )
-            set_cell(worksheet, row, col_category, product["Category"])
-            set_cell(worksheet, row, col_description, description)
-            online_price = product["Price"]
-            rounded_price = math.floor(float(online_price) + 0.5)
-            wholesale_price = rounded_price * args.wholesale_fraction
-            set_cell(
+
+            row, item_no = add_product(
+                args,
                 worksheet,
                 row,
-                col_price,
-                wholesale_price,
-                number_format=NUMBER_FORMAT_USD
+                item_no,
+                product,
+                variants
             )
-            total_formula = "=IF({}{}=\"\", \"\", {}{} * {}{})".format(
-                col_letter(col_qty),
-                row,
-                col_letter(col_price),
-                row,
-                col_letter(col_qty),
-                row
-            )
-            set_cell(
-                worksheet,
-                row,
-                col_total,
-                total_formula,
-                number_format=NUMBER_FORMAT_USD
-            )
-            set_cell(worksheet, row, col_sku, product["SKU"])
-            set_cell(worksheet, row, col_size, product["Size"])
-            row += 1
-    last_product_row = row - 1
+            category = product["Category"]
+            last_product_row = row - 1
+
+        # Go back and insert category name.
+        if category == "":
+            category = "Uncategorized"
+        set_cell(
+            worksheet,
+            category_row,
+            COL_DESCRIPTION,
+            category,
+            font_bold=True
+        )
 
     # Set column widths.
-    worksheet.column_dimensions[col_letter(col_category)].width = 20
-    worksheet.column_dimensions[col_letter(col_description)].width = 65
-    worksheet.column_dimensions[col_letter(col_price)].width = 7
-    worksheet.column_dimensions[col_letter(col_qty)].width = 5
-    worksheet.column_dimensions[col_letter(col_total)].width = 10
-    worksheet.column_dimensions[col_letter(col_sku)].width = 6
-    worksheet.column_dimensions[col_letter(col_size)].width = 24
+    worksheet.column_dimensions[col_letter(COL_ITEM_NO)].width = 8
+    worksheet.column_dimensions[col_letter(COL_DESCRIPTION)].width = 100
+    worksheet.column_dimensions[col_letter(COL_PRICE)].width = 8
+    worksheet.column_dimensions[col_letter(COL_QTY)].width = 5
+    worksheet.column_dimensions[col_letter(COL_TOTAL)].width = 10
+    worksheet.column_dimensions[col_letter(COL_SKU)].width = 14
+    worksheet.column_dimensions[col_letter(COL_SIZE)].width = 28
 
     # Blank row.
     row += 1
 
-    col_label_start = col_total - 2
-    col_label_end = col_total - 1
+    col_label_start = COL_TOTAL - 2
+    col_label_end = COL_TOTAL - 1
 
     # Subtotal.
     subtotal_formula = "=SUM({}{}:{}{})".format(
-        col_letter(col_total),
+        col_letter(COL_TOTAL),
         first_product_row,
-        col_letter(col_total),
+        col_letter(COL_TOTAL),
         last_product_row
     )
     set_label_dollar_value(
@@ -318,7 +440,7 @@ def add_products(args, worksheet, row, cc_browser, products):
         row,
         col_label_start,
         col_label_end,
-        col_total,
+        COL_TOTAL,
         "Subtotal:",
         subtotal_formula
     )
@@ -331,7 +453,7 @@ def add_products(args, worksheet, row, cc_browser, products):
         row,
         col_label_start,
         col_label_end,
-        col_total,
+        COL_TOTAL,
         "Shipping:",
         0.0
     )
@@ -343,7 +465,7 @@ def add_products(args, worksheet, row, cc_browser, products):
         row,
         col_label_start,
         col_label_end,
-        col_total,
+        COL_TOTAL,
         "Adjustment:",
         0.0
     )
@@ -351,9 +473,9 @@ def add_products(args, worksheet, row, cc_browser, products):
 
     # Total.
     total_formula = "=SUM({}{}:{}{})".format(
-        col_letter(col_total),
+        col_letter(COL_TOTAL),
         subtotal_row,
-        col_letter(col_total),
+        col_letter(COL_TOTAL),
         row - 1
     )
     set_label_dollar_value(
@@ -361,7 +483,7 @@ def add_products(args, worksheet, row, cc_browser, products):
         row,
         col_label_start,
         col_label_end,
-        col_total,
+        COL_TOTAL,
         "Total:",
         total_formula,
         font_bold=True

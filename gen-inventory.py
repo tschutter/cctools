@@ -6,13 +6,14 @@ Generate an inventory report.
 
 import ConfigParser
 import argparse
-import cctools
 import datetime
 import logging
-import notify_send_handler
-import openpyxl  # sudo pip install openpyxl
 import os
 
+import openpyxl  # sudo pip install openpyxl
+import notify_send_handler
+
+import cctools
 
 def set_cell(
     worksheet,
@@ -176,19 +177,26 @@ def main():
         else:
             for variant in variants:
                 if product_sku == variant["Product SKU"]:
-                    pers_sku = variant["SKU"]
-                    if pers_sku == "":
+                    variant_sku = variant["Variant SKU"]
+                    if variant_sku == "":
                         sku = product_sku
                     else:
-                        sku = "{}-{}".format(product_sku, pers_sku)
-                    pers_level = variant["Inventory Level"]
-                    answer = variant["Question|Answer"]
-                    answer = answer.replace("|", "=")
+                        sku = "{}-{}".format(product_sku, variant_sku)
+                    variant_inventory_level = variant[
+                        "Variant Inventory Level"
+                    ]
+                    answer = variant["Variant Name"]
                     name = "{} ({})".format(product_name, answer)
-                    enabled = variant["Answer Enabled"]
-                    main_photo = variant["Main Photo"]
+                    enabled = variant["Variant Enabled"]
+                    main_photo = variant["Variant Main Photo (Image)"]
                     inventory.append(
-                        (sku, pers_level, name, enabled, main_photo)
+                        (
+                            sku,
+                            variant_inventory_level,
+                            name,
+                            enabled,
+                            main_photo
+                        )
                     )
 
     # for sku, level, name in inventory:
