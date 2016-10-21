@@ -14,6 +14,7 @@ import datetime
 import itertools
 import logging
 import os
+import re
 
 import openpyxl  # sudo pip install openpyxl
 
@@ -24,15 +25,18 @@ CHECK_FOR_LACK_OF_ANY = False  # until most "Any" variants have been added
 
 NUMBER_FORMAT_USD = "$#,##0.00;-$#,##0.00"
 
+RE_SIZE_VARIANT = re.compile("^(Length|Size)$")
+
 # Column numbers of product values.
 COL_LINE_NO = 1
 COL_SKU = 2
 COL_DESCRIPTION = 3
-COL_PRICE = 4
-COL_QTY = 5
-COL_TOTAL = 6
-COL_HTSUS_NO = 7
-COL_INSTRUCTIONS = 8
+COL_SIZE = 4
+COL_PRICE = 5
+COL_QTY = 6
+COL_TOTAL = 7
+COL_HTSUS_NO = 8
+COL_INSTRUCTIONS = 9
 
 
 def set_cell(
@@ -125,7 +129,7 @@ def add_header(args, config, worksheet, row):
     col_label_start = 3
     col_label_end = 3
     col_value_start = col_label_end + 1
-    col_value_end = col_value_start + 3
+    col_value_end = col_value_start
 
     set_label_value(
         worksheet,
@@ -253,6 +257,7 @@ def add_variant(
     lineno,
     sku,
     description,
+    size,
     cost,
     htsus_no
 ):
@@ -267,6 +272,7 @@ def add_variant(
         alignment_horizontal="left"
     )
     set_cell(worksheet, row, COL_DESCRIPTION, description)
+    set_cell(worksheet, row, COL_SIZE, size)
     set_cell(worksheet, row, COL_PRICE, cost, number_format=NUMBER_FORMAT_USD)
     total_formula = "=IF({}{}=\"\", \"\", {}{} * {}{})".format(
         col_letter(COL_QTY),
@@ -302,6 +308,7 @@ def add_product(worksheet, row, lineno, product, variants):
     product_name = product["Product Name"]
     sku = product["SKU"]
     teaser = cctools.html_to_plain_text(product["Teaser"])
+    size = product["Size"]
     cost = float(product["Cost"])
     if "HTSUS No" in product:
         htsus_no = product["HTSUS No"]
@@ -310,7 +317,16 @@ def add_product(worksheet, row, lineno, product, variants):
     product_variants = get_product_variants(variants, sku)
     if len(product_variants) == 0:
         description = "{}: {}".format(product_name, teaser)
-        add_variant(worksheet, row, lineno, sku, description, cost, htsus_no)
+        add_variant(
+            worksheet,
+            row,
+            lineno,
+            sku,
+            description,
+            size,
+            cost,
+            htsus_no
+        )
         row += 1
         lineno += 1
     else:
@@ -327,12 +343,16 @@ def add_product(worksheet, row, lineno, product, variants):
                 variant_name,
                 teaser
             )
+            variant_group = variant["Variant Group"]
+            if RE_SIZE_VARIANT.match(variant_group):
+                size = variant_name
             add_variant(
                 worksheet,
                 row,
                 lineno,
                 variant_sku,
                 description,
+                size,
                 cost + variant_add_cost,
                 htsus_no
             )
@@ -370,6 +390,7 @@ def add_products(worksheet, row, cc_browser, products, has_htsus_no):
         alignment_horizontal="left"
     )
     set_cell(worksheet, row, COL_DESCRIPTION, "Description", font_bold=True)
+    set_cell(worksheet, row, COL_SIZE, "Size", font_bold=True)
     set_cell(
         worksheet,
         row,
@@ -453,6 +474,7 @@ def add_products(worksheet, row, cc_browser, products, has_htsus_no):
     worksheet.column_dimensions[col_letter(COL_LINE_NO)].width = 8
     worksheet.column_dimensions[col_letter(COL_SKU)].width = 15
     worksheet.column_dimensions[col_letter(COL_DESCRIPTION)].width = 100
+    worksheet.column_dimensions[col_letter(COL_SIZE)].width = 28
     worksheet.column_dimensions[col_letter(COL_PRICE)].width = 7
     worksheet.column_dimensions[col_letter(COL_QTY)].width = 5
     worksheet.column_dimensions[col_letter(COL_TOTAL)].width = 10
