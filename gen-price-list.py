@@ -160,6 +160,7 @@ def generate_pdf(
 
     # Setup styles.
     body_fontsize = float(config.get("price_list", "body_fontsize"))
+    row_padding =  float(config.get("price_list", "row_padding"))
     base_styles = [
         ("FONTSIZE", (0, 0), (-1, -1), body_fontsize),
         ("ALIGN", (0, 0), (0, -1), "LEFT"),
@@ -167,8 +168,8 @@ def generate_pdf(
         ("FONT", (1, 0), (1, -1), "Courier-Bold"),
         ("LEFTPADDING", (0, 0), (-1, -1), 3),
         ("RIGHTPADDING", (0, 0), (-1, -1), 3),
-        ("TOPPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), row_padding),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3 + row_padding),
         # ("GRID", (0, 0), (-1, -1), 1.0, reportlab.lib.colors.black)
     ]
 
@@ -419,7 +420,8 @@ def main():
 
     # Read config file.
     config = ConfigParser.SafeConfigParser({
-        "body_fontsize": "12"
+        "body_fontsize": "12",
+        "row_padding": "0"
     })
     config.readfp(open(args.config))
 
