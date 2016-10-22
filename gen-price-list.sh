@@ -50,13 +50,14 @@ rm -f ${FILENAME}
 # 70077 = Tino Earrings
 # 70078 = Tino-Cheik Earrings
 # 70079 = Jarara-Cheik Earrings
+# 70085 = Extra Marketing Materials
 "${SCRIPTDIR}/gen-price-list.py"\
     --category="Necklaces"\
     --category="Bags & Purses"\
-    --category="Miscellaneous"\
+    --category="Earrings"\
     --category="Bracelets"\
     --category="Baskets, Trivets & Bowls"\
-    --category="Earrings"\
+    --category="Miscellaneous"\
     --exclude-sku=40012\
     --exclude-sku=40050\
     --exclude-sku=40051\
@@ -67,6 +68,7 @@ rm -f ${FILENAME}
     --exclude-sku=70077\
     --exclude-sku=70078\
     --exclude-sku=70079\
+    --exclude-sku=70085\
     --pdf-file="${FILENAME}"\
     --verbose\
     ${ARGS}
