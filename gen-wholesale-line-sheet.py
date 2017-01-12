@@ -184,7 +184,11 @@ def add_product(args, worksheet, row, item_no, product, variants):
     teaser = cctools.html_to_plain_text(product["Teaser"])
     price = float(product["Price"])
 
-    product_variants = get_product_variants(variants, sku)
+    if args.include_variants:
+        product_variants = get_product_variants(variants, sku)
+    else:
+        product_variants = []
+
     if len(product_variants) == 0:
         description = "{}: {}".format(product_name, teaser)
         add_variant(
@@ -420,6 +424,12 @@ def main():
         metavar="FILE",
         default=default_xlsx_filename,
         help="output XLSX filename (default=%(default)s)"
+    )
+    arg_parser.add_argument(
+        "--include-variants",
+        action="store_true",
+        default=False,
+        help="add row for each product variant"
     )
     arg_parser.add_argument(
         "--exclude-sku",
