@@ -1,7 +1,7 @@
 #!/bin/sh
 
 usage() {
-    echo "Generate and display YYYY-MM-DD-WholesalePrices.xlsx" >&2
+    echo "Generate and display YYYY-MM-DD-WholesaleOrder.xlsx" >&2
     echo "" >&2
     echo "USAGE:" >&2
     echo "  $0 [options]" >&2
