@@ -26,11 +26,11 @@ import Tkinter
 import tkMessageBox
 
 
-def calc_event_price(price, discount_percent, sales_tax_percent):
+def calc_event_price(retail_price, discount_percent, sales_tax_percent):
     """Calculate the event price from the retail price."""
 
     # Apply discount.
-    price = float(price) * (1.0 - float(discount_percent) / 100.0)
+    price = float(retail_price) * (1.0 - float(discount_percent) / 100.0)
 
     # Impose sales tax.
     price = price * (1.0 + float(sales_tax_percent) / 100.0)
@@ -42,11 +42,11 @@ def calc_event_price(price, discount_percent, sales_tax_percent):
     return price
 
 
-def calc_retail_price(price, discount_percent, sales_tax_percent):
+def calc_retail_price(event_price, discount_percent, sales_tax_percent):
     """Calculate the retail price from the event price."""
 
     # Remove sales tax.
-    price = float(price) / (1.0 + float(sales_tax_percent) / 100.0)
+    price = float(event_price) / (1.0 + float(sales_tax_percent) / 100.0)
 
     # Unapply discount.
     price = price / (1.0 - float(discount_percent) / 100.0)
@@ -56,6 +56,19 @@ def calc_retail_price(price, discount_percent, sales_tax_percent):
 
     # Return as a float.
     return price
+
+
+def calc_wholesale_price(retail_price, wholesale_fraction):
+    """Calculate the wholesale price from the retail price."""
+
+    # Round the price to the nearest dollar.
+    if retail_price > 1.0:
+        price = math.floor(retail_price + 0.5)
+    else:
+        price = retail_price
+
+    # Apply the wholesale fraction.
+    return price * wholesale_fraction
 
 
 class AppGUI(object):
@@ -83,15 +96,15 @@ class AppGUI(object):
             retail_group,
             width=AppGUI.PRICE_WIDTH
         )
-        self.retail_entry.bind('<Return>', self.calc_event_price)
+        self.retail_entry.bind('<Return>', self.calc_from_retail_price)
         self.retail_entry.pack(side=Tkinter.LEFT)
-        calc_event_button = Tkinter.Button(
+        calc_from_retail_button = Tkinter.Button(
             retail_group,
-            text="Calc event",
-            command=self.calc_event_price
+            text="Calc event and wholesale",
+            command=self.calc_from_retail_price
         )
-        calc_event_button.bind('<Return>', self.calc_event_price)
-        calc_event_button.pack(side=Tkinter.LEFT)
+        calc_from_retail_button.bind('<Return>', self.calc_from_retail_price)
+        calc_from_retail_button.pack(side=Tkinter.LEFT, padx=(10, 0))
 
         # Event price group.
         event_group = Tkinter.LabelFrame(
@@ -105,15 +118,40 @@ class AppGUI(object):
             event_group,
             width=AppGUI.PRICE_WIDTH
         )
-        self.event_entry.bind('<Return>', self.calc_retail_price)
+        self.event_entry.bind('<Return>', self.calc_from_event_price)
         self.event_entry.pack(side=Tkinter.LEFT)
-        calc_retail_button = Tkinter.Button(
+        calc_from_event_button = Tkinter.Button(
             event_group,
-            text="Calc retail",
-            command=self.calc_retail_price
+            text="Calc retail and wholesale",
+            command=self.calc_from_event_price
         )
-        calc_retail_button.bind('<Return>', self.calc_retail_price)
-        calc_retail_button.pack(side=Tkinter.LEFT)
+        calc_from_event_button.bind('<Return>', self.calc_from_event_price)
+        calc_from_event_button.pack(side=Tkinter.LEFT, padx=(10, 0))
+
+        # Wholesale price group.
+        wholesale_group = Tkinter.LabelFrame(
+            self.frame,
+            text="Wholesale price",
+            padx=5,
+            pady=5
+        )
+        wholesale_group.pack(fill=Tkinter.X, padx=10, pady=10)
+        self.wholesale_entry = Tkinter.Entry(
+            wholesale_group,
+            width=AppGUI.PRICE_WIDTH
+        )
+        self.wholesale_entry.bind('<Return>', self.calc_from_wholesale_price)
+        self.wholesale_entry.pack(side=Tkinter.LEFT)
+        calc_from_wholesale_button = Tkinter.Button(
+            wholesale_group,
+            text="Calc retail and event",
+            command=self.calc_from_wholesale_price
+        )
+        calc_from_wholesale_button.bind(
+            '<Return>',
+            self.calc_from_wholesale_price
+        )
+        calc_from_wholesale_button.pack(side=Tkinter.LEFT, padx=(10, 0))
 
         # Quit button
         self.quit_button = Tkinter.Button(
@@ -150,40 +188,72 @@ class AppGUI(object):
         entry.insert(0, price)
 
         # Copy to clipboard.
-        self.root.clipboard_clear()
-        self.root.clipboard_append(price)
+        # Does not work now that there are 2 derived prices.
+        # self.root.clipboard_clear()
+        # self.root.clipboard_append(price)
 
-    def calc_retail_price(self, _=None):
+    def calc_from_retail_price(self, _=None):
         """
-        Calculate retail price action.
-        Second arg is event when called via <Return>.
-        """
-        event_price = self.get_price(self.event_entry, "Event")
-        if event_price is None:
-            return
-        retail_price = calc_retail_price(
-            event_price,
-            self.args.discount_percent,
-            self.args.avg_tax_percent
-        )
-        retail_price = "{:,.2f}".format(retail_price)
-        self.set_price(self.retail_entry, retail_price)
-
-    def calc_event_price(self, _=None):
-        """
-        Calculate event price action.
+        Calculate prices derived from retail price action.
         Second arg is event when called via <Return>.
         """
         retail_price = self.get_price(self.retail_entry, "Retail")
         if retail_price is None:
             return
+
         event_price = calc_event_price(
             retail_price,
             self.args.discount_percent,
             self.args.avg_tax_percent
         )
-        event_price = "{:,.2f}".format(event_price)
-        self.set_price(self.event_entry, event_price)
+        self.set_price(self.event_entry, "{:,.2f}".format(event_price))
+
+        wholesale_price = calc_wholesale_price(
+            retail_price,
+            self.args.wholesale_fraction
+        )
+        self.set_price(self.wholesale_entry, "{:,.2f}".format(wholesale_price))
+
+    def calc_from_event_price(self, _=None):
+        """
+        Calculate prices derived from event price action.
+        Second arg is event when called via <Return>.
+        """
+        event_price = self.get_price(self.event_entry, "Event")
+        if event_price is None:
+            return
+
+        retail_price = calc_retail_price(
+            event_price,
+            self.args.discount_percent,
+            self.args.avg_tax_percent
+        )
+        self.set_price(self.retail_entry, "{:,.2f}".format(retail_price))
+
+        wholesale_price = calc_wholesale_price(
+            retail_price,
+            self.args.wholesale_fraction
+        )
+        self.set_price(self.wholesale_entry, "{:,.2f}".format(wholesale_price))
+
+    def calc_from_wholesale_price(self, _=None):
+        """
+        Calculate prices derived from wholesale price action.
+        Second arg is event when called via <Return>.
+        """
+        wholesale_price = self.get_price(self.wholesale_entry, "Wholesale")
+        if wholesale_price is None:
+            return
+
+        retail_price = wholesale_price / self.args.wholesale_fraction
+        self.set_price(self.retail_entry, "{:,.2f}".format(retail_price))
+
+        event_price = calc_event_price(
+            retail_price,
+            self.args.discount_percent,
+            self.args.avg_tax_percent
+        )
+        self.set_price(self.event_entry, "{:,.2f}".format(event_price))
 
     def error(self, msg):
         """Display an error message."""
@@ -211,6 +281,14 @@ def main():
         metavar="PCT",
         default=8.3,
         help="average sales tax rate in percent (default=%(default).2f)"
+    )
+    arg_parser.add_argument(
+        "--whsle-frac",
+        type=float,
+        dest="wholesale_fraction",
+        metavar="FRAC",
+        default=0.5,
+        help="wholesale price fraction (default=%(default).2f)"
     )
 
     subparsers = arg_parser.add_subparsers(help='operations')

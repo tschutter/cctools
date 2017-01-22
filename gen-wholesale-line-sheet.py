@@ -4,18 +4,17 @@
 Generates a wholesale line sheet in spreadsheet form.
 """
 
-import ConfigParser
 import argparse
 import datetime
 import itertools
 import logging
-import math
 import os
 
-import openpyxl  # sudo pip install openpyxl
-
+import ConfigParser
+import calc_price
 import cctools
 import notify_send_handler
+import openpyxl  # sudo pip install openpyxl
 
 CHECK_FOR_LACK_OF_ANY = False  # until most "Any" variants have been added
 
@@ -167,15 +166,6 @@ def get_product_variants(variants, sku):
     return product_variants
 
 
-def calc_wholesale_price(args, price):
-    """Calculate wholesale price based on retail price."""
-    if price > 1.0:
-        rounded_price = math.floor(price + 0.5)
-    else:
-        rounded_price = price
-    return rounded_price * args.wholesale_fraction
-
-
 def add_product(args, worksheet, row, item_no, product, variants):
     """Add row for each variant."""
     size = product["Size"]
@@ -198,7 +188,7 @@ def add_product(args, worksheet, row, item_no, product, variants):
             size,
             sku,
             description,
-            calc_wholesale_price(args, price),
+            calc_price.calc_wholesale_price(price, args.wholesale_fraction),
             price
         )
         row += 1
@@ -224,7 +214,10 @@ def add_product(args, worksheet, row, item_no, product, variants):
                 size,
                 variant_sku,
                 description,
-                calc_wholesale_price(args, price + variant_add_price),
+                calc_price.calc_wholesale_price(
+                    price + variant_add_price,
+                    args.wholesale_fraction
+                ),
                 price + variant_add_price
             )
             row += 1
