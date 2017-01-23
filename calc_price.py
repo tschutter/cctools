@@ -62,6 +62,7 @@ def calc_wholesale_price(retail_price, wholesale_fraction):
     """Calculate the wholesale price from the retail price."""
 
     # Round the price to the nearest dollar.
+    retail_price = float(retail_price)
     if retail_price > 1.0:
         price = math.floor(retail_price + 0.5)
     else:
