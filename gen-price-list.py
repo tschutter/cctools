@@ -233,7 +233,7 @@ def generate_pdf(
                 for sub_row in range(0, rows_per_product):
                     row = start_row + sub_row
                     styles.append(
-                        ("BACKGROUND", (0, row), (1, row), greybar_color)
+                        ("BACKGROUND", (0, row), (-1, row), greybar_color)
                     )
 
         # Create the table.
