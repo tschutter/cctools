@@ -118,6 +118,9 @@ def generate_pdf(
 ):
     """Generate a PDF given a list of products by category."""
 
+    # Define some constants.
+    color_black = reportlab.lib.colors.black
+
     # Construct a document.
     title = config.get("wholesale_paper_order", "title")
     doc = reportlab.platypus.BaseDocTemplate(
@@ -144,13 +147,6 @@ def generate_pdf(
     )
 
     # Construct a story and add it to the document.
-    category_style = reportlab.lib.styles.ParagraphStyle(
-        name="category",
-#        spaceBefore=0.15 * INCH,
-#        spaceAfter=0.05 * INCH,
-        fontName="Helvetica-Bold",
-        fontSize=12
-    )
     greybar_color = reportlab.lib.colors.Whiter(
         reportlab.lib.colors.lightgrey,
         0.03
@@ -171,7 +167,7 @@ def generate_pdf(
 
     # Setup styles.
     body_fontsize = float(config.get("wholesale_paper_order", "body_fontsize"))
-    row_padding =  float(config.get("wholesale_paper_order", "row_padding"))
+    row_padding = float(config.get("wholesale_paper_order", "row_padding"))
     base_styles = [
         ("FONTSIZE", (0, 0), (-1, -1), body_fontsize),
         ("FONT", (0, 0), (-1, 0), "Helvetica-Bold"),
@@ -186,7 +182,6 @@ def generate_pdf(
     ]
 
     # Group products by category.
-    first = True
     for _, product_group in itertools.groupby(
         products,
         key=cc_browser.product_key_by_category
@@ -235,8 +230,8 @@ def generate_pdf(
         # Draw a grid.
         styles.extend(
             [
-                ('INNERGRID', (2, 1), (-1, -1), 0.25, reportlab.lib.colors.black),
-                ('BOX', (2, 1), (-1, -1), 0.25, reportlab.lib.colors.black)
+                ('INNERGRID', (2, 1), (-1, -1), 0.25, color_black),
+                ('BOX', (2, 1), (-1, -1), 0.25, color_black)
             ]
         )
 
@@ -260,10 +255,10 @@ def generate_pdf(
         ("FONTSIZE", (0, 0), (-1, -1), body_fontsize),
         ("FONT", (0, 0), (-1, -1), "Helvetica-Bold"),
         ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
-        ('INNERGRID', (1, 0), (1, -1), 0.25, reportlab.lib.colors.black),
-        ('BOX', (1, 0), (1, -1), 0.25, reportlab.lib.colors.black),
-        ('INNERGRID', (3, 0), (3, -1), 0.25, reportlab.lib.colors.black),
-        ('BOX', (3, 0), (3, -1), 0.25, reportlab.lib.colors.black)
+        ('INNERGRID', (1, 0), (1, -1), 0.25, color_black),
+        ('BOX', (1, 0), (1, -1), 0.25, color_black),
+        ('INNERGRID', (3, 0), (3, -1), 0.25, color_black),
+        ('BOX', (3, 0), (3, -1), 0.25, color_black)
     ]
     first_width = 0.6 * INCH
     third_width = 0.8 * INCH
@@ -290,8 +285,8 @@ def generate_pdf(
         ("FONTSIZE", (0, 0), (-1, -1), body_fontsize),
         ("FONT", (0, 0), (0, -1), "Helvetica-Bold"),
         ("ALIGN", (0, 0), (0, -1), "RIGHT"),
-        ('INNERGRID', (1, 0), (-1, -1), 0.25, reportlab.lib.colors.black),
-        ('BOX', (1, 0), (-1, -1), 0.25, reportlab.lib.colors.black)
+        ('INNERGRID', (1, 0), (-1, -1), 0.25, color_black),
+        ('BOX', (1, 0), (-1, -1), 0.25, color_black)
     ]
     name_width = 0.6 * INCH
     value_width = table_width - name_width
