@@ -76,7 +76,7 @@ def main():
     default_xlsx_filename = now.strftime("%Y-%m-%d-PurchaseOrder.xlsx")
 
     arg_parser = argparse.ArgumentParser(
-        description="Generates a Purchase Order / Commercial Invoice."
+        description="Generates a FedEx Product Dictionary."
     )
     arg_parser.add_argument(
         "--config",
