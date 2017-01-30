@@ -138,7 +138,19 @@ def add_header(args, config, worksheet, row):
         col_label_end,
         col_value_start,
         col_value_end,
-        "PO/Invoice #: ",
+        "Invoice #: ",
+        args.number
+    )
+    row += 1
+
+    set_label_value(
+        worksheet,
+        row - 1,
+        col_label_start,
+        col_label_end,
+        col_value_start,
+        col_value_end,
+        "Associated PO #s: ",
         args.number
     )
     row += 1
