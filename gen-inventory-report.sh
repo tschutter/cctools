@@ -38,7 +38,7 @@ fi
 rm -f "${FILENAME}"
 
 # Generate the inventory report.
-"${SCRIPTDIR}/gen-inventory.py" --outfile="${FILENAME}" --verbose ${ARGS}
+"${SCRIPTDIR}/gen-inventory-report.py" --outfile="${FILENAME}" --verbose ${ARGS}
 
 # Display the inventory report if it was successfully created.
 if [ -f "${FILENAME}" ]; then

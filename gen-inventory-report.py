@@ -15,6 +15,7 @@ import notify_send_handler
 
 import cctools
 
+
 def set_cell(
     worksheet,
     row,
@@ -79,65 +80,8 @@ def generate_xlsx(args, inventory):
     workbook.save(args.xlsx_filename)
 
 
-def main():
-    """main"""
-    default_config = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "cctools.cfg"
-    )
-    now = datetime.datetime.now()
-    default_xlsx_filename = now.strftime("%Y-%m-%d-OnlineInventory.xlsx")
-
-    arg_parser = argparse.ArgumentParser(
-        description="Generates an inventory report."
-    )
-    arg_parser.add_argument(
-        "--config",
-        metavar="FILE",
-        default=default_config,
-        help="configuration filename (default=%(default)s)"
-    )
-    arg_parser.add_argument(
-        "--outfile",
-        dest="xlsx_filename",
-        metavar="FILE",
-        default=default_xlsx_filename,
-        help="output XLSX filename (default=%(default)s)"
-    )
-    arg_parser.add_argument(
-        "--sort",
-        dest="sort",
-        choices=["SKU", "CAT/PROD"],
-        default="SKU",
-        help="sort order (default=%(default)s)"
-    )
-    arg_parser.add_argument(
-        "--verbose",
-        action="store_true",
-        default=False,
-        help="display progress messages"
-    )
-
-    # Parse command line arguments.
-    args = arg_parser.parse_args()
-
-    # Configure logging.
-    logging.basicConfig(
-        level=logging.INFO if args.verbose else logging.WARNING
-    )
-    logger = logging.getLogger()
-
-    # Also log using notify-send if it is available.
-    if notify_send_handler.NotifySendHandler.is_available():
-        logger.addHandler(
-            notify_send_handler.NotifySendHandler(
-                os.path.splitext(os.path.basename(__file__))[0]
-            )
-        )
-
-    # Read config file.
-    config = ConfigParser.RawConfigParser()
-    config.readfp(open(args.config))
+def fetch_inventory(args, config):
+    """Fetch inventory data from CoreCommerce."""
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
@@ -201,8 +145,74 @@ def main():
 
     # for sku, level, name in inventory:
     #     print("{:9} {:4} {}".format(sku, level, name))
+    return inventory
 
-    logger.debug("Generating {}".format(args.xlsx_filename))
+
+def main():
+    """main"""
+    default_config = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "cctools.cfg"
+    )
+    now = datetime.datetime.now()
+    default_xlsx_filename = now.strftime("%Y-%m-%d-OnlineInventory.xlsx")
+
+    arg_parser = argparse.ArgumentParser(
+        description="Generates an inventory report."
+    )
+    arg_parser.add_argument(
+        "--config",
+        metavar="FILE",
+        default=default_config,
+        help="configuration filename (default=%(default)s)"
+    )
+    arg_parser.add_argument(
+        "--outfile",
+        dest="xlsx_filename",
+        metavar="FILE",
+        default=default_xlsx_filename,
+        help="output XLSX filename (default=%(default)s)"
+    )
+    arg_parser.add_argument(
+        "--sort",
+        dest="sort",
+        choices=["SKU", "CAT/PROD"],
+        default="SKU",
+        help="sort order (default=%(default)s)"
+    )
+    arg_parser.add_argument(
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="display progress messages"
+    )
+
+    # Parse command line arguments.
+    args = arg_parser.parse_args()
+
+    # Configure logging.
+    logging.basicConfig(
+        level=logging.INFO if args.verbose else logging.WARNING
+    )
+    logger = logging.getLogger()
+
+    # Also log using notify-send if it is available.
+    if notify_send_handler.NotifySendHandler.is_available():
+        logger.addHandler(
+            notify_send_handler.NotifySendHandler(
+                os.path.splitext(os.path.basename(__file__))[0]
+            )
+        )
+
+    # Read config file.
+    config = ConfigParser.RawConfigParser()
+    config.readfp(open(args.config))
+
+    # Get inventory info.
+    inventory = fetch_inventory(args, config)
+
+    # Create spreadsheet.
+    logger.debug("Generating %s", args.xlsx_filename)
     generate_xlsx(args, inventory)
 
     logger.debug("Generation complete")
