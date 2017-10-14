@@ -4,13 +4,10 @@
 Generate an inventory tracking spreadsheet.
 """
 
-# TODO
-# - dump assorted
-# - separate tabs for separate categories
-
 import ConfigParser
 import argparse
 import datetime
+import itertools
 import logging
 import os
 
@@ -45,15 +42,8 @@ def col_letter(col):
     return chr(ord("A") + col - 1)
 
 
-def generate_xlsx(args, inventory):
-    """Generate the XLS file."""
-
-    # Construct a document.
-    workbook = openpyxl.workbook.Workbook()
-
-    # Create Inventory worksheet.
-    worksheet = workbook.worksheets[0]
-    worksheet.title = "Inventory Tracker"
+def add_inventory_to_worksheet(args, inventory, worksheet):
+    """Add inventory to a worksheet."""
 
     # Create header row.
     row = 3
@@ -110,6 +100,7 @@ def generate_xlsx(args, inventory):
 
     n_events = 10
     for _ in range(n_events):
+        worksheet.column_dimensions[col_letter(col)].width = 11
         set_cell(
             worksheet,
             row,
@@ -118,17 +109,12 @@ def generate_xlsx(args, inventory):
             font_bold=True,
             alignment_horizontal="right"
         )
-        worksheet.column_dimensions[col_letter(col)].width = 8
+        cell = worksheet.cell(row=row, column=col)
+        cell.number_format = "yyyy-mm-dd"
         col += 1
 
-#    set_cell(worksheet, 1, col, "Enabled", font_bold=True)
-#    worksheet.column_dimensions[col_letter(col)].width = 8
-#    col += 1
-
     # Create data rows.
-    for itemid, (sku, name, level, enabled) in enumerate(
-        inventory
-    ):
+    for itemid, (sku, name, level, enabled) in enumerate(inventory):
         row = itemid + 4
         col = 1
         set_cell(worksheet, row, col, sku, alignment_horizontal="left")
@@ -143,8 +129,28 @@ def generate_xlsx(args, inventory):
         set_cell(worksheet, row, col, current)
         col += 1
         set_cell(worksheet, row, col, int(level))
-#        col += 1
-#        set_cell(worksheet, row, col, enabled)
+
+    # Freeze the first four columns.
+    worksheet.freeze_panes = "E1"
+
+
+def generate_xlsx(args, inventory):
+    """Generate the XLS file."""
+
+    # Construct a document.
+    workbook = openpyxl.workbook.Workbook()
+
+    # Create and fill in a tab for each category.
+    for index, (category, products) in enumerate(inventory):
+        # Get or create worksheet (tab).
+        if index == 0:
+            worksheet = workbook.worksheets[0]
+            worksheet.title = category
+        else:
+            worksheet = workbook.create_sheet(category)
+
+        # Add the products to the worksheet.
+        add_inventory_to_worksheet(args, products, worksheet)
 
     # Write to file.
     workbook.save(args.xlsx_filename)
@@ -164,54 +170,63 @@ def fetch_inventory(args, config):
     # Get list of products.
     products = cc_browser.get_products()
 
-    # Sort products.
-    if args.sort == "SKU":
-        key = cc_browser.product_key_by_sku
-    else:
-        key = cc_browser.product_key_by_cat_and_name
-    products = sorted(products, key=key)
+    # Sort products by category, product_name.
+    products = sorted(products, key=cc_browser.product_key_by_cat_and_name)
 
     # Get list of variants.
     variants = cc_browser.get_variants()
     variants = sorted(variants, key=cc_browser.variant_key)
 
-    inventory = list()
-    for product in products:
-        if product["Available"] == "N":
-            continue
-        product_sku = product["SKU"]
-        product_name = product["Product Name"]
-        product_level = product["Inventory Level"]
-        if product["Track Inventory"] == "By Product":
-            enabled = product["Available"]
-            inventory.append(
-                (product_sku, product_name, product_level, enabled)
-            )
-        else:
-            for variant in variants:
-                if product_sku == variant["Product SKU"]:
-                    variant_sku = variant["Variant SKU"]
-                    if variant_sku == "":
-                        sku = product_sku
-                    else:
-                        sku = "{}-{}".format(product_sku, variant_sku)
-                    variant_inventory_level = variant[
-                        "Variant Inventory Level"
-                    ]
-                    answer = variant["Variant Name"]
-                    name = "{} ({})".format(product_name, answer)
-                    enabled = variant["Variant Enabled"]
-                    inventory.append(
-                        (
-                            sku,
-                            name,
-                            variant_inventory_level,
-                            enabled
-                        )
-                    )
+    # Group products by category.
+    inventory = []
+    for _, product_group in itertools.groupby(
+        products,
+        key=cc_browser.product_key_by_category
+    ):
+        # Assemble product data for the product_group.
+        category_products = None
+        for product in product_group:
+            if product["Available"] == "N":
+                continue
 
-    # for sku, level, name in inventory:
-    #     print("{:9} {:4} {}".format(sku, level, name))
+            category_name = product["Category"]
+            if category_products is None:
+                category_products = []
+                inventory.append((category_name, category_products))
+
+            product_sku = product["SKU"]
+            product_name = product["Product Name"]
+            product_level = product["Inventory Level"]
+            if product["Track Inventory"] == "By Product":
+                enabled = product["Available"]
+                category_products.append(
+                    (product_sku, product_name, product_level, enabled)
+                )
+            else:
+                for variant in variants:
+                    if product_sku == variant["Product SKU"]:
+                        variant_sku = variant["Variant SKU"]
+                        if variant_sku == "":
+                            sku = product_sku
+                        else:
+                            sku = "{}-{}".format(product_sku, variant_sku)
+                        answer = variant["Variant Name"]
+                        if answer == "Assorted":
+                            continue
+                        name = "{} ({})".format(product_name, answer)
+                        variant_inventory_level = variant[
+                            "Variant Inventory Level"
+                        ]
+                        enabled = variant["Variant Enabled"]
+                        category_products.append(
+                            (
+                                sku,
+                                name,
+                                variant_inventory_level,
+                                enabled
+                            )
+                        )
+
     return inventory
 
 
@@ -222,7 +237,7 @@ def main():
         "cctools.cfg"
     )
     now = datetime.datetime.now()
-    default_xlsx_filename = now.strftime("%Y-%m-%d-OnlineInventory.xlsx")
+    default_xlsx_filename = now.strftime("%Y-%m-%d-InventoryTracker.xlsx")
 
     arg_parser = argparse.ArgumentParser(
         description="Generates an inventory report."
