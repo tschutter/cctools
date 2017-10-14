@@ -31,7 +31,7 @@ SCRIPT=`readlink -f "$0"`
 SCRIPTDIR=`dirname "${SCRIPT}"`
 
 # Determine the output filename.
-FILENAME="`date +%Y-%m-%d`-Inventory.xlsx"
+FILENAME="`date +%Y-%m-%d`-InventoryTracker.xlsx"
 if [ "${OUTPUT_DIR}" ]; then
     FILENAME="${OUTPUT_DIR}/${FILENAME}"
 fi
