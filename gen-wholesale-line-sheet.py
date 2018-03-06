@@ -8,6 +8,7 @@ import argparse
 import datetime
 import itertools
 import logging
+import math
 import os
 
 import ConfigParser
@@ -172,28 +173,15 @@ def add_product(args, worksheet, row, item_no, product, variants):
     product_name = product["Product Name"]
     sku = product["SKU"]
     teaser = cctools.html_to_plain_text(product["Teaser"])
-    price = float(product["Price"])
+    price = float(product["Price"]) * args.price_multiplier
+    price = math.floor(price * 100.0) / 100.0
 
     if args.include_variants:
         product_variants = get_product_variants(variants, sku)
     else:
         product_variants = []
 
-    if len(product_variants) == 0:
-        description = "{}: {}".format(product_name, teaser)
-        add_variant(
-            worksheet,
-            row,
-            item_no,
-            size,
-            sku,
-            description,
-            calc_price.calc_wholesale_price(price, args.wholesale_fraction),
-            price
-        )
-        row += 1
-        item_no += 1
-    else:
+    if product_variants:
         any_variant_exists = False
         for variant in product_variants:
             variant_sku = variant["Variant SKU"]
@@ -229,6 +217,20 @@ def add_product(args, worksheet, row, item_no, product, variants):
                     product_name
                 )
             )
+    else:
+        description = "{}: {}".format(product_name, teaser)
+        add_variant(
+            worksheet,
+            row,
+            item_no,
+            size,
+            sku,
+            description,
+            calc_price.calc_wholesale_price(price, args.wholesale_fraction),
+            price
+        )
+        row += 1
+        item_no += 1
 
     return row, item_no
 
@@ -349,13 +351,7 @@ def add_line_sheet(args, config, cc_browser, products, worksheet):
     row += 1
 
     # Add products.
-    add_products(
-        args,
-        worksheet,
-        row,
-        cc_browser,
-        products
-    )
+    add_products(args, worksheet, row, cc_browser, products)
 
 
 def generate_xlsx(args, config, cc_browser, products):
@@ -396,6 +392,12 @@ def main():
         metavar="FILE",
         default=default_config,
         help="configuration filename (default=%(default)s)"
+    )
+    arg_parser.add_argument(
+        "--price-multiplier",
+        type=float,
+        metavar="MULT",
+        help="retail price multiplier (default=1.0)"
     )
     arg_parser.add_argument(
         "--wholesale-fraction",
@@ -458,6 +460,18 @@ def main():
     # Read config file.
     config = ConfigParser.RawConfigParser()
     config.readfp(open(args.config))
+
+    # Handle the price multiplier.
+    if args.price_multiplier is None:
+        price_multiplier = get_optional_option(
+            config,
+            "wholesale_line_sheet",
+            "price_multiplier"
+        )
+        if price_multiplier is None:
+            args.price_multiplier = 1.0
+        else:
+            args.price_multiplier = float(price_multiplier)
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
