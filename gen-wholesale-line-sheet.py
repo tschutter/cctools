@@ -174,7 +174,8 @@ def add_product(args, worksheet, row, item_no, product, variants):
     sku = product["SKU"]
     teaser = cctools.html_to_plain_text(product["Teaser"])
     price = float(product["Price"]) * args.price_multiplier
-    price = math.floor(price * 100.0) / 100.0
+    price =\
+        math.floor(price / args.price_precision + 0.5) * args.price_precision
 
     if args.include_variants:
         product_variants = get_product_variants(variants, sku)
@@ -387,7 +388,6 @@ def main():
     )
     arg_parser.add_argument(
         "--config",
-        action="store",
         dest="config",
         metavar="FILE",
         default=default_config,
@@ -396,12 +396,19 @@ def main():
     arg_parser.add_argument(
         "--price-multiplier",
         type=float,
-        metavar="MULT",
+        metavar="M",
         help="retail price multiplier (default=1.0)"
     )
     arg_parser.add_argument(
+        "--price-precision",
+        type=float,
+        metavar="P",
+        default=0.01,
+        help="precision of prices (default=%(default).2f)"
+    )
+    arg_parser.add_argument(
         "--wholesale-fraction",
-        metavar="FRAC",
+        metavar="F",
         default=0.5,
         help="wholesale price fraction (default=%(default).2f)"
     )
@@ -414,7 +421,6 @@ def main():
     )
     arg_parser.add_argument(
         "--outfile",
-        action="store",
         dest="xlsx_filename",
         metavar="FILE",
         default=default_xlsx_filename,
