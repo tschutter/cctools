@@ -133,7 +133,7 @@ def add_variant(
     sku,
     description,
     wholesale_price,
-    price
+    msrp
 ):
     """Add a row for a variant."""
 
@@ -150,7 +150,7 @@ def add_variant(
         worksheet,
         row,
         COL_MSRP,
-        price,
+        msrp,
         number_format=NUMBER_FORMAT_USD
     )
     set_cell(worksheet, row, COL_SIZE, size)
@@ -173,7 +173,8 @@ def add_product(args, worksheet, row, item_no, product, variants):
     product_name = product["Product Name"]
     sku = product["SKU"]
     teaser = cctools.html_to_plain_text(product["Teaser"])
-    price = float(product["Price"]) * args.price_multiplier
+    msrp = float(product["Price"])
+    price = msrp * args.price_multiplier
     price =\
         math.floor(price / args.price_precision + 0.5) * args.price_precision
 
@@ -207,7 +208,7 @@ def add_product(args, worksheet, row, item_no, product, variants):
                     price + variant_add_price,
                     args.wholesale_fraction
                 ),
-                price + variant_add_price
+                msrp + variant_add_price
             )
             row += 1
             item_no += 1
@@ -228,7 +229,7 @@ def add_product(args, worksheet, row, item_no, product, variants):
             sku,
             description,
             calc_price.calc_wholesale_price(price, args.wholesale_fraction),
-            price
+            msrp
         )
         row += 1
         item_no += 1
@@ -408,6 +409,7 @@ def main():
     )
     arg_parser.add_argument(
         "--wholesale-fraction",
+        type=float,
         metavar="F",
         default=0.5,
         help="wholesale price fraction (default=%(default).2f)"
