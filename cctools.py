@@ -128,6 +128,7 @@ class CCBrowser(object):
             "download"
         )
         self._browser = mechanize.Browser()
+        self._browser.set_handle_robots(False)
         if proxy is not None:
             self._browser.set_proxies({"https": proxy})
         self._logged_in = False
