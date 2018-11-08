@@ -861,8 +861,7 @@ def main():
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
-        config.get("website", "host"),
-        config.get("website", "site"),
+        config.get("website", "base_url"),
         config.get("website", "username"),
         config.get("website", "password"),
         cache_ttl=0 if args.func == action_refresh else 3600,

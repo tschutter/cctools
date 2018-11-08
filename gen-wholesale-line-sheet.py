@@ -483,8 +483,7 @@ def main():
 
     # Create a connection to CoreCommerce.
     cc_browser = cctools.CCBrowser(
-        config.get("website", "host"),
-        config.get("website", "site"),
+        config.get("website", "base_url"),
         config.get("website", "username"),
         config.get("website", "password")
     )

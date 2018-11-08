@@ -101,16 +101,14 @@ class CCBrowser(object):
     """Encapsulate mechanize.Browser object."""
     def __init__(
         self,
-        host,
-        site,
+        base_url,
         username,
         password,
         clean=True,
         cache_ttl=3600,
         proxy=None
     ):
-        self._host = host
-        self._base_url = "https://{}/~{}".format(host, site)
+        self._base_url = base_url
         self._admin_url = self._base_url + "/admin/index.php"
         self._username = username
         self._password = password

@@ -58,8 +58,7 @@ file must have a ``[website]`` section that specifies how the tools
 can login to CoreCommerce to download product and category lists::
 
     [website]
-    host: www16.corecommerce.com
-    site: yoursite
+    base_url: YOURSITE.corecommerce.com
     username: cctools
     password: super!secret
 

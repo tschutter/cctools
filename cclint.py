@@ -110,10 +110,7 @@ def add_is_first_answer_flag(variants):
 
 def item_edit_url(config, itemtype, item):
     """Create an URL for editing an item."""
-    base_url = "https://{}/~{}/admin/index.php".format(
-        config.get("website", "host"),
-        config.get("website", "site")
-    )
+    base_url = config.get("website", "base_url") + "/admin/index.php"
 
     if itemtype == "category":
         url = "{}?m=edit_category&catID={}".format(
@@ -328,8 +325,7 @@ class AppUI(object):
 
         # Create a connection to CoreCommerce.
         cc_browser = cctools.CCBrowser(
-            self.config.get("website", "host"),
-            self.config.get("website", "site"),
+            self.config.get("website", "base_url"),
             self.config.get("website", "username"),
             self.config.get("website", "password"),
             clean=self.args.clean,
@@ -533,7 +529,7 @@ class AppGUI(AppUI):
 
         # Set window title.
         self.root.title(
-            "cclint - {}".format(self.config.get("website", "site"))
+            "cclint - {}".format(self.config.get("base_url"))
         )
 
         self.run_checks()
