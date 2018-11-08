@@ -166,7 +166,7 @@ class CCBrowser(object):
             return
 
         # Log time consuming step.
-        LOGGER.info("Logging into {}".format(self._host))
+        LOGGER.info("Logging into {}".format(self._admin_url))
         LOGGER.debug("Username = {}".format(self._username))
 
         # Open the login page.
